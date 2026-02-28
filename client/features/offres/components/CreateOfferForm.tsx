@@ -22,6 +22,7 @@ export function CreateOfferForm() {
       heading="Nouvelle offre"
       subheading="Complétez les informations pour enrichir le pipeline."
       showFollowUpFields={false}
+      stepper
     />
   );
 }

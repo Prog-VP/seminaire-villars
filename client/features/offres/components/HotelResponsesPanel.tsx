@@ -226,7 +226,7 @@ export function HotelResponsesPanel({
                       type="button"
                       onClick={handleSave}
                       disabled={isSaving || isBusy}
-                      className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-lg bg-brand-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isSaving ? "Enregistrement…" : "Enregistrer"}
                     </button>

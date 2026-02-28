@@ -48,36 +48,10 @@ type OfferTableProps = {
 
 type PipelineTab = "pending" | "running" | "relancees";
 
-type PipelineTabMeta = {
-  label: string;
-  description: string;
-  gradient: string;
-  idleClasses: string;
-  badgeClasses: string;
-};
-
-const PIPELINE_TAB_META: Record<PipelineTab, PipelineTabMeta> = {
-  pending: {
-    label: "À envoyer",
-    description: "Aucune date d'envoi",
-    gradient: "bg-gradient-to-br from-amber-500 to-amber-700",
-    idleClasses: "border-slate-200 bg-white text-slate-800",
-    badgeClasses: "bg-white/20 text-white",
-  },
-  running: {
-    label: "En cours",
-    description: "Envoyées sans relance",
-    gradient: "bg-gradient-to-br from-slate-800 to-slate-600",
-    idleClasses: "border-slate-200 bg-white text-slate-800",
-    badgeClasses: "bg-white/20 text-white",
-  },
-  relancees: {
-    label: "Relancées",
-    description: "Relance enregistrée",
-    gradient: "bg-gradient-to-br from-emerald-600 to-emerald-800",
-    idleClasses: "border-slate-200 bg-white text-slate-800",
-    badgeClasses: "bg-white/20 text-white",
-  },
+const PIPELINE_BADGE: Record<PipelineTab, { label: string; classes: string }> = {
+  pending: { label: "À envoyer", classes: "bg-brand-100 text-brand-800" },
+  running: { label: "En cours", classes: "bg-brand-500/15 text-brand-700" },
+  relancees: { label: "Relancée", classes: "bg-brand-900/10 text-brand-900" },
 };
 
 const dateFormatter = new Intl.DateTimeFormat("fr-CH", {
@@ -143,7 +117,6 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
   const [filters, setFilters] = useState<OfferFiltersState>({
     ...INITIAL_FILTERS,
   });
-  const [activeTab, setActiveTab] = useState<PipelineTab>("pending");
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     key: "dateEnvoiOffre",
     direction: "desc",
@@ -221,7 +194,7 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
 
       if (
         filters.categorieHotel !== "all" &&
-        offer.categorieHotel !== filters.categorieHotel
+        !(offer.categorieHotel ?? "").split(",").includes(filters.categorieHotel as string)
       ) {
         return false;
       }
@@ -290,31 +263,8 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
     });
   }, [data, filters]);
 
-  const pipelineCounts = useMemo(
-    () =>
-      filteredOffers.reduce(
-        (acc, offer) => {
-          const tab = getPipelineTab(offer);
-          acc[tab] += 1;
-          return acc;
-        },
-        {
-          pending: 0,
-          running: 0,
-          relancees: 0,
-        } satisfies Record<PipelineTab, number>
-      ),
-    [filteredOffers]
-  );
-
-  const pipelineFilteredOffers = useMemo(
-    () =>
-      filteredOffers.filter((offer) => getPipelineTab(offer) === activeTab),
-    [filteredOffers, activeTab]
-  );
-
   const sortedOffers = useMemo(() => {
-    const next = [...pipelineFilteredOffers];
+    const next = [...filteredOffers];
     next.sort((a, b) => {
       const aValue = getSortValue(a, sortConfig.key);
       const bValue = getSortValue(b, sortConfig.key);
@@ -329,7 +279,7 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
       return collator.compare(String(aValue), String(bValue)) * directionFactor;
     });
     return next;
-  }, [pipelineFilteredOffers, sortConfig]);
+  }, [filteredOffers, sortConfig]);
 
   const handleFilterChange = (nextFilters: Partial<OfferFiltersState>) => {
     setFilters((previous) => ({ ...previous, ...nextFilters }));
@@ -365,58 +315,13 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
         <div className="ml-auto">
           <Link
             href="/offres/nouvelle"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-slate-900 to-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:from-slate-800 hover:to-slate-600"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-brand-900 to-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:from-brand-800 hover:to-brand-600"
           >
             <span aria-hidden className="text-base leading-none">+</span>
             Créer une offre
           </Link>
         </div>
       </header>
-
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
-        {(Object.keys(PIPELINE_TAB_META) as PipelineTab[]).map((tab) => {
-          const isActive = activeTab === tab;
-          const { label, description, gradient, idleClasses, badgeClasses } =
-            PIPELINE_TAB_META[tab];
-
-          return (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={`flex h-full flex-col justify-between rounded-xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-400 ${
-                isActive
-                  ? `border-transparent ${gradient} text-white shadow-sm`
-                  : `${idleClasses} shadow-sm hover:border-slate-300`
-              }`}
-            >
-              <div className="space-y-2">
-                <span
-                  className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
-                    isActive ? badgeClasses : "bg-slate-100 text-slate-500"
-                  }`}
-                >
-                  {label}
-                </span>
-                <p
-                  className={`text-sm ${
-                    isActive ? "text-white/90" : "text-slate-600"
-                  }`}
-                >
-                  {description}
-                </p>
-              </div>
-              <p
-                className={`text-3xl font-semibold ${
-                  isActive ? "text-white" : "text-slate-900"
-                }`}
-              >
-                {pipelineCounts[tab]}
-              </p>
-            </button>
-          );
-        })}
-      </div>
 
       <div className="mb-6">
         <OfferFilters
@@ -458,6 +363,9 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
                   </th>
                 );
               })}
+              <th className="hidden px-4 py-3 font-medium text-slate-600 sm:table-cell">
+                Statut
+              </th>
               <th className="hidden px-4 py-3 font-medium text-slate-600 lg:table-cell">
                 Réponses hôtels
               </th>
@@ -517,6 +425,19 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
                     ? dateFormatter.format(new Date(offer.dateEnvoiOffre))
                     : "Non envoyée"}
                 </td>
+                <td className="hidden px-4 py-4 sm:table-cell">
+                  {(() => {
+                    const tab = getPipelineTab(offer);
+                    const badge = PIPELINE_BADGE[tab];
+                    return (
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.classes}`}
+                      >
+                        {badge.label}
+                      </span>
+                    );
+                  })()}
+                </td>
                 <td className="hidden px-4 py-4 text-sm text-slate-700 lg:table-cell">
                   <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                     {offer.hotelResponses?.length ?? 0}
@@ -540,7 +461,7 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
             {noResults && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   className="px-6 py-8 text-center text-sm text-slate-500"
                 >
                   {errorMessage && data.length === 0

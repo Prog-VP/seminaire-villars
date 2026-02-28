@@ -22,7 +22,7 @@ export function ReglagesNav() {
             href={tab.href}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
               isActive
-                ? "bg-slate-900 text-white"
+                ? "bg-brand-900 text-white"
                 : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
             }`}
           >

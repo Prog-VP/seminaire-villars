@@ -96,7 +96,7 @@ export function SettingsPage() {
               onClick={() => setActiveType(section.type)}
               className={`rounded-xl border px-4 py-3 text-left transition ${
                 isActive
-                  ? "border-transparent bg-gradient-to-br from-slate-800 to-slate-600 text-white"
+                  ? "border-transparent bg-gradient-to-br from-brand-800 to-brand-600 text-white"
                   : "border-slate-200 bg-white text-slate-700 shadow-sm hover:border-slate-300"
               }`}
             >

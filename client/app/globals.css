@@ -10,6 +10,17 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --color-brand-950: #1e2d42;
+  --color-brand-900: #2a3f5c;
+  --color-brand-800: #354a68;
+  --color-brand-700: #406283;
+  --color-brand-600: #4d7396;
+  --color-brand-500: #5a84a9;
+  --color-brand-400: #7da0be;
+  --color-brand-200: #b4d0e4;
+  --color-brand-100: #d4e6f1;
+  --color-brand-50: #eaf2f8;
 }
 
 body {
@@ -26,7 +37,7 @@ body::before {
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(ellipse 80% 50% at 20% 50%, rgba(148, 163, 184, 0.15), transparent),
-    radial-gradient(ellipse 60% 80% at 80% 20%, rgba(148, 163, 184, 0.1), transparent);
+    radial-gradient(ellipse 80% 50% at 20% 50%, rgba(42, 63, 92, 0.12), transparent),
+    radial-gradient(ellipse 60% 80% at 80% 20%, rgba(77, 115, 150, 0.08), transparent);
   pointer-events: none;
 }

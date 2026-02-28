@@ -27,7 +27,7 @@ export function StatsDashboard({ offers }: StatsDashboardProps) {
 
   return (
     <div className="space-y-10">
-      <header className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-900 to-slate-600 p-6 text-white shadow-sm">
+      <header className="rounded-xl border border-slate-200 bg-gradient-to-r from-brand-900 to-brand-500 p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-white/60">
@@ -83,7 +83,7 @@ export function StatsDashboard({ offers }: StatsDashboardProps) {
               </div>
               <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-100">
                 <div
-                  className="h-full rounded-full bg-slate-900 transition-all"
+                  className="h-full rounded-full bg-brand-900 transition-all"
                   style={{
                     width: `${clampPercentage(item.percentage)}%`,
                   }}
@@ -167,7 +167,7 @@ export function StatsDashboard({ offers }: StatsDashboardProps) {
                   </div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
                     <div
-                      className="h-full rounded-full bg-slate-900/80"
+                      className="h-full rounded-full bg-brand-900/80"
                       style={{
                         width: `${clampPercentage(item.percentage)}%`,
                       }}
@@ -212,7 +212,7 @@ export function StatsDashboard({ offers }: StatsDashboardProps) {
                     }}
                   />
                   <div
-                    className="h-full bg-slate-900"
+                    className="h-full bg-brand-900"
                     style={{
                       width: `${clampPercentage(stats.seasonSplit.hiverPercentage)}%`,
                     }}
@@ -227,7 +227,7 @@ export function StatsDashboard({ offers }: StatsDashboardProps) {
               </div>
               <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-600">
                 <LegendDot colorClass="bg-amber-400" label="Été" />
-                <LegendDot colorClass="bg-slate-900" label="Hiver" />
+                <LegendDot colorClass="bg-brand-900" label="Hiver" />
                 <LegendDot colorClass="bg-slate-300" label="Sans date exploitable" />
                 {stats.seasonSplit.shoulderCount > 0 && (
                   <span>

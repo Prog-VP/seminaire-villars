@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   createShareLink,
   fetchOfferById,
@@ -27,12 +27,33 @@ type OfferDetailProps = {
   offer?: Offer | null;
 };
 
+const VALID_TABS = ["details", "responses", "attachments", "comments"] as const;
+type Tab = (typeof VALID_TABS)[number];
+
+function parseTab(value: string | null): Tab {
+  return VALID_TABS.includes(value as Tab) ? (value as Tab) : "details";
+}
+
 export function OfferDetail({ offer }: OfferDetailProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [currentOffer, setCurrentOffer] = useState<Offer | null>(offer ?? null);
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"details" | "responses" | "attachments" | "comments">(
-    "details"
+  const activeTab = parseTab(searchParams.get("tab"));
+
+  const setActiveTab = useCallback(
+    (tab: Tab) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (tab === "details") {
+        params.delete("tab");
+      } else {
+        params.set("tab", tab);
+      }
+      const qs = params.toString();
+      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+    },
+    [router, pathname, searchParams]
   );
   const [isSharing, setIsSharing] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(
@@ -403,7 +424,7 @@ useEffect(() => {
             <button
               type="button"
               onClick={handleShareLink}
-              className="rounded-lg bg-gradient-to-r from-slate-900 to-slate-700 px-3 py-1.5 text-sm font-medium text-white transition hover:from-slate-800 hover:to-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg bg-gradient-to-r from-brand-900 to-brand-700 px-3 py-1.5 text-sm font-medium text-white transition hover:from-brand-800 hover:to-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={isSharing}
             >
               {isSharing ? "Génération…" : "Partager l'offre"}
@@ -468,7 +489,7 @@ useEffect(() => {
         )}
       </section>
 
-      <nav className="flex flex-wrap gap-1">
+      <nav className="relative flex border-b border-slate-200">
         {["details", "responses", "attachments", "comments"].map((tabKey) => {
           const label =
             tabKey === "details"
@@ -484,17 +505,19 @@ useEffect(() => {
               key={tabKey}
               type="button"
               onClick={() => setActiveTab(tabKey as typeof activeTab)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  ? "text-brand-900"
+                  : "text-slate-500 hover:text-slate-800"
               }`}
             >
               {label}
               {tabKey === "responses" && currentOffer.hotelResponses?.length ? (
                 <span
-                  className={`ml-1.5 rounded-md px-1.5 text-xs font-semibold ${
-                    isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                  className={`ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none ${
+                    isActive
+                      ? "bg-brand-900/10 text-brand-900"
+                      : "bg-slate-100 text-slate-500"
                   }`}
                 >
                   {currentOffer.hotelResponses.length}
@@ -502,8 +525,10 @@ useEffect(() => {
               ) : null}
               {tabKey === "attachments" && attachmentBadgeCount ? (
                 <span
-                  className={`ml-1.5 rounded-md px-1.5 text-xs font-semibold ${
-                    isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                  className={`ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none ${
+                    isActive
+                      ? "bg-brand-900/10 text-brand-900"
+                      : "bg-slate-100 text-slate-500"
                   }`}
                 >
                   {attachmentBadgeCount}
@@ -511,13 +536,18 @@ useEffect(() => {
               ) : null}
               {tabKey === "comments" && comments.length ? (
                 <span
-                  className={`ml-1.5 rounded-md px-1.5 text-xs font-semibold ${
-                    isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                  className={`ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none ${
+                    isActive
+                      ? "bg-brand-900/10 text-brand-900"
+                      : "bg-slate-100 text-slate-500"
                   }`}
                 >
                   {comments.length}
                 </span>
               ) : null}
+              {isActive && (
+                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-brand-900" />
+              )}
             </button>
           );
         })}

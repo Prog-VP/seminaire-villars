@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { NavTabs } from "@/components/navigation/NavTabs";
 
 type DashboardShellProps = {
@@ -44,15 +45,12 @@ export function DashboardShell({ children }: DashboardShellProps) {
             isCollapsed ? "flex-col items-center" : "items-center"
           }`}
         >
-          {!isCollapsed && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-                Séminaire
-              </p>
-              <p className="text-base font-semibold text-slate-900">
-                Tableau de bord
-              </p>
+          {!isCollapsed ? (
+            <div className="flex items-center gap-3">
+              <Image src="/logo.png" alt="Villars Les Diablerets" width={120} height={40} className="object-contain" />
             </div>
+          ) : (
+            <Image src="/logo.png" alt="Villars Les Diablerets" width={32} height={32} className="rounded object-contain" />
           )}
           <button
             type="button"
@@ -109,14 +107,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
         aria-modal="true"
       >
         <div className="flex items-center justify-between px-4 py-5">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-              Séminaire
-            </p>
-            <p className="text-base font-semibold text-slate-900">
-              Tableau de bord
-            </p>
-          </div>
+          <Image src="/logo.png" alt="Villars Les Diablerets" width={120} height={40} className="object-contain" />
           <button
             type="button"
             onClick={closeMobile}
@@ -142,13 +133,16 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
       <div className="flex min-h-screen flex-1 flex-col">
         <header className="flex items-center justify-between gap-4 border-b border-white/70 bg-white/80 backdrop-blur-xl px-6 py-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-              Séminaire
-            </p>
-            <h1 className="text-lg font-semibold text-slate-900">
-              Tableau de bord
-            </h1>
+          <div className="flex items-center gap-3">
+            <Image src="/logo.png" alt="Villars Les Diablerets" width={100} height={34} className="object-contain md:hidden" />
+            <div className="hidden md:block">
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                Séminaire
+              </p>
+              <h1 className="text-lg font-semibold text-slate-900">
+                Tableau de bord
+              </h1>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button

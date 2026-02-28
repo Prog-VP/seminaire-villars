@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
 export function AccessGate() {
@@ -43,10 +44,8 @@ export function AccessGate() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm space-y-6 rounded-xl border border-white/70 bg-white/80 p-8 text-center shadow-sm ring-1 ring-white/60 backdrop-blur-xl">
-        <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-            Séminaire
-          </p>
+        <div className="space-y-3">
+          <Image src="/logo.png" alt="Villars Les Diablerets" width={160} height={54} className="mx-auto object-contain" />
           <h1 className="text-xl font-semibold text-slate-900">
             Connexion
           </h1>
@@ -93,7 +92,7 @@ export function AccessGate() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg bg-brand-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting ? "Connexion..." : "Se connecter"}
           </button>

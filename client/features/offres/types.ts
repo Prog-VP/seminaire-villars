@@ -5,6 +5,7 @@ export type Offer = {
   typeSociete: string;
   pays: string;
   emailContact?: string;
+  telephoneContact?: string;
   langue?: string;
   titreContact?: string;
   nomContact?: string;
@@ -17,6 +18,7 @@ export type Offer = {
   transmisPar?: string;
   typeSejour?: string;
   categorieHotel?: string;
+  categorieHotelAutre?: string;
   stationDemandee?: string;
   relanceEffectueeLe?: string | null;
   reservationEffectuee?: boolean;

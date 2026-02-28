@@ -297,7 +297,7 @@ export function ShareOfferView({ token, initialData }: ShareOfferViewProps) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-full bg-brand-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? "Envoi en cours…" : "Envoyer la réponse"}
           </button>
@@ -371,7 +371,7 @@ function ConfirmationPreview({
 }) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-      <div className="rounded-2xl bg-gradient-to-r from-slate-900 to-slate-600 p-6 text-white shadow-inner">
+      <div className="rounded-2xl bg-gradient-to-r from-brand-900 to-brand-500 p-6 text-white shadow-inner">
         <p className="text-xs uppercase tracking-[0.2em] text-white/60">
           Confirmation envoyée
         </p>

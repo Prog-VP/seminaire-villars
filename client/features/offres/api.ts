@@ -57,6 +57,7 @@ function mapRow(row: Record<string, unknown>): Offer {
     typeSociete: (row.typeSociete as string) ?? "",
     pays: (row.pays as string) ?? "",
     emailContact: row.emailContact as string | undefined,
+    telephoneContact: row.telephoneContact as string | undefined,
     langue: row.langue as string | undefined,
     titreContact: row.titreContact as string | undefined,
     nomContact: row.nomContact as string | undefined,
@@ -69,6 +70,7 @@ function mapRow(row: Record<string, unknown>): Offer {
     transmisPar: row.transmisPar as string | undefined,
     typeSejour: row.typeSejour as string | undefined,
     categorieHotel: row.categorieHotel as string | undefined,
+    categorieHotelAutre: row.categorieHotelAutre as string | undefined,
     stationDemandee: row.stationDemandee as string | undefined,
     relanceEffectueeLe: (row.relanceEffectueeLe as string) ?? null,
     reservationEffectuee: row.reservationEffectuee as boolean | undefined,
@@ -162,6 +164,24 @@ export async function deleteOffer(id: string) {
   }
 
   throwOnError(await supabase().from("offers").delete().eq("id", id));
+}
+
+// ---------------------------------------------------------------------------
+// Suggestions (autocomplete)
+// ---------------------------------------------------------------------------
+
+export async function fetchCategorieHotelAutreSuggestions(): Promise<string[]> {
+  const { data } = await supabase()
+    .from("offers")
+    .select("categorieHotelAutre")
+    .not("categorieHotelAutre", "is", null)
+    .not("categorieHotelAutre", "eq", "");
+
+  if (!data) return [];
+  const unique = new Set(
+    data.map((r) => (r.categorieHotelAutre as string).trim()).filter(Boolean)
+  );
+  return [...unique].sort();
 }
 
 // ---------------------------------------------------------------------------
