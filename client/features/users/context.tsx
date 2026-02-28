@@ -10,12 +10,14 @@ import {
   type ReactNode,
 } from "react";
 import type { UserRole } from "./types";
-import { fetchMyRole } from "./api";
+import { fetchMyProfile } from "./api";
 
 type UserRoleContextValue = {
   role: UserRole | null;
   isAdmin: boolean;
   isLoading: boolean;
+  nom: string;
+  prenom: string;
 };
 
 const UserRoleContext = createContext<UserRoleContextValue | undefined>(
@@ -24,13 +26,17 @@ const UserRoleContext = createContext<UserRoleContextValue | undefined>(
 
 export function UserRoleProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<UserRole | null>(null);
+  const [nom, setNom] = useState("");
+  const [prenom, setPrenom] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
       setIsLoading(true);
-      const r = await fetchMyRole();
-      setRole(r);
+      const profile = await fetchMyProfile();
+      setRole(profile.role);
+      setNom(profile.nom);
+      setPrenom(profile.prenom);
     } catch {
       setRole("standard");
     } finally {
@@ -43,8 +49,8 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
   }, [load]);
 
   const value = useMemo(
-    () => ({ role, isAdmin: role === "admin", isLoading }),
-    [role, isLoading]
+    () => ({ role, isAdmin: role === "admin", isLoading, nom, prenom }),
+    [role, isLoading, nom, prenom]
   );
 
   return (

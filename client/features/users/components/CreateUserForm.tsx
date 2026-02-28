@@ -12,6 +12,8 @@ export function CreateUserForm({ onCreated }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("standard");
+  const [nom, setNom] = useState("");
+  const [prenom, setPrenom] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,10 +23,12 @@ export function CreateUserForm({ onCreated }: Props) {
     setIsSubmitting(true);
 
     try {
-      await createUser(email, password, role);
+      await createUser(email, password, role, nom, prenom);
       setEmail("");
       setPassword("");
       setRole("standard");
+      setNom("");
+      setPrenom("");
       onCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue.");
@@ -45,7 +49,35 @@ export function CreateUserForm({ onCreated }: Props) {
         Créer un utilisateur
       </h2>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <label htmlFor="new-prenom" className="block text-xs font-medium text-slate-600">
+            Prénom
+          </label>
+          <input
+            id="new-prenom"
+            type="text"
+            value={prenom}
+            onChange={(e) => setPrenom(e.target.value)}
+            placeholder="Jean"
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="new-nom" className="block text-xs font-medium text-slate-600">
+            Nom
+          </label>
+          <input
+            id="new-nom"
+            type="text"
+            value={nom}
+            onChange={(e) => setNom(e.target.value)}
+            placeholder="Dupont"
+            className={inputClass}
+          />
+        </div>
+
         <div>
           <label htmlFor="new-email" className="block text-xs font-medium text-slate-600">
             Email

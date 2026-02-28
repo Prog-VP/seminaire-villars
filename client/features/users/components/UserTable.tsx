@@ -46,6 +46,7 @@ export function UserTable({ users, currentUserId, onRefresh }: Props) {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <th className="px-4 py-3 font-medium">Nom</th>
               <th className="px-4 py-3 font-medium">Email</th>
               <th className="px-4 py-3 font-medium">Rôle</th>
               <th className="px-4 py-3 font-medium">Créé le</th>
@@ -59,10 +60,15 @@ export function UserTable({ users, currentUserId, onRefresh }: Props) {
                 className="border-b border-slate-50 last:border-0 hover:bg-slate-50"
               >
                 <td className="px-4 py-3 font-medium text-slate-900">
-                  {user.email}
+                  {user.prenom || user.nom
+                    ? `${user.prenom} ${user.nom}`.trim()
+                    : <span className="text-slate-400">—</span>}
                   {user.id === currentUserId && (
                     <span className="ml-2 text-xs text-slate-400">(vous)</span>
                   )}
+                </td>
+                <td className="px-4 py-3 text-slate-600">
+                  {user.email}
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -106,7 +112,7 @@ export function UserTable({ users, currentUserId, onRefresh }: Props) {
             {users.length === 0 && (
               <tr>
                 <td
-                  colSpan={isAdmin ? 4 : 3}
+                  colSpan={isAdmin ? 5 : 4}
                   className="px-4 py-10 text-center text-slate-400"
                 >
                   Aucun utilisateur trouvé.

@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Offer } from "../types";
+import type { Offer, DateOption } from "../types";
 import { fetchCategorieHotelAutreSuggestions } from "../api";
 import { useSettings } from "@/features/settings/context";
+import { formatStars, getEffectiveDates, computeNights } from "../utils";
 
 type OfferFormValues = {
+  activiteUniquement: boolean;
   societeContact: string;
   typeSociete: string;
   pays: string;
@@ -19,54 +21,68 @@ type OfferFormValues = {
   categorieHotel: string;
   categorieHotelAutre: string;
   stationDemandee: string;
-  nombreDeNuits: string;
   nombrePax: string;
-  sejourDu: string;
-  sejourAu: string;
+  chambresSimple: string;
+  chambresDouble: string;
+  chambresAutre: string;
+  dateOptions: { du: string; au: string }[];
+  dateConfirmeeDu: string;
+  dateConfirmeeAu: string;
   autres: string;
   transmisPar: string;
   traitePar: string;
-  activitesVillarsDiablerets: boolean;
+  seminaire: boolean;
+  seminaireJournee: boolean;
+  seminaireDemiJournee: boolean;
+  seminaireDetails: string;
   reservationEffectuee: boolean;
   contactEntreDansBrevo: boolean;
-  dateEnvoiOffre: string;
   relanceEffectueeLe: string;
 };
 
 export const defaultOfferFormValues: OfferFormValues = {
+  activiteUniquement: false,
   societeContact: "",
-  typeSociete: "Agence",
-  pays: "CH",
+  typeSociete: "",
+  pays: "🇨🇭 CH",
   nomContact: "",
   prenomContact: "",
-  titreContact: "M.",
+  titreContact: "",
   emailContact: "",
   telephoneContact: "",
   langue: "Français",
-  typeSejour: "Séminaire",
-  categorieHotel: "4*",
+  typeSejour: "",
+  categorieHotel: "",
   categorieHotelAutre: "",
-  stationDemandee: "Villars",
-  nombreDeNuits: "",
+  stationDemandee: "",
   nombrePax: "",
-  sejourDu: "",
-  sejourAu: "",
+  chambresSimple: "",
+  chambresDouble: "",
+  chambresAutre: "",
+  dateOptions: [{ du: "", au: "" }],
+  dateConfirmeeDu: "",
+  dateConfirmeeAu: "",
   autres: "",
   transmisPar: "",
   traitePar: "",
-  activitesVillarsDiablerets: false,
+  seminaire: false,
+  seminaireJournee: false,
+  seminaireDemiJournee: false,
+  seminaireDetails: "",
   reservationEffectuee: false,
   contactEntreDansBrevo: false,
-  dateEnvoiOffre: "",
   relanceEffectueeLe: "",
 };
 
-const STEPS = [
-  { label: "Société" },
-  { label: "Contact" },
-  { label: "Séjour" },
-  { label: "Finalisation" },
-] as const;
+type StepDef = { key: string; label: string };
+
+const ALL_STEPS: StepDef[] = [
+  { key: "societe", label: "Société" },
+  { key: "contact", label: "Contact" },
+  { key: "sejour", label: "Séjour" },
+  { key: "seminaire", label: "Séminaire" },
+  { key: "finalisation", label: "Finalisation" },
+];
 
 export type OfferFormProps = {
   initialValues?: Partial<OfferFormValues>;
@@ -106,10 +122,72 @@ export function OfferForm({
   const [currentStep, setCurrentStep] = useState(0);
   const [categorieSuggestions, setCategorieSuggestions] = useState<string[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
+  const [activeSection, setActiveSection] = useState("societe");
+
+  const steps = useMemo<StepDef[]>(() => {
+    if (formState.activiteUniquement) {
+      return ALL_STEPS.filter((s) => s.key !== "sejour" && s.key !== "seminaire");
+    }
+    return ALL_STEPS;
+  }, [formState.activiteUniquement]);
+
+  const activeKey = steps[currentStep]?.key ?? "societe";
 
   useEffect(() => {
     fetchCategorieHotelAutreSuggestions().then(setCategorieSuggestions).catch(() => {});
   }, []);
+
+  const handleToggleActiviteUniquement = (checked: boolean) => {
+    if (checked) {
+      const hasSejourData =
+        formState.typeSejour ||
+        formState.categorieHotel ||
+        formState.categorieHotelAutre ||
+        formState.stationDemandee ||
+        formState.nombrePax ||
+        formState.chambresSimple ||
+        formState.chambresDouble ||
+        formState.chambresAutre ||
+        formState.dateOptions.some((o) => o.du || o.au);
+      const hasSeminaireData =
+        formState.seminaire ||
+        formState.seminaireJournee ||
+        formState.seminaireDemiJournee ||
+        formState.seminaireDetails;
+
+      if (hasSejourData || hasSeminaireData) {
+        if (
+          !window.confirm(
+            "Les informations Séjour et Séminaire remplies seront supprimées. Continuer ?"
+          )
+        )
+          return;
+      }
+
+      setFormState((prev) => ({
+        ...prev,
+        activiteUniquement: true,
+        typeSejour: "",
+        categorieHotel: "",
+        categorieHotelAutre: "",
+        stationDemandee: "",
+        nombrePax: "",
+        chambresSimple: "",
+        chambresDouble: "",
+        chambresAutre: "",
+        dateOptions: [{ du: "", au: "" }],
+        seminaire: false,
+        seminaireJournee: false,
+        seminaireDemiJournee: false,
+        seminaireDetails: "",
+      }));
+      // After toggling on, the visible steps shrink — reset step if out of range
+      // New steps: societe(0), contact(1), finalisation(2) → max index 2
+      setCurrentStep((prev) => (prev > 2 ? 0 : prev));
+    } else {
+      setFormState((prev) => ({ ...prev, activiteUniquement: false }));
+    }
+  };
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -125,7 +203,7 @@ export function OfferForm({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (stepper && currentStep < STEPS.length - 1) {
+    if (stepper && currentStep < steps.length - 1) {
       handleNext();
       return;
     }
@@ -145,7 +223,7 @@ export function OfferForm({
   const handleKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
     if (
       stepper &&
-      currentStep < STEPS.length - 1 &&
+      currentStep < steps.length - 1 &&
       event.key === "Enter" &&
       (event.target as HTMLElement).tagName !== "TEXTAREA"
     ) {
@@ -156,7 +234,7 @@ export function OfferForm({
 
   const handleNext = () => {
     if (!formRef.current) return;
-    const stepEl = formRef.current.querySelector(`[data-step="${currentStep}"]`);
+    const stepEl = formRef.current.querySelector(`[data-step="${activeKey}"]`);
     if (stepEl) {
       const inputs = stepEl.querySelectorAll<
         HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -219,10 +297,28 @@ export function OfferForm({
       return { ...prev, categorieHotel: updated.join(",") };
     });
   };
-  const stationChoices = useMemo(
-    () => mergeOption(options.stationDemandee, formState.stationDemandee),
-    [options.stationDemandee, formState.stationDemandee]
-  );
+  const stationChoices = useMemo(() => {
+    const selected = formState.stationDemandee
+      ? formState.stationDemandee.split(",").filter(Boolean)
+      : [];
+    const merged = [...options.stationDemandee];
+    for (const val of selected) {
+      if (!merged.includes(val)) merged.push(val);
+    }
+    return merged;
+  }, [options.stationDemandee, formState.stationDemandee]);
+
+  const handleStationToggle = (value: string) => {
+    setFormState((prev) => {
+      const current = prev.stationDemandee
+        ? prev.stationDemandee.split(",").filter(Boolean)
+        : [];
+      const updated = current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value];
+      return { ...prev, stationDemandee: updated.join(",") };
+    });
+  };
   const traiteParChoices = useMemo(
     () => mergeOption(options.traitePar, formState.traitePar),
     [options.traitePar, formState.traitePar]
@@ -237,8 +333,8 @@ export function OfferForm({
   const checkboxClass =
     "h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-200";
 
-  const stepHidden = (step: number) =>
-    stepper && currentStep !== step ? "hidden" : "";
+  const stepVisible = (key: string) =>
+    stepper ? activeKey === key : activeSection === key;
 
   return (
     <form
@@ -258,28 +354,49 @@ export function OfferForm({
 
       {stepper && (
         <StepIndicator
-          steps={STEPS}
+          steps={steps}
           currentStep={currentStep}
           onStepClick={setCurrentStep}
         />
       )}
 
       {!stepper && (
-        <ActionButtons
-          onCancel={onCancel}
-          cancelLabel={cancelLabel}
-          deleteLabel={deleteLabel}
-          isDeleteLoading={isDeleteLoading}
-          isSubmitting={isSubmitting}
-          submitLabel={submitLabel}
-          className="mb-6"
-        />
+        <div className="mb-6">
+          <nav className="inline-flex rounded-lg bg-slate-100 p-1">
+            {steps.map((step) => {
+              const isActive = activeSection === step.key;
+              return (
+                <button
+                  key={step.key}
+                  type="button"
+                  onClick={() => setActiveSection(step.key)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+                    isActive
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  {step.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
       )}
 
       <div className="space-y-8">
-        {/* Step 0 — Société */}
-        <div data-step={0} className={stepHidden(0)}>
+        {/* Step: Société */}
+        <div data-step="societe" className={stepVisible("societe") ? "" : "hidden"}>
           <FormSection title="Informations société">
+            <label className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formState.activiteUniquement}
+                onChange={(e) => handleToggleActiviteUniquement(e.target.checked)}
+                className={checkboxClass}
+              />
+              Activité uniquement (pas d&apos;hébergement)
+            </label>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Société de contact" required>
                 <input
@@ -299,6 +416,7 @@ export function OfferForm({
                   className={inputClass}
                   required
                 >
+                  <option value="" disabled>Sélectionner…</option>
                   {typeSocieteChoices.map((option) => (
                     <option key={option} value={option}>
                       {option}
@@ -341,8 +459,8 @@ export function OfferForm({
           </FormSection>
         </div>
 
-        {/* Step 1 — Contact */}
-        <div data-step={1} className={stepHidden(1)}>
+        {/* Step: Contact */}
+        <div data-step="contact" className={stepVisible("contact") ? "" : "hidden"}>
           <FormSection title="Contact principal" description="Coordonnées directes de votre interlocuteur.">
             <div className="grid gap-4 md:grid-cols-3">
               <Field label="Titre">
@@ -352,6 +470,7 @@ export function OfferForm({
                   onChange={handleChange}
                   className={inputClass}
                 >
+                  <option value="">Non renseigné</option>
                   {titreChoices.map((titre) => (
                     <option key={titre} value={titre}>
                       {titre}
@@ -420,8 +539,9 @@ export function OfferForm({
           </FormSection>
         </div>
 
-        {/* Step 2 — Séjour */}
-        <div data-step={2} className={stepHidden(2)}>
+        {/* Step: Séjour */}
+        {!formState.activiteUniquement && (
+        <div data-step="sejour" className={stepVisible("sejour") ? "" : "hidden"}>
           <FormSection title="Séjour" description="Informations sur la demande reçue.">
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Type de séjour">
@@ -431,6 +551,7 @@ export function OfferForm({
                   onChange={handleChange}
                   className={inputClass}
                 >
+                  <option value="">Non renseigné</option>
                   {typeSejourChoices.map((option) => (
                     <option key={option} value={option}>
                       {option}
@@ -439,21 +560,35 @@ export function OfferForm({
                 </select>
               </Field>
 
-              <Field label="Station demandée">
-                <select
-                  name="stationDemandee"
-                  value={formState.stationDemandee}
-                  onChange={handleChange}
-                  className={inputClass}
-                >
-                  {stationChoices.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </Field>
             </div>
+
+            <Field label="Station demandée">
+              <div className="mt-1 flex flex-wrap gap-3">
+                {stationChoices.map((option) => {
+                  const selected = formState.stationDemandee
+                    .split(",")
+                    .filter(Boolean);
+                  return (
+                    <label
+                      key={option}
+                      className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                        selected.includes(option)
+                          ? "border-brand-900 bg-brand-900/5 text-brand-900 font-medium"
+                          : "border-slate-200 text-slate-600 hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(option)}
+                        onChange={() => handleStationToggle(option)}
+                        className="sr-only"
+                      />
+                      {option}
+                    </label>
+                  );
+                })}
+              </div>
+            </Field>
 
             <Field label="Catégorie d'hôtel">
               <div className="mt-1 flex flex-wrap gap-3">
@@ -476,7 +611,7 @@ export function OfferForm({
                         onChange={() => handleCategorieToggle(option)}
                         className="sr-only"
                       />
-                      {option}
+                      {formatStars(option)}
                     </label>
                   );
                 })}
@@ -501,15 +636,6 @@ export function OfferForm({
             </Field>
 
             <div className="grid gap-4 md:grid-cols-3">
-              <Field label="Nombre de nuits">
-                <input
-                  name="nombreDeNuits"
-                  value={formState.nombreDeNuits}
-                  onChange={handleChange}
-                  className={inputClass}
-                />
-              </Field>
-
               <Field label="Nombre de participants">
                 <input
                   name="nombrePax"
@@ -538,73 +664,225 @@ export function OfferForm({
               </Field>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Séjour du">
+            <div className="grid gap-4 md:grid-cols-3">
+              <Field label="Chambres simple">
                 <input
-                  type="date"
-                  name="sejourDu"
-                  value={formState.sejourDu}
+                  name="chambresSimple"
+                  value={formState.chambresSimple}
                   onChange={handleChange}
                   className={inputClass}
+                  type="number"
+                  min={0}
                 />
               </Field>
+              <Field label="Chambres double">
+                <input
+                  name="chambresDouble"
+                  value={formState.chambresDouble}
+                  onChange={handleChange}
+                  className={inputClass}
+                  type="number"
+                  min={0}
+                />
+              </Field>
+              <Field label="Chambres autre">
+                <input
+                  name="chambresAutre"
+                  value={formState.chambresAutre}
+                  onChange={handleChange}
+                  className={inputClass}
+                  type="number"
+                  min={0}
+                />
+              </Field>
+            </div>
 
-              <Field label="Séjour au">
-                <input
-                  type="date"
-                  name="sejourAu"
-                  value={formState.sejourAu}
-                  onChange={handleChange}
-                  className={inputClass}
-                />
-              </Field>
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-slate-700">Options de dates</p>
+              {formState.dateOptions.map((opt, i) => (
+                <div key={i} className="flex items-end gap-3">
+                  <span className="shrink-0 pb-2 text-xs font-semibold text-slate-400">
+                    Option {i + 1}
+                  </span>
+                  <Field label="Du">
+                    <input
+                      type="date"
+                      value={opt.du}
+                      onChange={(e) => {
+                        const updated = [...formState.dateOptions];
+                        updated[i] = { ...updated[i], du: e.target.value };
+                        setFormState((prev) => ({ ...prev, dateOptions: updated }));
+                      }}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Au">
+                    <input
+                      type="date"
+                      value={opt.au}
+                      onChange={(e) => {
+                        const updated = [...formState.dateOptions];
+                        updated[i] = { ...updated[i], au: e.target.value };
+                        setFormState((prev) => ({ ...prev, dateOptions: updated }));
+                      }}
+                      className={inputClass}
+                    />
+                  </Field>
+                  {(() => {
+                    const n = computeNights(opt.du || null, opt.au || null);
+                    return n !== null ? (
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                        {n} nuit{n > 1 ? "s" : ""}
+                      </span>
+                    ) : null;
+                  })()}
+                  {formState.dateOptions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormState((prev) => ({
+                          ...prev,
+                          dateOptions: prev.dateOptions.filter((_, j) => j !== i),
+                        }));
+                      }}
+                      className="shrink-0 rounded-lg border border-slate-200 px-2 py-2 text-sm text-slate-400 transition hover:border-red-300 hover:text-red-500"
+                    >
+                      Supprimer
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    dateOptions: [...prev.dateOptions, { du: "", au: "" }],
+                  }))
+                }
+                className="rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-sm text-slate-500 transition hover:border-slate-400 hover:text-slate-700"
+              >
+                + Ajouter une option
+              </button>
             </div>
           </FormSection>
         </div>
+        )}
 
-        {/* Step 3 — Finalisation (Suivi + Options + Autres) */}
-        <div
-          data-step={3}
-          className={stepper && currentStep !== 3 ? "hidden" : "space-y-8"}
-        >
-          <FormSection title="Suivi de l'offre">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Date d'envoi de l'offre">
-                <input
-                  type="date"
-                  name="dateEnvoiOffre"
-                  value={formState.dateEnvoiOffre}
-                  onChange={handleChange}
-                  className={inputClass}
-                />
-              </Field>
+        {/* Step: Séminaire */}
+        {!formState.activiteUniquement && (
+        <div data-step="seminaire" className={stepVisible("seminaire") ? "" : "hidden"}>
+          <FormSection title="Séminaire">
+            <Field label="Séminaire">
+              <input
+                type="checkbox"
+                name="seminaire"
+                checked={formState.seminaire}
+                onChange={(e) => {
+                  if (!e.target.checked && (formState.seminaireJournee || formState.seminaireDemiJournee || formState.seminaireDetails)) {
+                    if (!window.confirm("Les informations séminaire remplies seront supprimées. Continuer ?")) return;
+                    setFormState((prev) => ({
+                      ...prev,
+                      seminaire: false,
+                      seminaireJournee: false,
+                      seminaireDemiJournee: false,
+                      seminaireDetails: "",
+                    }));
+                  } else {
+                    setFormState((prev) => ({ ...prev, seminaire: e.target.checked }));
+                  }
+                }}
+                className={checkboxClass}
+              />
+            </Field>
 
-              {showFollowUpFields && (
-                <Field label="Relance effectuée le">
-                  <input
-                    type="date"
-                    name="relanceEffectueeLe"
-                    value={formState.relanceEffectueeLe}
+            {formState.seminaire && (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Journée">
+                    <input
+                      type="checkbox"
+                      name="seminaireJournee"
+                      checked={formState.seminaireJournee}
+                      onChange={handleCheckbox}
+                      className={checkboxClass}
+                    />
+                  </Field>
+
+                  <Field label="Demi-journée">
+                    <input
+                      type="checkbox"
+                      name="seminaireDemiJournee"
+                      checked={formState.seminaireDemiJournee}
+                      onChange={handleCheckbox}
+                      className={checkboxClass}
+                    />
+                  </Field>
+                </div>
+
+                <Field label="Détails">
+                  <textarea
+                    name="seminaireDetails"
+                    value={formState.seminaireDetails}
                     onChange={handleChange}
+                    rows={3}
                     className={inputClass}
                   />
                 </Field>
-              )}
-            </div>
+              </>
+            )}
           </FormSection>
+        </div>
+        )}
+
+        {/* Step: Finalisation (Suivi + Options + Autres) */}
+        <div
+          data-step="finalisation"
+          className={stepVisible("finalisation") ? "space-y-8" : "hidden"}
+        >
+          {showFollowUpFields && (
+            <>
+              <FormSection title="Suivi de l'offre">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Relance effectuée le">
+                    <input
+                      type="date"
+                      name="relanceEffectueeLe"
+                      value={formState.relanceEffectueeLe}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </Field>
+                </div>
+              </FormSection>
+
+              <FormSection title="Date confirmée" description="Remplir une fois les dates définitives connues.">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Date confirmée du">
+                    <input
+                      type="date"
+                      name="dateConfirmeeDu"
+                      value={formState.dateConfirmeeDu}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Date confirmée au">
+                    <input
+                      type="date"
+                      name="dateConfirmeeAu"
+                      value={formState.dateConfirmeeAu}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </Field>
+                </div>
+              </FormSection>
+            </>
+          )}
 
           <FormSection title="Options">
             <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Activités Villars / Diablerets">
-                <input
-                  type="checkbox"
-                  name="activitesVillarsDiablerets"
-                  checked={formState.activitesVillarsDiablerets}
-                  onChange={handleCheckbox}
-                  className={checkboxClass}
-                />
-              </Field>
-
               {showFollowUpFields && (
                 <Field label="Réservation effectuée">
                   <input
@@ -652,7 +930,7 @@ export function OfferForm({
       {stepper ? (
         <StepNavigation
           currentStep={currentStep}
-          totalSteps={STEPS.length}
+          totalSteps={steps.length}
           onPrev={handlePrev}
           onNext={handleNext}
           onSubmit={() => formRef.current?.requestSubmit()}
@@ -680,7 +958,7 @@ function StepIndicator({
   currentStep,
   onStepClick,
 }: {
-  steps: readonly { label: string }[];
+  steps: { key: string; label: string }[];
   currentStep: number;
   onStepClick: (step: number) => void;
 }) {
@@ -836,14 +1114,34 @@ function FormSection({
 }
 
 export function mapFormValuesToPayload(values: OfferFormValues) {
+  const dateOptions: DateOption[] = values.dateOptions.filter(
+    (opt) => opt.du || opt.au
+  );
+  const effective = getEffectiveDates({
+    dateOptions,
+    dateConfirmeeDu: values.dateConfirmeeDu || null,
+    dateConfirmeeAu: values.dateConfirmeeAu || null,
+  });
+
+  const nights = computeNights(effective.du, effective.au);
+
   return {
     ...values,
+    activiteUniquement: values.activiteUniquement,
+    nombreDeNuits: nights !== null ? String(nights) : "",
     nombrePax: values.nombrePax ? Number(values.nombrePax) : undefined,
-    sejourDu: values.sejourDu ? new Date(values.sejourDu).toISOString() : undefined,
-    sejourAu: values.sejourAu ? new Date(values.sejourAu).toISOString() : undefined,
-    dateEnvoiOffre: values.dateEnvoiOffre
-      ? new Date(values.dateEnvoiOffre).toISOString()
-      : undefined,
+    chambresSimple: values.chambresSimple ? Number(values.chambresSimple) : undefined,
+    chambresDouble: values.chambresDouble ? Number(values.chambresDouble) : undefined,
+    chambresAutre: values.chambresAutre ? Number(values.chambresAutre) : undefined,
+    dateOptions,
+    dateConfirmeeDu: values.dateConfirmeeDu
+      ? new Date(values.dateConfirmeeDu).toISOString()
+      : null,
+    dateConfirmeeAu: values.dateConfirmeeAu
+      ? new Date(values.dateConfirmeeAu).toISOString()
+      : null,
+    sejourDu: effective.du ? new Date(effective.du).toISOString() : undefined,
+    sejourAu: effective.au ? new Date(effective.au).toISOString() : undefined,
     relanceEffectueeLe: values.relanceEffectueeLe
       ? new Date(values.relanceEffectueeLe).toISOString()
       : undefined,
@@ -851,31 +1149,57 @@ export function mapFormValuesToPayload(values: OfferFormValues) {
 }
 
 export function mapOfferToFormValues(offer: Offer): OfferFormValues {
+  let dateOptions: { du: string; au: string }[] =
+    offer.dateOptions?.map((opt) => ({
+      du: opt.du ? opt.du.slice(0, 10) : "",
+      au: opt.au ? opt.au.slice(0, 10) : "",
+    })) ?? [];
+
+  // Legacy fallback: if no dateOptions but sejourDu/Au exist, use them as option 1
+  if (dateOptions.length === 0 && (offer.sejourDu || offer.sejourAu)) {
+    dateOptions = [
+      {
+        du: offer.sejourDu ? offer.sejourDu.slice(0, 10) : "",
+        au: offer.sejourAu ? offer.sejourAu.slice(0, 10) : "",
+      },
+    ];
+  }
+
+  if (dateOptions.length === 0) {
+    dateOptions = [{ du: "", au: "" }];
+  }
+
   return {
+    activiteUniquement: offer.activiteUniquement ?? false,
     societeContact: offer.societeContact || "",
-    typeSociete: offer.typeSociete || "Agence",
-    pays: offer.pays || "CH",
+    typeSociete: offer.typeSociete || "",
+    pays: offer.pays || "",
     nomContact: offer.nomContact || "",
     prenomContact: offer.prenomContact || "",
-    titreContact: offer.titreContact || "M.",
+    titreContact: offer.titreContact || "",
     emailContact: offer.emailContact || "",
     telephoneContact: offer.telephoneContact || "",
-    langue: offer.langue || "Français",
-    typeSejour: offer.typeSejour || "Séminaire",
-    categorieHotel: offer.categorieHotel || "4*",
+    langue: offer.langue || "",
+    typeSejour: offer.typeSejour || "",
+    categorieHotel: offer.categorieHotel || "",
     categorieHotelAutre: offer.categorieHotelAutre || "",
-    stationDemandee: offer.stationDemandee || "Villars",
-    nombreDeNuits: offer.nombreDeNuits || "",
+    stationDemandee: offer.stationDemandee || "",
     nombrePax: offer.nombrePax?.toString() || "",
-    sejourDu: offer.sejourDu ? offer.sejourDu.slice(0, 10) : "",
-    sejourAu: offer.sejourAu ? offer.sejourAu.slice(0, 10) : "",
+    chambresSimple: offer.chambresSimple?.toString() || "",
+    chambresDouble: offer.chambresDouble?.toString() || "",
+    chambresAutre: offer.chambresAutre?.toString() || "",
+    dateOptions,
+    dateConfirmeeDu: offer.dateConfirmeeDu ? offer.dateConfirmeeDu.slice(0, 10) : "",
+    dateConfirmeeAu: offer.dateConfirmeeAu ? offer.dateConfirmeeAu.slice(0, 10) : "",
     autres: offer.autres || "",
     transmisPar: offer.transmisPar || "",
     traitePar: offer.traitePar || "",
-    activitesVillarsDiablerets: offer.activitesVillarsDiablerets ?? false,
+    seminaire: offer.seminaire ?? false,
+    seminaireJournee: offer.seminaireJournee ?? false,
+    seminaireDemiJournee: offer.seminaireDemiJournee ?? false,
+    seminaireDetails: offer.seminaireDetails || "",
     reservationEffectuee: offer.reservationEffectuee ?? false,
     contactEntreDansBrevo: offer.contactEntreDansBrevo ?? false,
-    dateEnvoiOffre: offer.dateEnvoiOffre ? offer.dateEnvoiOffre.slice(0, 10) : "",
     relanceEffectueeLe: offer.relanceEffectueeLe ? offer.relanceEffectueeLe.slice(0, 10) : "",
   };
 }

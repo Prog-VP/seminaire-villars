@@ -13,6 +13,8 @@ type Props = {
 export function EditUserModal({ user, onClose, onUpdated }: Props) {
   const [email, setEmail] = useState(user.email);
   const [role, setRole] = useState<UserRole>(user.role);
+  const [nom, setNom] = useState(user.nom ?? "");
+  const [prenom, setPrenom] = useState(user.prenom ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,9 +32,11 @@ export function EditUserModal({ user, onClose, onUpdated }: Props) {
     setIsSubmitting(true);
 
     try {
-      const payload: { email?: string; role?: UserRole } = {};
+      const payload: { email?: string; role?: UserRole; nom?: string; prenom?: string } = {};
       if (email !== user.email) payload.email = email;
       if (role !== user.role) payload.role = role;
+      if (nom !== (user.nom ?? "")) payload.nom = nom;
+      if (prenom !== (user.prenom ?? "")) payload.prenom = prenom;
 
       if (Object.keys(payload).length === 0) {
         onClose();
@@ -66,6 +70,34 @@ export function EditUserModal({ user, onClose, onUpdated }: Props) {
         <p className="mt-1 text-sm text-slate-500">{user.email}</p>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="edit-prenom" className="block text-xs font-medium text-slate-600">
+                Prénom
+              </label>
+              <input
+                id="edit-prenom"
+                type="text"
+                value={prenom}
+                onChange={(e) => setPrenom(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="edit-nom" className="block text-xs font-medium text-slate-600">
+                Nom
+              </label>
+              <input
+                id="edit-nom"
+                type="text"
+                value={nom}
+                onChange={(e) => setNom(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
           <div>
             <label htmlFor="edit-email" className="block text-xs font-medium text-slate-600">
               Email

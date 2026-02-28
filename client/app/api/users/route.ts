@@ -13,10 +13,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, password, role } = body as {
+    const { email, password, role, nom, prenom } = body as {
       email: string;
       password: string;
       role: UserRole;
+      nom?: string;
+      prenom?: string;
     };
 
     if (!email || !password) {
@@ -41,18 +43,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // Set role if admin
-    if (role === "admin" && data.user) {
-      await admin
-        .from("profiles")
-        .update({ role: "admin" })
-        .eq("id", data.user.id);
+    // Update profile fields (role, nom, prenom)
+    if (data.user) {
+      const profileUpdate: Record<string, string> = {};
+      if (role === "admin") profileUpdate.role = "admin";
+      if (nom) profileUpdate.nom = nom;
+      if (prenom) profileUpdate.prenom = prenom;
+
+      if (Object.keys(profileUpdate).length > 0) {
+        await admin
+          .from("profiles")
+          .update(profileUpdate)
+          .eq("id", data.user.id);
+      }
     }
 
     return NextResponse.json({
       id: data.user.id,
       email: data.user.email,
       role: role ?? "standard",
+      nom: nom ?? "",
+      prenom: prenom ?? "",
       created_at: data.user.created_at,
     });
   } catch {

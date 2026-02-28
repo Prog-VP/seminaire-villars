@@ -39,7 +39,8 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    console.error("[api/users/[id]]", err);
     return NextResponse.json(
       { error: "Erreur interne du serveur." },
       { status: 500 }
@@ -56,7 +57,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const { id } = await context.params;
     const body = await request.json();
-    const { email, role } = body as { email?: string; role?: string };
+    const { email, role, nom, prenom } = body as {
+      email?: string;
+      role?: string;
+      nom?: string;
+      prenom?: string;
+    };
 
     const admin = createAdminClient();
 
@@ -68,11 +74,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
     }
 
-    // Update role if provided
-    if (role && ["admin", "standard"].includes(role)) {
+    // Update profile fields (role, nom, prenom)
+    const profileUpdate: Record<string, string> = {};
+    if (role && ["admin", "standard"].includes(role)) profileUpdate.role = role;
+    if (nom !== undefined) profileUpdate.nom = nom;
+    if (prenom !== undefined) profileUpdate.prenom = prenom;
+
+    if (Object.keys(profileUpdate).length > 0) {
       const { error } = await admin
         .from("profiles")
-        .update({ role })
+        .update(profileUpdate)
         .eq("id", id);
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 400 });
@@ -80,7 +91,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    console.error("[api/users/[id]]", err);
     return NextResponse.json(
       { error: "Erreur interne du serveur." },
       { status: 500 }

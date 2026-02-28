@@ -5,10 +5,22 @@ function supabase() {
   return createClient();
 }
 
-export async function fetchMyRole(): Promise<UserRole> {
-  const { data, error } = await supabase().rpc("get_my_role");
+export type MyProfile = { role: UserRole; nom: string; prenom: string };
+
+export async function fetchMyProfile(): Promise<MyProfile> {
+  const { data, error } = await supabase().rpc("get_my_profile");
   if (error) throw new Error(error.message);
-  return (data as UserRole) ?? "standard";
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    role: (row?.role as UserRole) ?? "standard",
+    nom: (row?.nom as string) ?? "",
+    prenom: (row?.prenom as string) ?? "",
+  };
+}
+
+export async function fetchMyRole(): Promise<UserRole> {
+  const profile = await fetchMyProfile();
+  return profile.role;
 }
 
 export async function fetchUsersWithRoles(): Promise<UserProfile[]> {
@@ -20,12 +32,14 @@ export async function fetchUsersWithRoles(): Promise<UserProfile[]> {
 export async function createUser(
   email: string,
   password: string,
-  role: UserRole
+  role: UserRole,
+  nom?: string,
+  prenom?: string
 ): Promise<UserProfile> {
   const res = await fetch("/api/users", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, role }),
+    body: JSON.stringify({ email, password, role, nom, prenom }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -44,7 +58,7 @@ export async function deleteUser(id: string): Promise<void> {
 
 export async function updateUser(
   id: string,
-  payload: { email?: string; role?: UserRole }
+  payload: { email?: string; role?: UserRole; nom?: string; prenom?: string }
 ): Promise<void> {
   const res = await fetch(`/api/users/${id}`, {
     method: "PATCH",

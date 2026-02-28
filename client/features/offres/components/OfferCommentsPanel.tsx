@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { OfferComment } from "../types";
+import { useUserRole } from "@/features/users/context";
 
 type OfferCommentsPanelProps = {
   comments: OfferComment[];
@@ -24,9 +25,18 @@ export function OfferCommentsPanel({
   isLoading,
   isSubmitting,
 }: OfferCommentsPanelProps) {
+  const { nom, prenom } = useUserRole();
+  const defaultAuthor = [prenom, nom].filter(Boolean).join(" ");
   const [author, setAuthor] = useState("");
   const [content, setContent] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // Pre-fill author once profile is loaded
+  const [authorInitialized, setAuthorInitialized] = useState(false);
+  if (defaultAuthor && !authorInitialized) {
+    setAuthor(defaultAuthor);
+    setAuthorInitialized(true);
+  }
 
   const sortedComments = useMemo(
     () =>
@@ -51,7 +61,6 @@ export function OfferCommentsPanel({
         content: content.trim(),
         date: new Date().toISOString(),
       });
-      setAuthor("");
       setContent("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'ajouter le commentaire.");
