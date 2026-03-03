@@ -23,6 +23,7 @@ function normalizeSettingsMap(
     categorieHotel: [],
     stationDemandee: [],
     titreContact: [],
+    emailNotification: [],
   };
 
   for (const row of rows) {

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { OfferFiltersState } from "./OfferTable";
 import { useSettings } from "@/features/settings/context";
+import { formatStars, OFFER_STATUTS } from "../utils";
 
 const boolOptions = [
   { value: "all", label: "Tous" },
@@ -118,6 +119,22 @@ export function OfferFilters({
             />
           </FilterField>
 
+          <FilterField label="Statut">
+            <select
+              name="statut"
+              value={filters.statut}
+              onChange={handleChange}
+              className={inputClass}
+            >
+              <option value="all">Tous</option>
+              {OFFER_STATUTS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </FilterField>
+
           <FilterField label="Type de société">
             <select
               name="typeSociete"
@@ -192,7 +209,7 @@ export function OfferFilters({
               <option value="all">Toutes</option>
               {categorieChoices.map((option) => (
                 <option key={option} value={option}>
-                  {option}
+                  {formatStars(option)}
                 </option>
               ))}
             </select>
@@ -243,41 +260,6 @@ export function OfferFilters({
               onChange={handleChange}
               className={inputClass}
             />
-          </FilterField>
-
-          <FilterField label="Date envoyée après">
-            <input
-              type="date"
-              name="dateFrom"
-              value={filters.dateFrom}
-              onChange={handleChange}
-              className={inputClass}
-            />
-          </FilterField>
-
-          <FilterField label="Date envoyée avant">
-            <input
-              type="date"
-              name="dateTo"
-              value={filters.dateTo}
-              onChange={handleChange}
-              className={inputClass}
-            />
-          </FilterField>
-
-          <FilterField label="Activités Villars/Diablerets">
-            <select
-              name="activitesVillarsDiablerets"
-              value={filters.activitesVillarsDiablerets}
-              onChange={handleChange}
-              className={inputClass}
-            >
-              {boolOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
           </FilterField>
 
           <FilterField label="Réservation effectuée">

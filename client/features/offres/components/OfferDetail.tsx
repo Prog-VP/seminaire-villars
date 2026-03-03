@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useNotifications } from "@/features/notifications/context";
 import {
-  createShareLink,
   fetchOfferById,
+  fetchOfferHotelSends,
   updateHotelResponse,
   deleteHotelResponse,
+  updateOfferStatut,
   listOfferAttachments,
   uploadOfferAttachment,
   deleteOfferAttachment,
@@ -21,13 +23,16 @@ import { OfferMetaGrid } from "./OfferMetaGrid";
 import { HotelResponsesPanel } from "./HotelResponsesPanel";
 import { OfferAttachmentsPanel } from "./OfferAttachmentsPanel";
 import { OfferCommentsPanel } from "./OfferCommentsPanel";
-import type { Offer, OfferAttachment, OfferComment } from "../types";
+import { ShareDialog } from "./ShareDialog";
+import { GenerateOfferDocTab } from "@/features/documents/components/GenerateOfferDocTab";
+import type { Offer, OfferStatut, OfferAttachment, OfferComment, OfferHotelSend } from "../types";
+import { getEffectiveDates, OFFER_STATUTS, STATUT_BADGE_STYLES, getStatutLabel } from "../utils";
 
 type OfferDetailProps = {
   offer?: Offer | null;
 };
 
-const VALID_TABS = ["details", "responses", "attachments", "comments"] as const;
+const VALID_TABS = ["details", "responses", "attachments", "comments", "document"] as const;
 type Tab = (typeof VALID_TABS)[number];
 
 function parseTab(value: string | null): Tab {
@@ -38,7 +43,12 @@ export function OfferDetail({ offer }: OfferDetailProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { clearNotifications } = useNotifications();
   const [currentOffer, setCurrentOffer] = useState<Offer | null>(offer ?? null);
+
+  useEffect(() => {
+    clearNotifications();
+  }, [clearNotifications]);
   const [isEditing, setIsEditing] = useState(false);
   const activeTab = parseTab(searchParams.get("tab"));
 
@@ -55,7 +65,7 @@ export function OfferDetail({ offer }: OfferDetailProps) {
     },
     [router, pathname, searchParams]
   );
-  const [isSharing, setIsSharing] = useState(false);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(
     null
   );
@@ -73,36 +83,32 @@ export function OfferDetail({ offer }: OfferDetailProps) {
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isDeletingOffer, setIsDeletingOffer] = useState(false);
+  const [sends, setSends] = useState<OfferHotelSend[]>([]);
+  const [areSendsLoaded, setAreSendsLoaded] = useState(false);
   const attachmentBadgeCount = areAttachmentsLoaded
     ? attachments.length
     : currentOffer?.attachmentsCount ?? 0;
 
-  const handleShareLink = async () => {
+  const shareUrl = currentOffer?.shareToken
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/partage/offres/${currentOffer.shareToken}`
+    : null;
+
+  const handleShareLink = () => {
+    if (!currentOffer) return;
+    setActiveTab("responses");
+    setIsShareDialogOpen(true);
+  };
+
+  const loadSends = useCallback(async () => {
     if (!currentOffer) return;
     try {
-      setIsSharing(true);
-      setMessage(null);
-      const { shareUrl, token } = await createShareLink(currentOffer.id);
-      setCurrentOffer((prev) => (prev ? { ...prev, shareToken: token } : prev));
-
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
-        setMessage({ type: "success", text: "Lien copié dans le presse-papiers." });
-      } else {
-        setMessage({ type: "success", text: `Lien prêt : ${shareUrl}` });
-      }
-    } catch (error) {
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Impossible de générer le lien pour le moment.",
-      });
-    } finally {
-      setIsSharing(false);
+      const data = await fetchOfferHotelSends(currentOffer.id);
+      setSends(data);
+      setAreSendsLoaded(true);
+    } catch {
+      // silent — sends are supplementary info
     }
-  };
+  }, [currentOffer]);
 
   const handleDeleteOffer = async () => {
     if (!currentOffer || isDeletingOffer) return;
@@ -170,6 +176,39 @@ export function OfferDetail({ offer }: OfferDetailProps) {
       setIsLoadingAttachments(false);
     }
   }, [currentOffer, setMessage]);
+
+useEffect(() => {
+  if ((activeTab === "responses" || activeTab === "document") && !areSendsLoaded) {
+    loadSends();
+  }
+}, [activeTab, areSendsLoaded, loadSends]);
+
+// Auto-refresh hotel responses when entering the tab
+const loadResponses = useCallback(async () => {
+  if (!currentOffer) return;
+  try {
+    setIsRefreshing(true);
+    const latest = await fetchOfferById(currentOffer.id);
+    if (latest) {
+      setCurrentOffer(latest);
+    }
+  } catch {
+    // silent — will show stale data
+  } finally {
+    setIsRefreshing(false);
+  }
+}, [currentOffer?.id]);
+
+const initialTabSkipped = useRef(false);
+useEffect(() => {
+  if (activeTab === "details" || activeTab === "responses" || activeTab === "document") {
+    if (!initialTabSkipped.current) {
+      initialTabSkipped.current = true;
+      return;
+    }
+    loadResponses();
+  }
+}, [activeTab, loadResponses]);
 
 useEffect(() => {
   if (activeTab === "attachments" && !areAttachmentsLoaded) {
@@ -333,6 +372,7 @@ useEffect(() => {
       hotelName: string;
       respondentName?: string;
       message: string;
+      offerText?: string | null;
     }
   ) => {
     if (!currentOffer || isUpdatingResponse) return;
@@ -359,6 +399,18 @@ useEffect(() => {
     } finally {
       setIsUpdatingResponse(false);
     }
+  };
+
+  const handleUpdateOfferText = async (responseId: string, offerText: string) => {
+    if (!currentOffer) return;
+    const response = currentOffer.hotelResponses?.find((r) => r.id === responseId);
+    if (!response) return;
+    await handleUpdateResponse(responseId, {
+      hotelName: response.hotelName,
+      respondentName: response.respondentName,
+      message: response.message,
+      offerText: offerText || null,
+    });
   };
 
   const handleDeleteResponse = async (responseId: string) => {
@@ -401,34 +453,60 @@ useEffect(() => {
       <section className="rounded-xl border border-white/70 bg-white/90 p-6 shadow-sm ring-1 ring-white/60">
         <div className="flex flex-wrap items-start gap-4 border-b border-slate-100 pb-4">
           <div className="space-y-1">
-            <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              Offre
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                Offre
+              </span>
+              <StatusChanger
+                statut={currentOffer.statut ?? "brouillon"}
+                onChange={async (next) => {
+                  try {
+                    await updateOfferStatut(currentOffer.id, next);
+                    setCurrentOffer((prev) => prev ? { ...prev, statut: next } : prev);
+                    setMessage({ type: "success", text: "Statut mis à jour." });
+                  } catch (error) {
+                    setMessage({
+                      type: "error",
+                      text: error instanceof Error ? error.message : "Impossible de changer le statut.",
+                    });
+                  }
+                }}
+              />
+            </div>
             <h2 className="text-2xl font-semibold text-slate-900">
               {currentOffer.societeContact}
             </h2>
+            {currentOffer.numeroOffre && (
+              <p className="text-xs font-medium text-slate-400">
+                N° {currentOffer.numeroOffre}
+              </p>
+            )}
             <p className="text-sm text-slate-600">
-              {currentOffer.typeSociete} · {currentOffer.pays}
+              {[currentOffer.typeSociete, currentOffer.pays].filter(Boolean).join(" · ")}
             </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {currentOffer.stationDemandee && (
+                <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                  {currentOffer.stationDemandee}
+                </span>
+              )}
+              {currentOffer.langue && (
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                  {currentOffer.langue}
+                </span>
+              )}
+            </div>
           </div>
           <div className="ml-auto flex flex-wrap gap-3">
             {!isEditing && (
               <button
                 type="button"
-                onClick={() => setIsEditing(true)}
+                onClick={() => { setActiveTab("details"); setIsEditing(true); }}
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
               >
                 Modifier
               </button>
             )}
-            <button
-              type="button"
-              onClick={handleShareLink}
-              className="rounded-lg bg-gradient-to-r from-brand-900 to-brand-700 px-3 py-1.5 text-sm font-medium text-white transition hover:from-brand-800 hover:to-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isSharing}
-            >
-              {isSharing ? "Génération…" : "Partager l'offre"}
-            </button>
           </div>
         </div>
         <div className="mt-4 grid gap-4 text-sm text-slate-700 md:grid-cols-3">
@@ -459,20 +537,37 @@ useEffect(() => {
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-400">Dates</p>
-            <p className="text-base font-semibold text-slate-900">
-              {currentOffer.sejourDu
-                ? `${new Date(currentOffer.sejourDu).toLocaleDateString("fr-CH")} → ${
-                    currentOffer.sejourAu
-                      ? new Date(currentOffer.sejourAu).toLocaleDateString("fr-CH")
-                      : "?"
-                  }`
-                : "Non défini"}
+            <p className="text-xs uppercase tracking-wide text-slate-400">
+              Dates
+              {(currentOffer.dateOptions?.length ?? 0) > 1 && (
+                <span className="ml-1 text-slate-300">
+                  ({currentOffer.dateOptions!.length} options)
+                </span>
+              )}
             </p>
+            {(() => {
+              const eff = getEffectiveDates(currentOffer);
+              return (
+                <p className="text-base font-semibold text-slate-900">
+                  {eff.du
+                    ? `${new Date(eff.du).toLocaleDateString("fr-CH")} → ${
+                        eff.au
+                          ? new Date(eff.au).toLocaleDateString("fr-CH")
+                          : "?"
+                      }`
+                    : "Non défini"}
+                  {(currentOffer.dateConfirmeeDu || currentOffer.dateConfirmeeAu) && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                      Confirmée
+                    </span>
+                  )}
+                </p>
+              );
+            })()}
             <p className="text-xs text-slate-500">
-              {currentOffer.dateEnvoiOffre
-                ? `Envoyée le ${new Date(currentOffer.dateEnvoiOffre).toLocaleDateString("fr-CH")}`
-                : "Pas encore envoyée"}
+              {currentOffer.relanceEffectueeLe
+                ? `Relancée le ${new Date(currentOffer.relanceEffectueeLe).toLocaleDateString("fr-CH")}`
+                : ""}
             </p>
           </div>
         </div>
@@ -490,25 +585,36 @@ useEffect(() => {
       </section>
 
       <nav className="relative flex border-b border-slate-200">
-        {["details", "responses", "attachments", "comments"].map((tabKey) => {
+        {(currentOffer.activiteUniquement
+          ? ["details", "attachments", "comments"]
+          : ["details", "responses", "document", "attachments", "comments"]
+        ).map((tabKey) => {
           const label =
             tabKey === "details"
               ? "Détails"
               : tabKey === "responses"
-                ? "Réponses hôtels"
-                : tabKey === "attachments"
-                  ? "Annexes"
-                  : "Commentaires";
+                ? "Hôtels"
+                : tabKey === "document"
+                  ? "Document"
+                  : tabKey === "attachments"
+                    ? "Annexes"
+                    : "Commentaires";
           const isActive = activeTab === tabKey;
           return (
             <button
               key={tabKey}
               type="button"
-              onClick={() => setActiveTab(tabKey as typeof activeTab)}
+              disabled={isEditing && tabKey !== "details"}
+              onClick={() => {
+                if (isEditing) return;
+                setActiveTab(tabKey as typeof activeTab);
+              }}
               className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
-                isActive
-                  ? "text-brand-900"
-                  : "text-slate-500 hover:text-slate-800"
+                isEditing && tabKey !== "details"
+                  ? "cursor-not-allowed text-slate-300"
+                  : isActive
+                    ? "text-brand-900"
+                    : "text-slate-500 hover:text-slate-800"
               }`}
             >
               {label}
@@ -578,11 +684,21 @@ useEffect(() => {
       ) : activeTab === "responses" ? (
         <HotelResponsesPanel
           responses={currentOffer.hotelResponses}
+          sends={sends}
+          shareUrl={shareUrl}
           onRefresh={handleRefreshResponses}
           isRefreshing={isRefreshing}
           onUpdateResponse={handleUpdateResponse}
           onDeleteResponse={handleDeleteResponse}
           isBusy={isDeletingResponse || isUpdatingResponse}
+          onOpenShareDialog={() => setIsShareDialogOpen(true)}
+        />
+      ) : activeTab === "document" ? (
+        <GenerateOfferDocTab
+          offer={currentOffer}
+          hotelResponses={currentOffer.hotelResponses}
+          sends={sends}
+          onUpdateOfferText={handleUpdateOfferText}
         />
       ) : activeTab === "attachments" ? (
         <OfferAttachmentsPanel
@@ -600,6 +716,99 @@ useEffect(() => {
           isLoading={isLoadingComments}
           isSubmitting={isSubmittingComment}
         />
+      )}
+
+      {isShareDialogOpen && currentOffer && (
+        <ShareDialog
+          offer={currentOffer}
+          onClose={() => {
+            setIsShareDialogOpen(false);
+            loadSends();
+          }}
+          onTokenCreated={(token) =>
+            setCurrentOffer((prev) => (prev ? { ...prev, shareToken: token } : prev))
+          }
+        />
+      )}
+
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// StatusChanger — inline dropdown to change the offer statut
+// ---------------------------------------------------------------------------
+
+function StatusChanger({
+  statut,
+  onChange,
+}: {
+  statut: OfferStatut;
+  onChange: (next: OfferStatut) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  const badgeClasses = STATUT_BADGE_STYLES[statut] ?? STATUT_BADGE_STYLES.brouillon;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition hover:opacity-80 ${badgeClasses}`}
+      >
+        {getStatutLabel(statut)}
+        <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+          <path
+            fillRule="evenodd"
+            d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-52 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+          {OFFER_STATUTS.map((s) => {
+            const isActive = s.value === statut;
+            const dotClasses = STATUT_BADGE_STYLES[s.value];
+            return (
+              <button
+                key={s.value}
+                type="button"
+                onClick={() => {
+                  onChange(s.value);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+              >
+                <span className={`inline-block h-2 w-2 rounded-full ${dotClasses.split(" ")[0]}`} />
+                <span className="flex-1">{s.label}</span>
+                {isActive && (
+                  <span className="text-emerald-600">✓</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );

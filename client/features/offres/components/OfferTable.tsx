@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Offer } from "../types";
+import { STATUT_BADGE_STYLES, getStatutLabel } from "../utils";
 import { OfferFilters } from "./OfferFilters";
 
 type BooleanFilterValue = "all" | "true" | "false";
@@ -12,6 +13,7 @@ export type OfferFiltersState = {
   societe: string;
   contact: string;
   email: string;
+  statut: string;
   typeSociete: Offer["typeSociete"] | "all";
   pays: Offer["pays"] | "all";
   typeSejour: Offer["typeSejour"] | "all";
@@ -21,20 +23,22 @@ export type OfferFiltersState = {
   transmisPar: string;
   paxMin: string;
   paxMax: string;
-  dateFrom: string;
-  dateTo: string;
-  activitesVillarsDiablerets: BooleanFilterValue;
   reservationEffectuee: BooleanFilterValue;
   contactEntreDansBrevo: BooleanFilterValue;
   autres: string;
 };
 
 type SortKey =
+  | "numeroOffre"
   | "societeContact"
   | "contact"
   | "pays"
   | "typeSejour"
-  | "dateEnvoiOffre";
+  | "statut"
+  | "createdAt"
+  | "relance"
+  | "hotelSendsCount"
+  | "hotelResponsesCount";
 
 type SortConfig = {
   key: SortKey;
@@ -46,20 +50,6 @@ type OfferTableProps = {
   errorMessage?: string | null;
 };
 
-type PipelineTab = "pending" | "running" | "relancees";
-
-const PIPELINE_BADGE: Record<PipelineTab, { label: string; classes: string }> = {
-  pending: { label: "À envoyer", classes: "bg-brand-100 text-brand-800" },
-  running: { label: "En cours", classes: "bg-brand-500/15 text-brand-700" },
-  relancees: { label: "Relancée", classes: "bg-brand-900/10 text-brand-900" },
-};
-
-const dateFormatter = new Intl.DateTimeFormat("fr-CH", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-});
-
 const collator = new Intl.Collator("fr", {
   sensitivity: "base",
   usage: "sort",
@@ -70,6 +60,7 @@ const INITIAL_FILTERS: OfferFiltersState = {
   societe: "",
   contact: "",
   email: "",
+  statut: "all",
   typeSociete: "all",
   pays: "all",
   typeSejour: "all",
@@ -79,20 +70,22 @@ const INITIAL_FILTERS: OfferFiltersState = {
   transmisPar: "",
   paxMin: "",
   paxMax: "",
-  dateFrom: "",
-  dateTo: "",
-  activitesVillarsDiablerets: "all",
   reservationEffectuee: "all",
   contactEntreDansBrevo: "all",
   autres: "",
 };
 
 const sortableColumns: { label: string; key: SortKey; className?: string }[] = [
+  { label: "N°", key: "numeroOffre" },
   { label: "Société", key: "societeContact" },
   { label: "Contact", key: "contact", className: "hidden md:table-cell" },
   { label: "Pays", key: "pays", className: "hidden sm:table-cell" },
   { label: "Type séjour", key: "typeSejour", className: "hidden lg:table-cell" },
-  { label: "Envoyée le", key: "dateEnvoiOffre", className: "hidden sm:table-cell" },
+  { label: "Statut", key: "statut", className: "hidden sm:table-cell" },
+  { label: "Date", key: "createdAt", className: "hidden lg:table-cell" },
+  { label: "Relance", key: "relance", className: "hidden lg:table-cell" },
+  { label: "Hôtels contactés", key: "hotelSendsCount", className: "hidden lg:table-cell" },
+  { label: "Réponses", key: "hotelResponsesCount", className: "hidden lg:table-cell" },
 ];
 
 function normalize(value?: string | null) {
@@ -118,8 +111,8 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
     ...INITIAL_FILTERS,
   });
   const [sortConfig, setSortConfig] = useState<SortConfig>({
-    key: "dateEnvoiOffre",
-    direction: "desc",
+    key: "societeContact",
+    direction: "asc",
   });
 
   const handleNavigate = (id: string) => {
@@ -137,10 +130,14 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
 
     const paxMin = filters.paxMin ? Number(filters.paxMin) : null;
     const paxMax = filters.paxMax ? Number(filters.paxMax) : null;
-    const dateFrom = filters.dateFrom || null;
-    const dateTo = filters.dateTo || null;
-
     return data.filter((offer) => {
+      if (
+        filters.statut !== "all" &&
+        (offer.statut ?? "brouillon") !== filters.statut
+      ) {
+        return false;
+      }
+
       if (
         normalizedFilters.societe &&
         !normalize(offer.societeContact).includes(normalizedFilters.societe)
@@ -216,24 +213,6 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
       }
 
       if (paxMax !== null && (paxValue === null || paxValue > paxMax)) {
-        return false;
-      }
-
-      const offerDate = offer.dateEnvoiOffre?.slice(0, 10) ?? null;
-      if (dateFrom && (!offerDate || offerDate < dateFrom)) {
-        return false;
-      }
-
-      if (dateTo && (!offerDate || offerDate > dateTo)) {
-        return false;
-      }
-
-      if (
-        !matchesBoolean(
-          filters.activitesVillarsDiablerets,
-          offer.activitesVillarsDiablerets
-        )
-      ) {
         return false;
       }
 
@@ -363,15 +342,6 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
                   </th>
                 );
               })}
-              <th className="hidden px-4 py-3 font-medium text-slate-600 sm:table-cell">
-                Statut
-              </th>
-              <th className="hidden px-4 py-3 font-medium text-slate-600 lg:table-cell">
-                Réponses hôtels
-              </th>
-              <th className="hidden px-4 py-3 text-center font-medium text-slate-600 lg:table-cell">
-                Annexes
-              </th>
             </tr>
           </thead>
           <tbody>
@@ -389,6 +359,9 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
                 role="button"
                 className="cursor-pointer border-t border-slate-100 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
               >
+                <td className="px-4 py-4 text-sm text-slate-500">
+                  {offer.numeroOffre ?? "—"}
+                </td>
                 <td className="px-4 py-4">
                   <p className="font-medium text-slate-900">
                     {offer.societeContact}
@@ -420,40 +393,53 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
                 <td className="hidden px-4 py-4 text-sm text-slate-600 lg:table-cell">
                   {offer.typeSejour ?? "—"}
                 </td>
-                <td className="hidden px-4 py-4 text-sm text-slate-600 sm:table-cell">
-                  {offer.dateEnvoiOffre
-                    ? dateFormatter.format(new Date(offer.dateEnvoiOffre))
-                    : "Non envoyée"}
-                </td>
                 <td className="hidden px-4 py-4 sm:table-cell">
                   {(() => {
-                    const tab = getPipelineTab(offer);
-                    const badge = PIPELINE_BADGE[tab];
+                    const s = offer.statut ?? "brouillon";
+                    const classes = STATUT_BADGE_STYLES[s] ?? STATUT_BADGE_STYLES.brouillon;
                     return (
                       <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.classes}`}
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${classes}`}
                       >
-                        {badge.label}
+                        {getStatutLabel(s)}
                       </span>
                     );
                   })()}
                 </td>
-                <td className="hidden px-4 py-4 text-sm text-slate-700 lg:table-cell">
-                  <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                    {offer.hotelResponses?.length ?? 0}
-                  </span>
+                <td className="hidden px-4 py-4 text-sm text-slate-500 lg:table-cell">
+                  {offer.createdAt
+                    ? new Date(offer.createdAt).toLocaleDateString("fr-CH")
+                    : "—"}
                 </td>
-                <td className="hidden px-4 py-4 text-center text-sm text-slate-600 lg:table-cell">
-                  {offer.attachmentsCount && offer.attachmentsCount > 0 ? (
-                    <span
-                      aria-label="Annexes disponibles"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-base"
-                      title={`${offer.attachmentsCount} annexe${offer.attachmentsCount > 1 ? "s" : ""}`}
-                    >
-                      📎
-                    </span>
+                <td className="hidden px-4 py-4 text-center lg:table-cell">
+                  {offer.relanceEffectueeLe ? (
+                    <Tip label={`Relancée le ${new Date(offer.relanceEffectueeLe).toLocaleDateString("fr-CH")}`}>
+                      <span className="text-emerald-600">✓</span>
+                    </Tip>
                   ) : (
-                    <span className="text-xs text-slate-400">—</span>
+                    <span className="text-xs text-slate-300">—</span>
+                  )}
+                </td>
+                <td className="hidden px-4 py-4 text-sm lg:table-cell">
+                  {(offer.hotelSendsCount ?? 0) > 0 ? (
+                    <Tip label={offer.hotelSendsNames?.join(", ") ?? ""}>
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                        {offer.hotelSendsCount}
+                      </span>
+                    </Tip>
+                  ) : (
+                    <span className="text-xs text-slate-300">—</span>
+                  )}
+                </td>
+                <td className="hidden px-4 py-4 text-sm text-slate-700 lg:table-cell">
+                  {(offer.hotelResponses?.length ?? 0) > 0 ? (
+                    <Tip label={offer.hotelResponses!.map((r) => r.hotelName).join(", ")}>
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                        {offer.hotelResponses!.length}
+                      </span>
+                    </Tip>
+                  ) : (
+                    <span className="text-xs text-slate-300">—</span>
                   )}
                 </td>
               </tr>
@@ -461,7 +447,7 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
             {noResults && (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={10}
                   className="px-6 py-8 text-center text-sm text-slate-500"
                 >
                   {errorMessage && data.length === 0
@@ -481,6 +467,8 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
 
 function getSortValue(offer: Offer, key: SortKey) {
   switch (key) {
+    case "numeroOffre":
+      return offer.numeroOffre ?? "";
     case "societeContact":
       return normalize(offer.societeContact);
     case "contact":
@@ -493,25 +481,19 @@ function getSortValue(offer: Offer, key: SortKey) {
       return offer.pays;
     case "typeSejour":
       return offer.typeSejour ?? "";
-    case "dateEnvoiOffre":
-      return offer.dateEnvoiOffre
-        ? new Date(offer.dateEnvoiOffre).getTime()
-        : null;
+    case "statut":
+      return getStatutLabel(offer.statut);
+    case "createdAt":
+      return offer.createdAt ?? "";
+    case "relance":
+      return offer.relanceEffectueeLe ?? "";
+    case "hotelSendsCount":
+      return offer.hotelSendsCount ?? 0;
+    case "hotelResponsesCount":
+      return offer.hotelResponses?.length ?? 0;
     default:
       return null;
   }
-}
-
-function getPipelineTab(offer: Offer): PipelineTab {
-  if (!offer.dateEnvoiOffre) {
-    return "pending";
-  }
-
-  if (offer.relanceEffectueeLe) {
-    return "relancees";
-  }
-
-  return "running";
 }
 
 function SortIndicator({
@@ -532,6 +514,17 @@ function SortIndicator({
   return (
     <span aria-hidden className="text-xs leading-none text-slate-900">
       {direction === "asc" ? "↑" : "↓"}
+    </span>
+  );
+}
+
+function Tip({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <span className="group relative inline-flex">
+      {children}
+      <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1 text-xs text-white opacity-0 shadow-lg transition-opacity duration-100 group-hover:opacity-100">
+        {label}
+      </span>
     </span>
   );
 }

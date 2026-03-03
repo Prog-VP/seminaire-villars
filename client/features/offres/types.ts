@@ -1,7 +1,18 @@
+export type DateOption = {
+  du: string;
+  au: string;
+};
+
+export type OfferStatut =
+  | "brouillon"
+  | "envoye"
+  | "refuse"
+  | "confirme";
+
 export type Offer = {
   id: string;
+  numeroOffre?: string;
   societeContact: string;
-  dateEnvoiOffre?: string | null;
   typeSociete: string;
   pays: string;
   emailContact?: string;
@@ -10,11 +21,15 @@ export type Offer = {
   titreContact?: string;
   nomContact?: string;
   prenomContact?: string;
-  sejourDu?: string | null;
-  sejourAu?: string | null;
-  activitesVillarsDiablerets?: boolean;
+  dateOptions?: DateOption[];
+  dateConfirmeeDu?: string | null;
+  dateConfirmeeAu?: string | null;
+  activiteUniquement?: boolean;
   nombreDeNuits?: string;
   nombrePax?: number;
+  chambresSimple?: number;
+  chambresDouble?: number;
+  chambresAutre?: number;
   transmisPar?: string;
   typeSejour?: string;
   categorieHotel?: string;
@@ -23,6 +38,10 @@ export type Offer = {
   relanceEffectueeLe?: string | null;
   reservationEffectuee?: boolean;
   contactEntreDansBrevo?: boolean;
+  seminaire?: boolean;
+  seminaireJournee?: boolean;
+  seminaireDemiJournee?: boolean;
+  seminaireDetails?: string;
   autres?: string;
   traitePar?: string;
   createdAt?: string;
@@ -31,6 +50,9 @@ export type Offer = {
   hotelResponses?: HotelResponse[];
   comments?: OfferComment[];
   attachmentsCount?: number;
+  statut?: OfferStatut;
+  hotelSendsCount?: number;
+  hotelSendsNames?: string[];
 };
 
 export type HotelResponse = {
@@ -38,6 +60,7 @@ export type HotelResponse = {
   hotelName: string;
   respondentName?: string;
   message: string;
+  offerText?: string | null;
   createdAt?: string;
 };
 
@@ -69,3 +92,26 @@ export type OfferComment = {
   date?: string;
   createdAt?: string;
 };
+
+export type OfferHotelSend = {
+  id: string;
+  hotelId: string;
+  hotelName: string;
+  hotelEmail: string | null;
+  sentAt: string;
+};
+
+export type ParsedHotelResponse = {
+  dateFrom: string | null;
+  dateTo: string | null;
+  roomsSimple: string | null;
+  roomsDouble: string | null;
+  priceChf: string | null;
+  priceEur: string | null;
+  forfaitChf: string | null;
+  forfaitEur: string | null;
+  taxeChf: string | null;
+  taxeEur: string | null;
+  raw: string;
+};
+

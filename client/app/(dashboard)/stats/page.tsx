@@ -1,6 +1,6 @@
 import { StatsDashboard } from "@/features/stats/components/StatsDashboard";
 import { createClient } from "@/lib/supabase/server";
-import type { Offer } from "@/features/offres/types";
+import type { Offer, DateOption } from "@/features/offres/types";
 
 export default async function StatsPage() {
   let offers: Offer[] = [];
@@ -26,8 +26,9 @@ export default async function StatsPage() {
       titreContact: row.titreContact as string | undefined,
       nomContact: row.nomContact as string | undefined,
       prenomContact: row.prenomContact as string | undefined,
-      sejourDu: (row.sejourDu as string) ?? null,
-      sejourAu: (row.sejourAu as string) ?? null,
+      dateOptions: (row.dateOptions as DateOption[]) ?? [],
+      dateConfirmeeDu: (row.dateConfirmeeDu as string) ?? null,
+      dateConfirmeeAu: (row.dateConfirmeeAu as string) ?? null,
       activitesVillarsDiablerets: row.activitesVillarsDiablerets as boolean | undefined,
       nombreDeNuits: row.nombreDeNuits as string | undefined,
       nombrePax: row.nombrePax as number | undefined,
@@ -52,6 +53,7 @@ export default async function StatsPage() {
             createdAt: r.createdAt as string | undefined,
           }))
         : [],
+      statut: ((row.statut as string) || "brouillon") as import("@/features/offres/types").OfferStatut,
     }));
   } catch (err) {
     error =

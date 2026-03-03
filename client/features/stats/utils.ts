@@ -1,4 +1,5 @@
 import type { Offer } from "@/features/offres/types";
+import { getEffectiveDates, computeNights } from "@/features/offres/utils";
 
 const MONTH_FORMATTER = new Intl.DateTimeFormat("fr-FR", { month: "long" });
 const MS_IN_DAY = 1000 * 60 * 60 * 24;
@@ -28,12 +29,22 @@ export type SeasonSplit = {
   totalConsidered: number;
 };
 
+export type ConfirmedSplit = {
+  hebergement: number;
+  activite: number;
+};
+
 export type OfferStats = {
   totalOffers: number;
   offersWithSendDate: number;
   provenance: ProvenanceItem[];
+  transmitters: ProvenanceItem[];
+  typeBreakdown: ProvenanceItem[];
+  confirmedSplit: ConfirmedSplit;
+  totalHotelResponses: number;
   averageStayLength: number | null;
   averageGroupSize: number | null;
+  stayMonthDistribution: MonthlyDistributionItem[];
   monthlyDistribution: MonthlyDistributionItem[];
   seasonSplit: SeasonSplit;
 };
@@ -41,7 +52,15 @@ export type OfferStats = {
 export function buildOfferStats(offers: Offer[]): OfferStats {
   const totalOffers = offers.length;
 
-  const provenance = buildProvenance(offers, totalOffers);
+  const provenance = buildGroupedItems(offers, (o) => o.pays, totalOffers);
+  const transmitters = buildGroupedItems(offers, (o) => o.transmisPar, totalOffers);
+  const typeBreakdown = buildGroupedItems(offers, (o) => o.typeSejour, totalOffers);
+  const confirmedSplit = buildConfirmedSplit(offers);
+  const totalHotelResponses = offers.reduce(
+    (sum, o) => sum + (o.hotelResponses?.length ?? 0),
+    0,
+  );
+
   const stayLengths = offers
     .map(getStayLengthInNights)
     .filter((value): value is number => typeof value === "number");
@@ -51,6 +70,8 @@ export function buildOfferStats(offers: Offer[]): OfferStats {
     .map((offer) => (typeof offer.nombrePax === "number" ? offer.nombrePax : null))
     .filter((value): value is number => typeof value === "number" && value > 0);
   const averageGroupSize = computeAverage(groupSizes);
+
+  const stayMonthDistribution = buildStayMonthDistribution(offers);
 
   const {
     monthlyDistribution,
@@ -63,23 +84,46 @@ export function buildOfferStats(offers: Offer[]): OfferStats {
     totalOffers,
     offersWithSendDate,
     provenance,
+    transmitters,
+    typeBreakdown,
+    confirmedSplit,
+    totalHotelResponses,
     averageStayLength,
     averageGroupSize,
+    stayMonthDistribution,
     monthlyDistribution,
     seasonSplit,
   };
 }
 
-function buildProvenance(
+export function filterOffersByYear(offers: Offer[], year: number | null): Offer[] {
+  if (year === null) return offers;
+  return offers.filter((offer) => {
+    const date = parseDate(offer.createdAt);
+    return date ? date.getFullYear() === year : false;
+  });
+}
+
+export function getAvailableYears(offers: Offer[]): number[] {
+  const years = new Set<number>();
+  for (const offer of offers) {
+    const date = parseDate(offer.createdAt);
+    if (date) years.add(date.getFullYear());
+  }
+  return Array.from(years).sort((a, b) => b - a);
+}
+
+function buildGroupedItems(
   offers: Offer[],
-  totalOffers: number
+  accessor: (offer: Offer) => string | undefined,
+  totalOffers: number,
 ): ProvenanceItem[] {
   const counts = new Map<string, number>();
 
-  offers.forEach((offer) => {
-    const label = normalizeLabel(offer.pays);
+  for (const offer of offers) {
+    const label = normalizeLabel(accessor(offer));
     counts.set(label, (counts.get(label) ?? 0) + 1);
-  });
+  }
 
   return Array.from(counts.entries())
     .map(([label, count]) => ({
@@ -90,12 +134,53 @@ function buildProvenance(
     .sort((a, b) => b.count - a.count);
 }
 
+function buildConfirmedSplit(offers: Offer[]): ConfirmedSplit {
+  let hebergement = 0;
+  let activite = 0;
+  for (const offer of offers) {
+    if (offer.statut !== "confirme") continue;
+    if (offer.activiteUniquement) {
+      activite += 1;
+    } else {
+      hebergement += 1;
+    }
+  }
+  return { hebergement, activite };
+}
+
+function buildStayMonthDistribution(offers: Offer[]): MonthlyDistributionItem[] {
+  const monthlyCounts = new Map<number, number>();
+  let total = 0;
+
+  for (const offer of offers) {
+    const eff = getEffectiveDates(offer);
+    const dateStr = eff.du;
+    if (!dateStr) continue;
+    const date = parseDate(dateStr);
+    if (!date) continue;
+    total += 1;
+    const monthIndex = date.getUTCMonth();
+    monthlyCounts.set(monthIndex, (monthlyCounts.get(monthIndex) ?? 0) + 1);
+  }
+
+  return Array.from(monthlyCounts.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([monthIndex, count]) => ({
+      monthIndex,
+      label: capitalizeFirst(
+        MONTH_FORMATTER.format(new Date(Date.UTC(2024, monthIndex, 1))),
+      ),
+      count,
+      percentage: total > 0 ? (count / total) * 100 : 0,
+    }));
+}
+
 function buildMonthlyDistribution(offers: Offer[]) {
   const monthlyCounts = new Map<number, number>();
   let offersWithSendDate = 0;
 
   offers.forEach((offer) => {
-    const date = parseDate(offer.dateEnvoiOffre);
+    const date = parseDate(offer.createdAt);
     if (!date) return;
 
     offersWithSendDate += 1;
@@ -162,21 +247,16 @@ function computeAverage(values: number[]): number | null {
 }
 
 function getStayLengthInNights(offer: Offer): number | null {
+  const eff = getEffectiveDates(offer);
+  const fromDates = computeNights(eff.du, eff.au);
+  if (fromDates !== null) return fromDates;
+
   if (typeof offer.nombreDeNuits === "string") {
     const parsedFromField = extractNumber(offer.nombreDeNuits);
-    if (parsedFromField !== null) {
-      return parsedFromField;
-    }
+    if (parsedFromField !== null) return parsedFromField;
   }
 
-  const start = parseDate(offer.sejourDu);
-  const end = parseDate(offer.sejourAu);
-  if (!start || !end) return null;
-
-  const diffMs = end.getTime() - start.getTime();
-  if (!Number.isFinite(diffMs) || diffMs <= 0) return null;
-
-  return diffMs / MS_IN_DAY;
+  return null;
 }
 
 function extractNumber(value?: string | null) {
@@ -221,7 +301,7 @@ function capitalizeFirst(value: string) {
 }
 
 function getSeason(offer: Offer): "ete" | "hiver" | "shoulder" | null {
-  const referenceDate = parseDate(offer.dateEnvoiOffre);
+  const referenceDate = parseDate(offer.createdAt);
   if (!referenceDate) return null;
 
   const month = referenceDate.getUTCMonth();

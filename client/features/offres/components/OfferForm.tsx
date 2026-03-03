@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Offer, DateOption } from "../types";
+import type { Offer, DateOption, OfferStatut } from "../types";
 import { fetchCategorieHotelAutreSuggestions } from "../api";
 import { useSettings } from "@/features/settings/context";
-import { formatStars, getEffectiveDates, computeNights } from "../utils";
+import { formatStars, getEffectiveDates, computeNights, OFFER_STATUTS } from "../utils";
 
 type OfferFormValues = {
   activiteUniquement: boolean;
@@ -38,6 +38,7 @@ type OfferFormValues = {
   reservationEffectuee: boolean;
   contactEntreDansBrevo: boolean;
   relanceEffectueeLe: string;
+  statut: string;
 };
 
 export const defaultOfferFormValues: OfferFormValues = {
@@ -72,6 +73,7 @@ export const defaultOfferFormValues: OfferFormValues = {
   reservationEffectuee: false,
   contactEntreDansBrevo: false,
   relanceEffectueeLe: "",
+  statut: "brouillon",
 };
 
 type StepDef = { key: string; label: string };
@@ -298,27 +300,15 @@ export function OfferForm({
     });
   };
   const stationChoices = useMemo(() => {
-    const selected = formState.stationDemandee
-      ? formState.stationDemandee.split(",").filter(Boolean)
-      : [];
-    const merged = [...options.stationDemandee];
-    for (const val of selected) {
-      if (!merged.includes(val)) merged.push(val);
+    const base = ["Villars", "Diablerets"];
+    for (const val of options.stationDemandee) {
+      if (!base.includes(val)) base.push(val);
     }
-    return merged;
+    if (formState.stationDemandee && !base.includes(formState.stationDemandee)) {
+      base.push(formState.stationDemandee);
+    }
+    return base;
   }, [options.stationDemandee, formState.stationDemandee]);
-
-  const handleStationToggle = (value: string) => {
-    setFormState((prev) => {
-      const current = prev.stationDemandee
-        ? prev.stationDemandee.split(",").filter(Boolean)
-        : [];
-      const updated = current.includes(value)
-        ? current.filter((v) => v !== value)
-        : [...current, value];
-      return { ...prev, stationDemandee: updated.join(",") };
-    });
-  };
   const traiteParChoices = useMemo(
     () => mergeOption(options.traitePar, formState.traitePar),
     [options.traitePar, formState.traitePar]
@@ -563,31 +553,23 @@ export function OfferForm({
             </div>
 
             <Field label="Station demandée">
-              <div className="mt-1 flex flex-wrap gap-3">
-                {stationChoices.map((option) => {
-                  const selected = formState.stationDemandee
-                    .split(",")
-                    .filter(Boolean);
-                  return (
-                    <label
-                      key={option}
-                      className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
-                        selected.includes(option)
-                          ? "border-brand-900 bg-brand-900/5 text-brand-900 font-medium"
-                          : "border-slate-200 text-slate-600 hover:border-slate-300"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selected.includes(option)}
-                        onChange={() => handleStationToggle(option)}
-                        className="sr-only"
-                      />
-                      {option}
-                    </label>
-                  );
-                })}
-              </div>
+              <select
+                value={formState.stationDemandee}
+                onChange={(e) =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    stationDemandee: e.target.value,
+                  }))
+                }
+                className={inputClass}
+              >
+                <option value="">— Choisir —</option>
+                {stationChoices.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
             </Field>
 
             <Field label="Catégorie d'hôtel">
@@ -844,6 +826,20 @@ export function OfferForm({
             <>
               <FormSection title="Suivi de l'offre">
                 <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Statut">
+                    <select
+                      name="statut"
+                      value={formState.statut}
+                      onChange={handleChange}
+                      className={inputClass}
+                    >
+                      {OFFER_STATUTS.map((s) => (
+                        <option key={s.value} value={s.value}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
                   <Field label="Relance effectuée le">
                     <input
                       type="date"
@@ -1140,11 +1136,10 @@ export function mapFormValuesToPayload(values: OfferFormValues) {
     dateConfirmeeAu: values.dateConfirmeeAu
       ? new Date(values.dateConfirmeeAu).toISOString()
       : null,
-    sejourDu: effective.du ? new Date(effective.du).toISOString() : undefined,
-    sejourAu: effective.au ? new Date(effective.au).toISOString() : undefined,
     relanceEffectueeLe: values.relanceEffectueeLe
       ? new Date(values.relanceEffectueeLe).toISOString()
       : undefined,
+    statut: (values.statut || "brouillon") as OfferStatut,
   } satisfies Partial<Offer>;
 }
 
@@ -1154,16 +1149,6 @@ export function mapOfferToFormValues(offer: Offer): OfferFormValues {
       du: opt.du ? opt.du.slice(0, 10) : "",
       au: opt.au ? opt.au.slice(0, 10) : "",
     })) ?? [];
-
-  // Legacy fallback: if no dateOptions but sejourDu/Au exist, use them as option 1
-  if (dateOptions.length === 0 && (offer.sejourDu || offer.sejourAu)) {
-    dateOptions = [
-      {
-        du: offer.sejourDu ? offer.sejourDu.slice(0, 10) : "",
-        au: offer.sejourAu ? offer.sejourAu.slice(0, 10) : "",
-      },
-    ];
-  }
 
   if (dateOptions.length === 0) {
     dateOptions = [{ du: "", au: "" }];
@@ -1201,6 +1186,7 @@ export function mapOfferToFormValues(offer: Offer): OfferFormValues {
     reservationEffectuee: offer.reservationEffectuee ?? false,
     contactEntreDansBrevo: offer.contactEntreDansBrevo ?? false,
     relanceEffectueeLe: offer.relanceEffectueeLe ? offer.relanceEffectueeLe.slice(0, 10) : "",
+    statut: offer.statut || "brouillon",
   };
 }
 

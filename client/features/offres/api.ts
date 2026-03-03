@@ -1,17 +1,21 @@
 import { createClient } from "@/lib/supabase/client";
 import type {
   Offer,
+  OfferStatut,
+  DateOption,
   HotelResponse,
   HotelResponseConfirmation,
   OfferAttachment,
   OfferComment,
+  OfferHotelSend,
 } from "./types";
 
 export type SharedOfferResponse = {
   id: string;
   societeContact: string;
-  sejourDu?: string | null;
-  sejourAu?: string | null;
+  dateOptions?: DateOption[];
+  dateConfirmeeDu?: string | null;
+  dateConfirmeeAu?: string | null;
   nombrePax?: number | null;
   nombreDeNuits?: string | null;
   hotelResponses: HotelResponse[];
@@ -50,10 +54,21 @@ function mapRow(row: Record<string, unknown>): Offer {
     commentsCount = (row.offer_comments as { count: number }).count;
   }
 
+  let hotelSendsNames: string[] | undefined;
+  let hotelSendsCount: number | undefined;
+  if (Array.isArray(row.offer_hotel_sends)) {
+    const sends = row.offer_hotel_sends as Record<string, unknown>[];
+    hotelSendsNames = sends.map((s) => {
+      const hotel = s.hotels as Record<string, unknown> | null;
+      return (hotel?.nom as string) ?? "—";
+    });
+    hotelSendsCount = sends.length;
+  }
+
   return {
     id: row.id as string,
+    numeroOffre: row.numeroOffre as string | undefined,
     societeContact: row.societeContact as string,
-    dateEnvoiOffre: (row.dateEnvoiOffre as string) ?? null,
     typeSociete: (row.typeSociete as string) ?? "",
     pays: (row.pays as string) ?? "",
     emailContact: row.emailContact as string | undefined,
@@ -62,11 +77,15 @@ function mapRow(row: Record<string, unknown>): Offer {
     titreContact: row.titreContact as string | undefined,
     nomContact: row.nomContact as string | undefined,
     prenomContact: row.prenomContact as string | undefined,
-    sejourDu: (row.sejourDu as string) ?? null,
-    sejourAu: (row.sejourAu as string) ?? null,
-    activitesVillarsDiablerets: row.activitesVillarsDiablerets as boolean | undefined,
+    dateOptions: (row.dateOptions as DateOption[]) ?? [],
+    dateConfirmeeDu: (row.dateConfirmeeDu as string) ?? null,
+    dateConfirmeeAu: (row.dateConfirmeeAu as string) ?? null,
+    activiteUniquement: row.activiteUniquement as boolean | undefined,
     nombreDeNuits: row.nombreDeNuits as string | undefined,
     nombrePax: row.nombrePax as number | undefined,
+    chambresSimple: row.chambresSimple as number | undefined,
+    chambresDouble: row.chambresDouble as number | undefined,
+    chambresAutre: row.chambresAutre as number | undefined,
     transmisPar: row.transmisPar as string | undefined,
     typeSejour: row.typeSejour as string | undefined,
     categorieHotel: row.categorieHotel as string | undefined,
@@ -75,6 +94,10 @@ function mapRow(row: Record<string, unknown>): Offer {
     relanceEffectueeLe: (row.relanceEffectueeLe as string) ?? null,
     reservationEffectuee: row.reservationEffectuee as boolean | undefined,
     contactEntreDansBrevo: row.contactEntreDansBrevo as boolean | undefined,
+    seminaire: row.seminaire as boolean | undefined,
+    seminaireJournee: row.seminaireJournee as boolean | undefined,
+    seminaireDemiJournee: row.seminaireDemiJournee as boolean | undefined,
+    seminaireDetails: row.seminaireDetails as string | undefined,
     autres: row.autres as string | undefined,
     traitePar: row.traitePar as string | undefined,
     createdAt: row.createdAt as string | undefined,
@@ -83,6 +106,9 @@ function mapRow(row: Record<string, unknown>): Offer {
     hotelResponses,
     comments,
     attachmentsCount: commentsCount,
+    statut: ((row.statut as string) || "brouillon") as OfferStatut,
+    hotelSendsCount,
+    hotelSendsNames,
   };
 }
 
@@ -92,6 +118,7 @@ function mapHotelResponse(row: Record<string, unknown>): HotelResponse {
     hotelName: row.hotelName as string,
     respondentName: row.respondentName as string | undefined,
     message: row.message as string,
+    offerText: (row.offerText as string) ?? null,
     createdAt: row.createdAt as string | undefined,
   };
 }
@@ -114,7 +141,7 @@ export async function fetchOffers(): Promise<Offer[]> {
   const data = throwOnError(
     await supabase()
       .from("offers")
-      .select("*, hotel_responses(*), offer_comments(count)")
+      .select("*, hotel_responses(*), offer_comments(count), offer_hotel_sends(id, hotels(nom))")
       .order("createdAt", { ascending: false })
   );
   return (data ?? []).map(mapRow);
@@ -136,7 +163,7 @@ export async function fetchOfferById(id: string): Promise<Offer | null> {
 }
 
 export async function createOffer(payload: Partial<Offer>) {
-  const { id: _id, hotelResponses: _hr, comments: _c, attachmentsCount: _ac, ...rest } = payload;
+  const { id: _id, numeroOffre: _no, hotelResponses: _hr, comments: _c, attachmentsCount: _ac, hotelSendsCount: _hsc, hotelSendsNames: _hsn, ...rest } = payload;
   const data = throwOnError(
     await supabase().from("offers").insert(rest).select().single()
   );
@@ -144,11 +171,20 @@ export async function createOffer(payload: Partial<Offer>) {
 }
 
 export async function updateOffer(id: string, payload: Partial<Offer>) {
-  const { id: _id, hotelResponses: _hr, comments: _c, attachmentsCount: _ac, ...rest } = payload;
+  const { id: _id, numeroOffre: _no, hotelResponses: _hr, comments: _c, attachmentsCount: _ac, hotelSendsCount: _hsc, hotelSendsNames: _hsn, ...rest } = payload;
   const data = throwOnError(
     await supabase().from("offers").update(rest).eq("id", id).select().single()
   );
   return mapRow(data);
+}
+
+export async function updateOfferStatut(id: string, statut: OfferStatut) {
+  throwOnError(
+    await supabase()
+      .from("offers")
+      .update({ statut } as Record<string, unknown>)
+      .eq("id", id)
+  );
 }
 
 export async function deleteOffer(id: string) {
@@ -214,8 +250,9 @@ export async function fetchSharedOffer(token: string): Promise<SharedOfferRespon
   return {
     id: row.id,
     societeContact: row.societeContact,
-    sejourDu: row.sejourDu ?? null,
-    sejourAu: row.sejourAu ?? null,
+    dateOptions: (row.dateOptions as DateOption[]) ?? [],
+    dateConfirmeeDu: (row.dateConfirmeeDu as string) ?? null,
+    dateConfirmeeAu: (row.dateConfirmeeAu as string) ?? null,
     nombrePax: row.nombrePax ?? null,
     nombreDeNuits: row.nombreDeNuits ?? null,
     hotelResponses: (row.hotelResponses ?? []).map((r: Record<string, unknown>) => ({
@@ -272,7 +309,12 @@ export async function submitHotelResponse(
 export async function updateHotelResponse(
   offerId: string,
   responseId: string,
-  payload: { hotelName: string; respondentName?: string; message: string }
+  payload: {
+    hotelName: string;
+    respondentName?: string;
+    message: string;
+    offerText?: string | null;
+  }
 ) {
   throwOnError(
     await supabase()
@@ -281,6 +323,7 @@ export async function updateHotelResponse(
         hotelName: payload.hotelName,
         respondentName: payload.respondentName ?? null,
         message: payload.message,
+        offerText: payload.offerText ?? null,
       } as Record<string, unknown>)
       .eq("id", responseId)
       .eq("offer_id", offerId)
@@ -345,7 +388,11 @@ export async function uploadOfferAttachment(
   offerId: string,
   file: File
 ): Promise<OfferAttachment[]> {
-  const path = `${offerId}/${Date.now()}-${file.name}`;
+  const safeName = file.name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_");
+  const path = `${offerId}/${Date.now()}-${safeName}`;
 
   const { error } = await supabase()
     .storage
@@ -454,4 +501,45 @@ export async function deleteOfferComment(
   );
 
   return listOfferComments(offerId);
+}
+
+// ---------------------------------------------------------------------------
+// Offer–Hotel sends
+// ---------------------------------------------------------------------------
+
+export async function fetchOfferHotelSends(
+  offerId: string
+): Promise<OfferHotelSend[]> {
+  const data = throwOnError(
+    await supabase()
+      .from("offer_hotel_sends")
+      .select("id, offer_id, hotel_id, sent_at, hotels(nom, email)")
+      .eq("offer_id", offerId)
+      .order("sent_at", { ascending: false })
+  );
+
+  return (data ?? []).map((row: Record<string, unknown>) => {
+    const hotel = row.hotels as Record<string, unknown> | null;
+    return {
+      id: row.id as string,
+      hotelId: row.hotel_id as string,
+      hotelName: (hotel?.nom as string) ?? "",
+      hotelEmail: (hotel?.email as string) ?? null,
+      sentAt: row.sent_at as string,
+    };
+  });
+}
+
+export async function recordHotelSend(
+  offerId: string,
+  hotelId: string
+): Promise<void> {
+  throwOnError(
+    await supabase()
+      .from("offer_hotel_sends")
+      .upsert(
+        { offer_id: offerId, hotel_id: hotelId, sent_at: new Date().toISOString() },
+        { onConflict: "offer_id,hotel_id" }
+      )
+  );
 }

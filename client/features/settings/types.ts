@@ -7,7 +7,8 @@ export type SettingType =
   | "typeSejour"
   | "categorieHotel"
   | "stationDemandee"
-  | "titreContact";
+  | "titreContact"
+  | "emailNotification";
 
 export type SettingValue = {
   id: string;

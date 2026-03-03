@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useNotifications } from "@/features/notifications/context";
 
 const tabs = [
   {
@@ -19,6 +21,9 @@ const tabs = [
 const reglagesChildren = [
   { href: "/reglages/donnees-de-base", label: "Données de base" },
   { href: "/reglages/utilisateurs", label: "Utilisateurs" },
+  { href: "/reglages/hotels", label: "Hôtels" },
+  { href: "/reglages/notifications", label: "Notifications" },
+  { href: "/reglages/documents", label: "Documents" },
 ];
 
 type NavTabsProps = {
@@ -29,6 +34,8 @@ type NavTabsProps = {
 export function NavTabs({ isCollapsed = false, onNavigate }: NavTabsProps) {
   const pathname = usePathname();
   const isReglagesActive = pathname.startsWith("/reglages");
+  const { newResponseCount } = useNotifications();
+  const [isReglagesOpen, setIsReglagesOpen] = useState(isReglagesActive);
 
   return (
     <nav
@@ -65,11 +72,16 @@ export function NavTabs({ isCollapsed = false, onNavigate }: NavTabsProps) {
                 {tab.label}
               </span>
             )}
+            {tab.href === "/offres" && newResponseCount > 0 && (
+              <span className="ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold leading-none text-white">
+                {newResponseCount}
+              </span>
+            )}
           </Link>
         );
       })}
 
-      {/* Réglages section with sub-links */}
+      {/* Réglages section — collapsible */}
       {isCollapsed ? (
         <Link
           href="/reglages/donnees-de-base"
@@ -93,10 +105,30 @@ export function NavTabs({ isCollapsed = false, onNavigate }: NavTabsProps) {
         </Link>
       ) : (
         <div className="mt-3">
-          <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <button
+            type="button"
+            onClick={() => setIsReglagesOpen((prev) => !prev)}
+            className="group flex w-full items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 transition hover:text-slate-600"
+          >
             Réglages
-          </p>
-          <div className="flex flex-col gap-0.5">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className={`h-4 w-4 transition-transform duration-200 ${isReglagesOpen ? "rotate-180" : ""}`}
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+          <div
+            className={`flex flex-col gap-0.5 overflow-hidden transition-all duration-200 ${
+              isReglagesOpen ? "mt-1 max-h-60 opacity-100" : "max-h-0 opacity-0"
+            }`}
+          >
             {reglagesChildren.map((child) => {
               const isActive = pathname === child.href;
               return (

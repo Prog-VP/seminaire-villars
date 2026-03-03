@@ -67,6 +67,7 @@ const PLACEHOLDER_MAP: Record<SettingType, string> = {
   categorieHotel: "Ajouter une catégorie",
   stationDemandee: "Ajouter une station",
   titreContact: "Ajouter un titre/civilité",
+  emailNotification: "Ajouter un email",
 };
 
 export function SettingsPage() {

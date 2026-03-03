@@ -1,0 +1,3 @@
+ALTER TABLE public.offers
+  DROP COLUMN IF EXISTS sejourDu,
+  DROP COLUMN IF EXISTS sejourAu;

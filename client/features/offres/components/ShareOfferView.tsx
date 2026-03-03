@@ -5,6 +5,7 @@ import type { InputHTMLAttributes } from "react";
 import { submitHotelResponse } from "@/features/offres/api";
 import type { SharedOfferResponse } from "@/features/offres/api";
 import type { HotelResponseConfirmation } from "@/features/offres/types";
+import { getEffectiveDates, computeNights } from "@/features/offres/utils";
 
 type ShareOfferViewProps = {
   token: string;
@@ -51,15 +52,14 @@ export function ShareOfferView({ token, initialData }: ShareOfferViewProps) {
     hotelName: "",
     respondentName: "",
   });
-  const [templateValues, setTemplateValues] = useState<TemplateState>(() => ({
-    ...TEMPLATE_DEFAULTS,
-    ...(initialData?.sejourDu
-      ? { dateFrom: formatDateInput(initialData.sejourDu) }
-      : {}),
-    ...(initialData?.sejourAu
-      ? { dateTo: formatDateInput(initialData.sejourAu) }
-      : {}),
-  }));
+  const [templateValues, setTemplateValues] = useState<TemplateState>(() => {
+    const eff = initialData ? getEffectiveDates(initialData) : { du: null, au: null };
+    return {
+      ...TEMPLATE_DEFAULTS,
+      ...(eff.du ? { dateFrom: formatDateInput(eff.du) } : {}),
+      ...(eff.au ? { dateTo: formatDateInput(eff.au) } : {}),
+    };
+  });
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
@@ -68,13 +68,19 @@ export function ShareOfferView({ token, initialData }: ShareOfferViewProps) {
 
   const staySummary = useMemo(() => {
     if (!offer) return "";
-    const dates = [offer.sejourDu, offer.sejourAu]
+    const eff = getEffectiveDates(offer);
+    const dates = [eff.du, eff.au]
       .filter(Boolean)
       .map((value) => formatDate(value as string))
       .join(" → ");
-    const nights = offer.nombreDeNuits ? `${offer.nombreDeNuits} nuit(s)` : null;
+    const nightsCount = computeNights(eff.du, eff.au);
+    const nights = nightsCount !== null ? `${nightsCount} nuit(s)` : null;
     const pax = typeof offer.nombrePax === "number" ? `${offer.nombrePax} pers.` : null;
-    return [dates, nights, pax].filter(Boolean).join(" · ");
+    const optionsCount =
+      (offer.dateOptions?.length ?? 0) > 1
+        ? `${offer.dateOptions!.length} options de dates`
+        : null;
+    return [dates, optionsCount, nights, pax].filter(Boolean).join(" · ");
   }, [offer]);
 
   const previewMessage = useMemo(() => buildTemplateMessage(templateValues), [templateValues]);
@@ -131,11 +137,24 @@ export function ShareOfferView({ token, initialData }: ShareOfferViewProps) {
           : prev
       );
       setForm({ hotelName: "", respondentName: "" });
+      const effReset = offer ? getEffectiveDates(offer) : { du: null, au: null };
       setTemplateValues({
         ...TEMPLATE_DEFAULTS,
-        ...(offer?.sejourDu ? { dateFrom: formatDateInput(offer.sejourDu) } : {}),
-        ...(offer?.sejourAu ? { dateTo: formatDateInput(offer.sejourAu) } : {}),
+        ...(effReset.du ? { dateFrom: formatDateInput(effReset.du) } : {}),
+        ...(effReset.au ? { dateTo: formatDateInput(effReset.au) } : {}),
       });
+      // Fire-and-forget notification
+      fetch("/api/notify-hotel-response", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          offerId: offer.id,
+          hotelName: form.hotelName.trim(),
+          respondentName: form.respondentName.trim() || undefined,
+          message: previewMessage,
+        }),
+      }).catch(() => {});
+
       setConfirmation(response.confirmation ?? null);
       setStatus({ type: "success", message: "Merci, votre réponse a bien été envoyée." });
     } catch (error) {

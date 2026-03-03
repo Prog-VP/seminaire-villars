@@ -1,7 +1,7 @@
 import { BackButton } from "@/components/navigation/BackButton";
 import { OfferDetail } from "@/features/offres/components/OfferDetail";
 import { createClient } from "@/lib/supabase/server";
-import type { Offer } from "@/features/offres/types";
+import type { Offer, DateOption } from "@/features/offres/types";
 
 type OfferDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -24,27 +24,37 @@ export default async function OfferDetailPage({
   if (!error && data) {
     offer = {
       id: data.id as string,
+      numeroOffre: data.numeroOffre as string | undefined,
       societeContact: data.societeContact as string,
-      dateEnvoiOffre: (data.dateEnvoiOffre as string) ?? null,
       typeSociete: (data.typeSociete as string) ?? "",
       pays: (data.pays as string) ?? "",
       emailContact: data.emailContact as string | undefined,
+      telephoneContact: data.telephoneContact as string | undefined,
       langue: data.langue as string | undefined,
       titreContact: data.titreContact as string | undefined,
       nomContact: data.nomContact as string | undefined,
       prenomContact: data.prenomContact as string | undefined,
-      sejourDu: (data.sejourDu as string) ?? null,
-      sejourAu: (data.sejourAu as string) ?? null,
-      activitesVillarsDiablerets: data.activitesVillarsDiablerets as boolean | undefined,
+      dateOptions: (data.dateOptions as DateOption[]) ?? [],
+      dateConfirmeeDu: (data.dateConfirmeeDu as string) ?? null,
+      dateConfirmeeAu: (data.dateConfirmeeAu as string) ?? null,
+      activiteUniquement: data.activiteUniquement as boolean | undefined,
       nombreDeNuits: data.nombreDeNuits as string | undefined,
       nombrePax: data.nombrePax as number | undefined,
+      chambresSimple: data.chambresSimple as number | undefined,
+      chambresDouble: data.chambresDouble as number | undefined,
+      chambresAutre: data.chambresAutre as number | undefined,
       transmisPar: data.transmisPar as string | undefined,
       typeSejour: data.typeSejour as string | undefined,
       categorieHotel: data.categorieHotel as string | undefined,
+      categorieHotelAutre: data.categorieHotelAutre as string | undefined,
       stationDemandee: data.stationDemandee as string | undefined,
       relanceEffectueeLe: (data.relanceEffectueeLe as string) ?? null,
       reservationEffectuee: data.reservationEffectuee as boolean | undefined,
       contactEntreDansBrevo: data.contactEntreDansBrevo as boolean | undefined,
+      seminaire: data.seminaire as boolean | undefined,
+      seminaireJournee: data.seminaireJournee as boolean | undefined,
+      seminaireDemiJournee: data.seminaireDemiJournee as boolean | undefined,
+      seminaireDetails: data.seminaireDetails as string | undefined,
       autres: data.autres as string | undefined,
       traitePar: data.traitePar as string | undefined,
       createdAt: data.createdAt as string | undefined,
@@ -68,6 +78,7 @@ export default async function OfferDetailPage({
             createdAt: c.createdAt as string | undefined,
           }))
         : [],
+      statut: ((data.statut as string) || "brouillon") as import("@/features/offres/types").OfferStatut,
     };
   }
 

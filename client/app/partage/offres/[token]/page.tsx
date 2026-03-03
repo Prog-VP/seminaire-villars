@@ -1,7 +1,7 @@
 import { ShareOfferView } from "@/features/offres/components/ShareOfferView";
 import { createClient } from "@/lib/supabase/server";
 import type { SharedOfferResponse } from "@/features/offres/api";
-import type { HotelResponse } from "@/features/offres/types";
+import type { DateOption, HotelResponse } from "@/features/offres/types";
 
 type ShareOfferPageProps = {
   params: Promise<{ token: string }>;
@@ -25,8 +25,9 @@ export default async function ShareOfferPage({ params }: ShareOfferPageProps) {
       offer = {
         id: row.id,
         societeContact: row.societeContact,
-        sejourDu: row.sejourDu ?? null,
-        sejourAu: row.sejourAu ?? null,
+        dateOptions: (row.dateOptions as DateOption[]) ?? [],
+        dateConfirmeeDu: (row.dateConfirmeeDu as string) ?? null,
+        dateConfirmeeAu: (row.dateConfirmeeAu as string) ?? null,
         nombrePax: row.nombrePax ?? null,
         nombreDeNuits: row.nombreDeNuits ?? null,
         hotelResponses: (row.hotelResponses ?? []).map(

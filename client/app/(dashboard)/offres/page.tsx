@@ -1,6 +1,6 @@
 import { OfferTable } from "@/features/offres/components/OfferTable";
 import { createClient } from "@/lib/supabase/server";
-import type { Offer } from "@/features/offres/types";
+import type { Offer, DateOption } from "@/features/offres/types";
 
 export default async function OffresPage() {
   let offers: Offer[] = [];
@@ -10,7 +10,7 @@ export default async function OffresPage() {
     const supabase = await createClient();
     const { data, error: dbError } = await supabase
       .from("offers")
-      .select("*, hotel_responses(*), offer_comments(count)")
+      .select("*, hotel_responses(*), offer_comments(count), offer_hotel_sends(id, hotels(nom))")
       .order("createdAt", { ascending: false });
 
     if (dbError) throw new Error(dbError.message);
@@ -26,8 +26,9 @@ export default async function OffresPage() {
       titreContact: row.titreContact as string | undefined,
       nomContact: row.nomContact as string | undefined,
       prenomContact: row.prenomContact as string | undefined,
-      sejourDu: (row.sejourDu as string) ?? null,
-      sejourAu: (row.sejourAu as string) ?? null,
+      dateOptions: (row.dateOptions as DateOption[]) ?? [],
+      dateConfirmeeDu: (row.dateConfirmeeDu as string) ?? null,
+      dateConfirmeeAu: (row.dateConfirmeeAu as string) ?? null,
       activitesVillarsDiablerets: row.activitesVillarsDiablerets as boolean | undefined,
       nombreDeNuits: row.nombreDeNuits as string | undefined,
       nombrePax: row.nombrePax as number | undefined,
@@ -54,6 +55,16 @@ export default async function OffresPage() {
         : [],
       comments: undefined,
       attachmentsCount: undefined,
+      statut: ((row.statut as string) || "brouillon") as import("@/features/offres/types").OfferStatut,
+      hotelSendsCount: Array.isArray(row.offer_hotel_sends)
+        ? (row.offer_hotel_sends as unknown[]).length
+        : undefined,
+      hotelSendsNames: Array.isArray(row.offer_hotel_sends)
+        ? (row.offer_hotel_sends as Record<string, unknown>[]).map((s) => {
+            const hotel = s.hotels as Record<string, unknown> | null;
+            return (hotel?.nom as string) ?? "—";
+          })
+        : undefined,
     }));
   } catch (err) {
     error =
