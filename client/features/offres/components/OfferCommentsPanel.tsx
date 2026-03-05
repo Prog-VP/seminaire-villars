@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { OfferComment } from "../types";
 import { useUserRole } from "@/features/users/context";
 
@@ -27,16 +27,15 @@ export function OfferCommentsPanel({
 }: OfferCommentsPanelProps) {
   const { nom, prenom } = useUserRole();
   const defaultAuthor = [prenom, nom].filter(Boolean).join(" ");
-  const [author, setAuthor] = useState("");
+  const [author, setAuthor] = useState(defaultAuthor);
   const [content, setContent] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  // Pre-fill author once profile is loaded
-  const [authorInitialized, setAuthorInitialized] = useState(false);
-  if (defaultAuthor && !authorInitialized) {
-    setAuthor(defaultAuthor);
-    setAuthorInitialized(true);
-  }
+  useEffect(() => {
+    if (defaultAuthor) {
+      setAuthor(defaultAuthor);
+    }
+  }, [defaultAuthor]);
 
   const sortedComments = useMemo(
     () =>

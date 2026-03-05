@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { HotelResponse, OfferHotelSend } from "../types";
+import { formatDate, formatDateTime } from "@/lib/format";
 
 type HotelResponsesPanelProps = {
   responses?: HotelResponse[];
@@ -22,26 +23,6 @@ type HotelResponsesPanelProps = {
   isBusy?: boolean;
   onOpenShareDialog?: () => void;
 };
-
-function formatDateTime(value?: string) {
-  if (!value) return "";
-  try {
-    return new Intl.DateTimeFormat("fr-CH", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}
-
-function formatDate(value: string) {
-  try {
-    return new Date(value).toLocaleDateString("fr-CH");
-  } catch {
-    return value;
-  }
-}
 
 export function HotelResponsesPanel({
   responses = [],

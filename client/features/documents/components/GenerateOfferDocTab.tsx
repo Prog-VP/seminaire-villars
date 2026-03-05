@@ -22,6 +22,7 @@ import type { Offer, HotelResponse, OfferHotelSend } from "@/features/offres/typ
 import type { DocumentBlock, HotelDocument } from "../types";
 import type { Hotel } from "@/features/hotels/types";
 import { fetchHotels } from "@/features/hotels/api";
+import { downloadBlob } from "@/lib/download";
 import {
   fetchDocumentBlocks,
   fetchAllHotelDocuments,
@@ -38,7 +39,6 @@ type GenerateOfferDocTabProps = {
   offer: Offer;
   hotelResponses?: HotelResponse[];
   sends?: OfferHotelSend[];
-  onUpdateOfferText?: (responseId: string, offerText: string) => Promise<void>;
 };
 
 const SEASON_LABELS: Record<string, string> = {
@@ -571,15 +571,8 @@ export function GenerateOfferDocTab({
       }
 
       const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
       const offerName = offer.societeContact?.replace(/\s+/g, "_") ?? "offre";
-      link.download = `Document_${offerName}.docx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, `Document_${offerName}.docx`);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Erreur lors de la génération."

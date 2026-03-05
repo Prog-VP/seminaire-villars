@@ -4,14 +4,12 @@ import { useCallback, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Offer } from "../types";
 import { formatStars, getEffectiveDates, computeNights, getStatutLabel } from "../utils";
+import { formatDate } from "@/lib/format";
 
 type OfferMetaGridProps = {
   offer: Offer;
   attachmentsCount?: number;
 };
-
-const formatDate = (value?: string | null) =>
-  value ? new Intl.DateTimeFormat("fr-CH").format(new Date(value)) : "—";
 
 const formatBoolean = (value?: boolean) => (value ? "Oui" : "Non");
 

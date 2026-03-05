@@ -5,10 +5,4 @@ export type Hotel = {
   created_at: string;
 };
 
-export type HotelDocument = {
-  id: string;
-  hotelId: string;
-  lang: string;
-  filePath: string;
-  createdAt: string;
-};
+export type { HotelDocument } from "@/features/documents/types";

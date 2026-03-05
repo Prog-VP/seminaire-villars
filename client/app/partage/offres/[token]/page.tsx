@@ -1,7 +1,6 @@
 import { ShareOfferView } from "@/features/offres/components/ShareOfferView";
 import { createClient } from "@/lib/supabase/server";
-import type { SharedOfferResponse } from "@/features/offres/api";
-import type { DateOption, HotelResponse } from "@/features/offres/types";
+import { mapSharedOfferRow, type SharedOfferResponse } from "@/features/offres/api";
 
 type ShareOfferPageProps = {
   params: Promise<{ token: string }>;
@@ -22,24 +21,7 @@ export default async function ShareOfferPage({ params }: ShareOfferPageProps) {
 
     const row = Array.isArray(data) ? data[0] : data;
     if (row) {
-      offer = {
-        id: row.id,
-        societeContact: row.societeContact,
-        dateOptions: (row.dateOptions as DateOption[]) ?? [],
-        dateConfirmeeDu: (row.dateConfirmeeDu as string) ?? null,
-        dateConfirmeeAu: (row.dateConfirmeeAu as string) ?? null,
-        nombrePax: row.nombrePax ?? null,
-        nombreDeNuits: row.nombreDeNuits ?? null,
-        hotelResponses: (row.hotelResponses ?? []).map(
-          (r: Record<string, unknown>): HotelResponse => ({
-            id: r.id as string,
-            hotelName: r.hotelName as string,
-            respondentName: r.respondentName as string | undefined,
-            message: r.message as string,
-            createdAt: r.createdAt as string | undefined,
-          })
-        ),
-      };
+      offer = mapSharedOfferRow(row);
     }
   } catch {
     offer = null;

@@ -8,6 +8,7 @@ import {
   deleteDocumentBlock,
   downloadDocumentBlock,
 } from "../api";
+import { downloadBlob } from "@/lib/download";
 
 const DESTINATIONS = [
   { value: "villars", label: "Villars-sur-Ollon" },
@@ -79,14 +80,7 @@ export function DocumentBlocksPage() {
 
   const handleDownload = async (block: DocumentBlock) => {
     const blob = await downloadDocumentBlock(block.filePath);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = block.filePath.split("/").pop() ?? "document.docx";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, block.filePath.split("/").pop() ?? "document.docx");
   };
 
   // Group blocks by destination

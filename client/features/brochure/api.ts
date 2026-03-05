@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { throwOnError } from "@/lib/supabase/helpers";
 import type {
   BrochureTemplate,
   OfferBrochure,
@@ -15,14 +16,6 @@ import { matchHotelSlug, extractHotelResponseData, sectionId } from "./utils";
 
 function supabase() {
   return createClient();
-}
-
-function throwOnError<T>(result: {
-  data: T;
-  error: { message: string } | null;
-}): T {
-  if (result.error) throw new Error(result.error.message);
-  return result.data;
 }
 
 function mapTemplate(row: Record<string, unknown>): BrochureTemplate {

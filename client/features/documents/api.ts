@@ -1,16 +1,9 @@
 import { createClient } from "@/lib/supabase/client";
+import { throwOnError } from "@/lib/supabase/helpers";
 import type { DocumentBlock, HotelDocument } from "./types";
 
 function supabase() {
   return createClient();
-}
-
-function throwOnError<T>(result: {
-  data: T;
-  error: { message: string } | null;
-}): T {
-  if (result.error) throw new Error(result.error.message);
-  return result.data;
 }
 
 function mapBlock(row: Record<string, unknown>): DocumentBlock {

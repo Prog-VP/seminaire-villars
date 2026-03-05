@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { throwOnError } from "@/lib/supabase/helpers";
 import type {
   Offer,
   OfferStatut,
@@ -29,12 +30,7 @@ function supabase() {
   return createClient();
 }
 
-function throwOnError<T>(result: { data: T; error: { message: string } | null }): T {
-  if (result.error) throw new Error(result.error.message);
-  return result.data;
-}
-
-function mapRow(row: Record<string, unknown>): Offer {
+export function mapRow(row: Record<string, unknown>): Offer {
   const hotelResponses = Array.isArray(row.hotel_responses)
     ? (row.hotel_responses as Record<string, unknown>[]).map(mapHotelResponse)
     : [];
@@ -105,14 +101,14 @@ function mapRow(row: Record<string, unknown>): Offer {
     shareToken: (row.shareToken as string) ?? null,
     hotelResponses,
     comments,
-    attachmentsCount: commentsCount,
+    attachmentsCount: undefined,
     statut: ((row.statut as string) || "brouillon") as OfferStatut,
     hotelSendsCount,
     hotelSendsNames,
   };
 }
 
-function mapHotelResponse(row: Record<string, unknown>): HotelResponse {
+export function mapHotelResponse(row: Record<string, unknown>): HotelResponse {
   return {
     id: row.id as string,
     hotelName: row.hotelName as string,
@@ -123,13 +119,34 @@ function mapHotelResponse(row: Record<string, unknown>): HotelResponse {
   };
 }
 
-function mapComment(row: Record<string, unknown>): OfferComment {
+export function mapComment(row: Record<string, unknown>): OfferComment {
   return {
     id: row.id as string,
     author: row.author as string,
     content: row.content as string,
     date: row.date as string | undefined,
     createdAt: row.createdAt as string | undefined,
+  };
+}
+
+export function mapSharedOfferRow(row: Record<string, unknown>): SharedOfferResponse {
+  return {
+    id: row.id as string,
+    societeContact: row.societeContact as string,
+    dateOptions: (row.dateOptions as DateOption[]) ?? [],
+    dateConfirmeeDu: (row.dateConfirmeeDu as string) ?? null,
+    dateConfirmeeAu: (row.dateConfirmeeAu as string) ?? null,
+    nombrePax: (row.nombrePax as number) ?? null,
+    nombreDeNuits: (row.nombreDeNuits as string) ?? null,
+    hotelResponses: ((row.hotelResponses as Record<string, unknown>[]) ?? []).map(
+      (r) => ({
+        id: r.id as string,
+        hotelName: r.hotelName as string,
+        respondentName: r.respondentName as string | undefined,
+        message: r.message as string,
+        createdAt: r.createdAt as string | undefined,
+      })
+    ),
   };
 }
 

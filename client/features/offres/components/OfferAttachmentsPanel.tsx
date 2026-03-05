@@ -2,14 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { OfferAttachment } from "@/features/offres/types";
-
-const humanFileSize = (bytes: number) => {
-  if (!Number.isFinite(bytes)) return "-";
-  if (bytes === 0) return "0 B";
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / 1024 ** i).toFixed(1)} ${sizes[i]}`;
-};
+import { humanFileSize, formatDateTime } from "@/lib/format";
 
 type OfferAttachmentsPanelProps = {
   attachments: OfferAttachment[];
@@ -143,7 +136,7 @@ export function OfferAttachmentsPanel({
                 <div className="flex-1">
                   <p className="font-semibold text-slate-900">{attachment.filename}</p>
                   <p className="text-xs text-slate-500">
-                    {humanFileSize(attachment.length)} • {formatDate(attachment.uploadedAt)}
+                    {humanFileSize(attachment.length)} • {formatDateTime(attachment.uploadedAt)}
                   </p>
                 </div>
                 <button
@@ -171,14 +164,3 @@ export function OfferAttachmentsPanel({
   );
 }
 
-function formatDate(value?: string) {
-  if (!value) return "";
-  try {
-    return new Intl.DateTimeFormat("fr-CH", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}

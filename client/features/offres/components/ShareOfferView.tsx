@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { InputHTMLAttributes } from "react";
 import { submitHotelResponse } from "@/features/offres/api";
+import { formatDate } from "@/lib/format";
 import type { SharedOfferResponse } from "@/features/offres/api";
 import type { HotelResponseConfirmation } from "@/features/offres/types";
 import { getEffectiveDates, computeNights } from "@/features/offres/utils";
@@ -325,17 +326,6 @@ export function ShareOfferView({ token, initialData }: ShareOfferViewProps) {
 
     </section>
   );
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return "";
-  try {
-    return new Intl.DateTimeFormat("fr-CH", { dateStyle: "medium" }).format(
-      new Date(value)
-    );
-  } catch {
-    return value;
-  }
 }
 
 function buildTemplateMessage(values: TemplateState) {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTabData } from "../hooks/useTabData";
 import { useNotifications } from "@/features/notifications/context";
 import {
   fetchOfferById,
@@ -25,8 +26,11 @@ import { OfferAttachmentsPanel } from "./OfferAttachmentsPanel";
 import { OfferCommentsPanel } from "./OfferCommentsPanel";
 import { ShareDialog } from "./ShareDialog";
 import { GenerateOfferDocTab } from "@/features/documents/components/GenerateOfferDocTab";
-import type { Offer, OfferStatut, OfferAttachment, OfferComment, OfferHotelSend } from "../types";
-import { getEffectiveDates, OFFER_STATUTS, STATUT_BADGE_STYLES, getStatutLabel } from "../utils";
+import { StatusChanger } from "./StatusChanger";
+import { getErrorMessage } from "@/lib/format";
+import { downloadBlob } from "@/lib/download";
+import type { Offer, OfferAttachment, OfferComment, OfferHotelSend } from "../types";
+import { getEffectiveDates } from "../utils";
 
 type OfferDetailProps = {
   offer?: Offer | null;
@@ -72,19 +76,47 @@ export function OfferDetail({ offer }: OfferDetailProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isUpdatingResponse, setIsUpdatingResponse] = useState(false);
   const [isDeletingResponse, setIsDeletingResponse] = useState(false);
-  const [attachments, setAttachments] = useState<OfferAttachment[]>([]);
-  const [areAttachmentsLoaded, setAreAttachmentsLoaded] = useState(false);
-  const [isLoadingAttachments, setIsLoadingAttachments] = useState(false);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
-  const [comments, setComments] = useState<OfferComment[]>(offer?.comments ?? []);
-  const [areCommentsLoaded, setAreCommentsLoaded] = useState(
-    Array.isArray(offer?.comments)
-  );
-  const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isDeletingOffer, setIsDeletingOffer] = useState(false);
-  const [sends, setSends] = useState<OfferHotelSend[]>([]);
-  const [areSendsLoaded, setAreSendsLoaded] = useState(false);
+
+  const {
+    data: attachments,
+    setData: setAttachments,
+    isLoaded: areAttachmentsLoaded,
+    isLoading: isLoadingAttachments,
+    setIsLoading: setIsLoadingAttachments,
+  } = useTabData<OfferAttachment>({
+    fetchFn: currentOffer ? () => listOfferAttachments(currentOffer.id) : null,
+    triggerWhen: activeTab === "attachments",
+    onError: (error) =>
+      setMessage({
+        type: "error",
+        text: getErrorMessage(error, "Impossible de charger les annexes pour le moment."),
+      }),
+  });
+
+  const {
+    data: comments,
+    setData: setComments,
+    isLoading: isLoadingComments,
+    setIsLoading: setIsLoadingComments,
+  } = useTabData<OfferComment>({
+    fetchFn: currentOffer ? () => listOfferComments(currentOffer.id) : null,
+    initialData: offer?.comments ?? [],
+    initiallyLoaded: Array.isArray(offer?.comments),
+    triggerWhen: activeTab === "comments",
+    onError: (error) =>
+      setMessage({
+        type: "error",
+        text: getErrorMessage(error, "Impossible de charger les commentaires."),
+      }),
+  });
+
+  const { data: sends, reload: reloadSends } = useTabData<OfferHotelSend>({
+    fetchFn: currentOffer ? () => fetchOfferHotelSends(currentOffer.id) : null,
+    triggerWhen: activeTab === "responses" || activeTab === "document",
+  });
   const attachmentBadgeCount = areAttachmentsLoaded
     ? attachments.length
     : currentOffer?.attachmentsCount ?? 0;
@@ -98,17 +130,6 @@ export function OfferDetail({ offer }: OfferDetailProps) {
     setActiveTab("responses");
     setIsShareDialogOpen(true);
   };
-
-  const loadSends = useCallback(async () => {
-    if (!currentOffer) return;
-    try {
-      const data = await fetchOfferHotelSends(currentOffer.id);
-      setSends(data);
-      setAreSendsLoaded(true);
-    } catch {
-      // silent — sends are supplementary info
-    }
-  }, [currentOffer]);
 
   const handleDeleteOffer = async () => {
     if (!currentOffer || isDeletingOffer) return;
@@ -126,10 +147,7 @@ export function OfferDetail({ offer }: OfferDetailProps) {
     } catch (error) {
       setMessage({
         type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Impossible de supprimer l'offre pour le moment.",
+        text: getErrorMessage(error, "Impossible de supprimer l'offre pour le moment."),
       });
     } finally {
       setIsDeletingOffer(false);
@@ -147,41 +165,12 @@ export function OfferDetail({ offer }: OfferDetailProps) {
     } catch (error) {
       setMessage({
         type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Actualisation impossible, réessayez plus tard.",
+        text: getErrorMessage(error, "Actualisation impossible, réessayez plus tard."),
       });
     } finally {
       setIsRefreshing(false);
     }
   };
-
-  const loadAttachments = useCallback(async () => {
-    if (!currentOffer) return;
-    try {
-      setIsLoadingAttachments(true);
-      const data = await listOfferAttachments(currentOffer.id);
-      setAttachments(data);
-      setAreAttachmentsLoaded(true);
-    } catch (error) {
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Impossible de charger les annexes pour le moment.",
-      });
-    } finally {
-      setIsLoadingAttachments(false);
-    }
-  }, [currentOffer, setMessage]);
-
-useEffect(() => {
-  if ((activeTab === "responses" || activeTab === "document") && !areSendsLoaded) {
-    loadSends();
-  }
-}, [activeTab, areSendsLoaded, loadSends]);
 
 // Auto-refresh hotel responses when entering the tab
 const loadResponses = useCallback(async () => {
@@ -210,18 +199,12 @@ useEffect(() => {
   }
 }, [activeTab, loadResponses]);
 
-useEffect(() => {
-  if (activeTab === "attachments" && !areAttachmentsLoaded) {
-    loadAttachments();
-  }
-}, [activeTab, areAttachmentsLoaded, loadAttachments]);
 
 useEffect(() => {
   if (currentOffer?.comments) {
     setComments(currentOffer.comments);
-    setAreCommentsLoaded(true);
   }
-}, [currentOffer?.comments]);
+}, [currentOffer?.comments, setComments]);
 
   const handleUploadAttachments = async (files: FileList | File[]) => {
     if (!currentOffer || isUploadingAttachment || !files || files.length === 0) return;
@@ -236,10 +219,7 @@ useEffect(() => {
     } catch (error) {
       setMessage({
         type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Impossible d'ajouter le document.",
+        text: getErrorMessage(error, "Impossible d'ajouter le document."),
       });
     } finally {
       setIsUploadingAttachment(false);
@@ -256,10 +236,7 @@ useEffect(() => {
     } catch (error) {
       setMessage({
         type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Impossible de supprimer l'annexe.",
+        text: getErrorMessage(error, "Impossible de supprimer l'annexe."),
       });
     } finally {
       setIsLoadingAttachments(false);
@@ -273,21 +250,11 @@ useEffect(() => {
         currentOffer.id,
         attachmentId
       );
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, filename);
     } catch (error) {
       setMessage({
         type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Impossible de télécharger l'annexe.",
+        text: getErrorMessage(error, "Impossible de télécharger l'annexe."),
       });
     }
   };
@@ -307,10 +274,7 @@ useEffect(() => {
     } catch (error) {
       setMessage({
         type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Impossible d'ajouter le commentaire.",
+        text: getErrorMessage(error, "Impossible d'ajouter le commentaire."),
       });
       throw error;
     } finally {
@@ -329,42 +293,12 @@ useEffect(() => {
     } catch (error) {
       setMessage({
         type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Impossible de supprimer le commentaire.",
+        text: getErrorMessage(error, "Impossible de supprimer le commentaire."),
       });
     } finally {
       setIsLoadingComments(false);
     }
   };
-
-  const loadComments = useCallback(async () => {
-    if (!currentOffer) return;
-    try {
-      setIsLoadingComments(true);
-      const data = await listOfferComments(currentOffer.id);
-      setComments(data);
-      setAreCommentsLoaded(true);
-      setCurrentOffer((prev) => (prev ? { ...prev, comments: data } : prev));
-    } catch (error) {
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Impossible de charger les commentaires.",
-      });
-    } finally {
-      setIsLoadingComments(false);
-    }
-  }, [currentOffer]);
-
-  useEffect(() => {
-    if (activeTab === "comments" && !areCommentsLoaded) {
-      loadComments();
-    }
-  }, [activeTab, areCommentsLoaded, loadComments]);
 
   const handleUpdateResponse = async (
     responseId: string,
@@ -391,26 +325,11 @@ useEffect(() => {
     } catch (error) {
       setMessage({
         type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Impossible de modifier la réponse pour le moment.",
+        text: getErrorMessage(error, "Impossible de modifier la réponse pour le moment."),
       });
     } finally {
       setIsUpdatingResponse(false);
     }
-  };
-
-  const handleUpdateOfferText = async (responseId: string, offerText: string) => {
-    if (!currentOffer) return;
-    const response = currentOffer.hotelResponses?.find((r) => r.id === responseId);
-    if (!response) return;
-    await handleUpdateResponse(responseId, {
-      hotelName: response.hotelName,
-      respondentName: response.respondentName,
-      message: response.message,
-      offerText: offerText || null,
-    });
   };
 
   const handleDeleteResponse = async (responseId: string) => {
@@ -430,10 +349,7 @@ useEffect(() => {
     } catch (error) {
       setMessage({
         type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Impossible de supprimer la réponse pour le moment.",
+        text: getErrorMessage(error, "Impossible de supprimer la réponse pour le moment."),
       });
     } finally {
       setIsDeletingResponse(false);
@@ -467,7 +383,7 @@ useEffect(() => {
                   } catch (error) {
                     setMessage({
                       type: "error",
-                      text: error instanceof Error ? error.message : "Impossible de changer le statut.",
+                      text: getErrorMessage(error, "Impossible de changer le statut."),
                     });
                   }
                 }}
@@ -698,7 +614,6 @@ useEffect(() => {
           offer={currentOffer}
           hotelResponses={currentOffer.hotelResponses}
           sends={sends}
-          onUpdateOfferText={handleUpdateOfferText}
         />
       ) : activeTab === "attachments" ? (
         <OfferAttachmentsPanel
@@ -723,7 +638,7 @@ useEffect(() => {
           offer={currentOffer}
           onClose={() => {
             setIsShareDialogOpen(false);
-            loadSends();
+            reloadSends();
           }}
           onTokenCreated={(token) =>
             setCurrentOffer((prev) => (prev ? { ...prev, shareToken: token } : prev))
@@ -735,81 +650,3 @@ useEffect(() => {
   );
 }
 
-// ---------------------------------------------------------------------------
-// StatusChanger — inline dropdown to change the offer statut
-// ---------------------------------------------------------------------------
-
-function StatusChanger({
-  statut,
-  onChange,
-}: {
-  statut: OfferStatut;
-  onChange: (next: OfferStatut) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [open]);
-
-  const badgeClasses = STATUT_BADGE_STYLES[statut] ?? STATUT_BADGE_STYLES.brouillon;
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((p) => !p)}
-        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition hover:opacity-80 ${badgeClasses}`}
-      >
-        {getStatutLabel(statut)}
-        <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-          <path
-            fillRule="evenodd"
-            d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-            clipRule="evenodd"
-          />
-        </svg>
-      </button>
-      {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-52 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-          {OFFER_STATUTS.map((s) => {
-            const isActive = s.value === statut;
-            const dotClasses = STATUT_BADGE_STYLES[s.value];
-            return (
-              <button
-                key={s.value}
-                type="button"
-                onClick={() => {
-                  onChange(s.value);
-                  setOpen(false);
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-              >
-                <span className={`inline-block h-2 w-2 rounded-full ${dotClasses.split(" ")[0]}`} />
-                <span className="flex-1">{s.label}</span>
-                {isActive && (
-                  <span className="text-emerald-600">✓</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}

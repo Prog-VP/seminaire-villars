@@ -1,12 +1,8 @@
 import { createClient } from "@/lib/supabase/client";
+import { throwOnError } from "@/lib/supabase/helpers";
 
 function supabase() {
   return createClient();
-}
-
-function throwOnError<T>(result: { data: T; error: { message: string } | null }): T {
-  if (result.error) throw new Error(result.error.message);
-  return result.data;
 }
 
 export async function fetchAppConfig(): Promise<Record<string, string>> {
