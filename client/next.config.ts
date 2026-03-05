@@ -8,6 +8,7 @@ const allowedDevOrigins =
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: allowedDevOrigins.length ? allowedDevOrigins : undefined,
+  serverExternalPackages: ["xlsx"],
 };
 
 export default nextConfig;
