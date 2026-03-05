@@ -39,7 +39,7 @@ export async function POST(request: Request) {
         );
       }
 
-      let buf = Buffer.from(await data.arrayBuffer());
+      let buf: Buffer = Buffer.from(new Uint8Array(await data.arrayBuffer()));
 
       // Replace {{OFFER_TEXT}} placeholder in hotel documents
       if (item.type === "hotel" && item.offerText) {
