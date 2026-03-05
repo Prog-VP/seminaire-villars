@@ -60,9 +60,12 @@ export function UserTable({ users, currentUserId, onRefresh }: Props) {
                 className="border-b border-slate-50 last:border-0 hover:bg-slate-50"
               >
                 <td className="px-4 py-3 font-medium text-slate-900">
-                  {user.prenom || user.nom
-                    ? `${user.prenom} ${user.nom}`.trim()
-                    : <span className="text-slate-400">—</span>}
+                  <span className={user.prenom ? "" : "italic text-slate-400"}>
+                    {user.prenom || "Prénom"}
+                  </span>{" "}
+                  <span className={user.nom ? "" : "italic text-slate-400"}>
+                    {user.nom || "Nom"}
+                  </span>
                   {user.id === currentUserId && (
                     <span className="ml-2 text-xs text-slate-400">(vous)</span>
                   )}

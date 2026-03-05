@@ -9,6 +9,7 @@ import {
 } from "../utils";
 import { exportStatsCSV, exportStatsXLSX } from "../export";
 import { PieChartCard } from "./PieChartCard";
+import { FieldExplorerSection } from "./FieldExplorerSection";
 
 type StatsDashboardProps = {
   offers: Offer[];
@@ -448,6 +449,9 @@ export function StatsDashboard({ offers }: StatsDashboardProps) {
           </div>
         </section>
       )}
+
+      {/* ─── Exploration par champ ─── */}
+      <FieldExplorerSection offers={offers} selectedYear={selectedYear} />
     </div>
   );
 }

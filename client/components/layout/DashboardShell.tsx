@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { NavTabs } from "@/components/navigation/NavTabs";
+import { useUserRole } from "@/features/users/context";
 
 type DashboardShellProps = {
   children: ReactNode;
@@ -12,6 +13,7 @@ type DashboardShellProps = {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const router = useRouter();
+  const { nom, prenom } = useUserRole();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -144,7 +146,15 @@ export function DashboardShell({ children }: DashboardShellProps) {
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <span className="hidden text-sm text-slate-700 sm:block">
+              <span className={prenom ? "font-medium" : "italic text-slate-400"}>
+                {prenom || "Prénom"}
+              </span>{" "}
+              <span className={nom ? "font-medium" : "italic text-slate-400"}>
+                {nom || "Nom"}
+              </span>
+            </span>
             <button
               type="button"
               onClick={handleSignOut}

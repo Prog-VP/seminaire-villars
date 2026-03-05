@@ -59,7 +59,7 @@ export function CreateUserForm({ onCreated }: Props) {
             type="text"
             value={prenom}
             onChange={(e) => setPrenom(e.target.value)}
-            placeholder="Jean"
+            placeholder="Prénom"
             className={inputClass}
           />
         </div>
@@ -73,7 +73,7 @@ export function CreateUserForm({ onCreated }: Props) {
             type="text"
             value={nom}
             onChange={(e) => setNom(e.target.value)}
-            placeholder="Dupont"
+            placeholder="Nom"
             className={inputClass}
           />
         </div>

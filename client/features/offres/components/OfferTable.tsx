@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Offer } from "../types";
 import { STATUT_BADGE_STYLES, getStatutLabel } from "../utils";
 import { OfferFilters } from "./OfferFilters";
+import { ImportOffersDropzone } from "./ImportOffersDropzone";
 
 type BooleanFilterValue = "all" | "true" | "false";
 
@@ -25,6 +26,8 @@ export type OfferFiltersState = {
   paxMax: string;
   reservationEffectuee: BooleanFilterValue;
   contactEntreDansBrevo: BooleanFilterValue;
+  hotelContacte: string;
+  hotelRepondu: string;
   autres: string;
 };
 
@@ -72,6 +75,8 @@ const INITIAL_FILTERS: OfferFiltersState = {
   paxMax: "",
   reservationEffectuee: "all",
   contactEntreDansBrevo: "all",
+  hotelContacte: "",
+  hotelRepondu: "",
   autres: "",
 };
 
@@ -107,6 +112,7 @@ function matchesBoolean(filterValue: BooleanFilterValue, actual?: boolean | null
 
 export function OfferTable({ data, errorMessage }: OfferTableProps) {
   const router = useRouter();
+  const [showImport, setShowImport] = useState(false);
   const [filters, setFilters] = useState<OfferFiltersState>({
     ...INITIAL_FILTERS,
   });
@@ -238,6 +244,22 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
         return false;
       }
 
+      if (
+        filters.hotelContacte &&
+        !(offer.hotelSendsNames ?? []).includes(filters.hotelContacte)
+      ) {
+        return false;
+      }
+
+      if (
+        filters.hotelRepondu &&
+        !(offer.hotelResponses ?? []).some(
+          (r) => r.hotelName === filters.hotelRepondu
+        )
+      ) {
+        return false;
+      }
+
       return true;
     });
   }, [data, filters]);
@@ -259,6 +281,24 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
     });
     return next;
   }, [filteredOffers, sortConfig]);
+
+  const hotelOptions = useMemo(() => {
+    const contactes = new Set<string>();
+    const repondus = new Set<string>();
+    for (const offer of data) {
+      for (const name of offer.hotelSendsNames ?? []) {
+        if (name) contactes.add(name);
+      }
+      for (const r of offer.hotelResponses ?? []) {
+        if (r.hotelName) repondus.add(r.hotelName);
+      }
+    }
+    const sort = (a: string, b: string) => collator.compare(a, b);
+    return {
+      contactes: Array.from(contactes).sort(sort),
+      repondus: Array.from(repondus).sort(sort),
+    };
+  }, [data]);
 
   const handleFilterChange = (nextFilters: Partial<OfferFiltersState>) => {
     setFilters((previous) => ({ ...previous, ...nextFilters }));
@@ -291,7 +331,14 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
             Aperçu des demandes clients synchronisées à partir de la base.
           </p>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowImport((prev) => !prev)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+          >
+            {showImport ? "Masquer l'import" : "Importer (Excel)"}
+          </button>
           <Link
             href="/offres/nouvelle"
             className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-brand-900 to-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:from-brand-800 hover:to-brand-600"
@@ -302,11 +349,19 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
         </div>
       </header>
 
+      {showImport && (
+        <div className="mb-6">
+          <ImportOffersDropzone onImportDone={() => router.refresh()} />
+        </div>
+      )}
+
       <div className="mb-6">
         <OfferFilters
           filters={filters}
           onChange={handleFilterChange}
           onReset={handleResetFilters}
+          hotelContacteOptions={hotelOptions.contactes}
+          hotelReponduOptions={hotelOptions.repondus}
         />
       </div>
 

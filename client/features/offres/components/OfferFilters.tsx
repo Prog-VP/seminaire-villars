@@ -15,39 +15,30 @@ export function OfferFilters({
   filters,
   onChange,
   onReset,
+  hotelContacteOptions = [],
+  hotelReponduOptions = [],
 }: {
   filters: OfferFiltersState;
   onChange: (next: Partial<OfferFiltersState>) => void;
   onReset: () => void;
+  hotelContacteOptions?: string[];
+  hotelReponduOptions?: string[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const { options } = useSettings();
   const inputClass =
     "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500";
 
-  const paysChoices = useMemo(
-    () => mergeFilterOption(options.pays, filters.pays),
-    [options.pays, filters.pays]
-  );
-  const traiteParChoices = useMemo(
-    () => mergeFilterOption(options.traitePar, filters.traitePar),
-    [options.traitePar, filters.traitePar]
-  );
-  const typeSocieteChoices = useMemo(
-    () => mergeFilterOption(options.typeSociete, filters.typeSociete),
-    [options.typeSociete, filters.typeSociete]
-  );
-  const typeSejourChoices = useMemo(
-    () => mergeFilterOption(options.typeSejour, filters.typeSejour),
-    [options.typeSejour, filters.typeSejour]
-  );
-  const categorieChoices = useMemo(
-    () => mergeFilterOption(options.categorieHotel, filters.categorieHotel),
-    [options.categorieHotel, filters.categorieHotel]
-  );
-  const stationChoices = useMemo(
-    () => mergeFilterOption(options.stationDemandee, filters.stationDemandee),
-    [options.stationDemandee, filters.stationDemandee]
+  const filterChoices = useMemo(
+    () => ({
+      pays: mergeFilterOption(options.pays, filters.pays),
+      traitePar: mergeFilterOption(options.traitePar, filters.traitePar),
+      typeSociete: mergeFilterOption(options.typeSociete, filters.typeSociete),
+      typeSejour: mergeFilterOption(options.typeSejour, filters.typeSejour),
+      categorieHotel: mergeFilterOption(options.categorieHotel, filters.categorieHotel),
+      stationDemandee: mergeFilterOption(options.stationDemandee, filters.stationDemandee),
+    }),
+    [options, filters.pays, filters.traitePar, filters.typeSociete, filters.typeSejour, filters.categorieHotel, filters.stationDemandee]
   );
 
   const handleChange = (
@@ -143,7 +134,7 @@ export function OfferFilters({
               className={inputClass}
             >
               <option value="all">Tous</option>
-              {typeSocieteChoices.map((option) => (
+              {filterChoices.typeSociete.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -159,7 +150,7 @@ export function OfferFilters({
               className={inputClass}
             >
               <option value="all">Tous</option>
-              {paysChoices.map((option) => (
+              {filterChoices.pays.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -175,7 +166,7 @@ export function OfferFilters({
               className={inputClass}
             >
               <option value="all">Tous</option>
-              {typeSejourChoices.map((option) => (
+              {filterChoices.typeSejour.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -191,7 +182,7 @@ export function OfferFilters({
               className={inputClass}
             >
               <option value="all">Toutes</option>
-              {stationChoices.map((option) => (
+              {filterChoices.stationDemandee.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -207,7 +198,7 @@ export function OfferFilters({
               className={inputClass}
             >
               <option value="all">Toutes</option>
-              {categorieChoices.map((option) => (
+              {filterChoices.categorieHotel.map((option) => (
                 <option key={option} value={option}>
                   {formatStars(option)}
                 </option>
@@ -223,7 +214,7 @@ export function OfferFilters({
               className={inputClass}
             >
               <option value="all">Tous</option>
-              {traiteParChoices.map((option) => (
+              {filterChoices.traitePar.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -287,6 +278,38 @@ export function OfferFilters({
               {boolOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
+                </option>
+              ))}
+            </select>
+          </FilterField>
+
+          <FilterField label="Hôtel contacté">
+            <select
+              name="hotelContacte"
+              value={filters.hotelContacte}
+              onChange={handleChange}
+              className={inputClass}
+            >
+              <option value="">Tous</option>
+              {hotelContacteOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </FilterField>
+
+          <FilterField label="Hôtel ayant répondu">
+            <select
+              name="hotelRepondu"
+              value={filters.hotelRepondu}
+              onChange={handleChange}
+              className={inputClass}
+            >
+              <option value="">Tous</option>
+              {hotelReponduOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
                 </option>
               ))}
             </select>

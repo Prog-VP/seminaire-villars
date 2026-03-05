@@ -1,6 +1,6 @@
 import type { Offer } from "@/features/offres/types";
 import type { OfferStats } from "./utils";
-import { getEffectiveDates } from "@/features/offres/utils";
+import { getEffectiveDates, getStatutLabel } from "@/features/offres/utils";
 import * as XLSX from "xlsx";
 
 const SEP = ";";
@@ -187,7 +187,7 @@ export function exportStatsXLSX(
       o.societeContact ?? "",
       o.pays ?? "",
       o.typeSejour ?? "",
-      o.statut ?? "brouillon",
+      getStatutLabel(o.statut),
       eff.du ?? "",
       eff.au ?? "",
       o.nombrePax ?? "",

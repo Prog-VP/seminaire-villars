@@ -80,6 +80,7 @@ export function EditUserModal({ user, onClose, onUpdated }: Props) {
                 type="text"
                 value={prenom}
                 onChange={(e) => setPrenom(e.target.value)}
+                placeholder="Prénom"
                 className={inputClass}
               />
             </div>
@@ -93,6 +94,7 @@ export function EditUserModal({ user, onClose, onUpdated }: Props) {
                 type="text"
                 value={nom}
                 onChange={(e) => setNom(e.target.value)}
+                placeholder="Nom"
                 className={inputClass}
               />
             </div>
