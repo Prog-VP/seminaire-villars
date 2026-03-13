@@ -13,8 +13,11 @@ export function StatusChanger({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const { options } = useSettings();
+  const { options, settings } = useSettings();
   const allStatuts = options.statut.length > 0 ? options.statut : DEFAULT_STATUTS;
+  const colorMap = Object.fromEntries(
+    settings.statut.map((s) => [s.label, s.color ?? null])
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -34,7 +37,7 @@ export function StatusChanger({
     };
   }, [open]);
 
-  const badgeClasses = getStatutBadgeStyle(statut, allStatuts);
+  const badgeClasses = getStatutBadgeStyle(statut, allStatuts, colorMap);
 
   return (
     <div ref={ref} className="relative">
@@ -56,7 +59,7 @@ export function StatusChanger({
         <div className="absolute left-0 top-full z-50 mt-1 w-52 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
           {allStatuts.map((s) => {
             const isActive = s === statut;
-            const dotClasses = getStatutBadgeStyle(s, allStatuts);
+            const dotClasses = getStatutBadgeStyle(s, allStatuts, colorMap);
             return (
               <button
                 key={s}

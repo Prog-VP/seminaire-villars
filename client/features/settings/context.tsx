@@ -29,7 +29,8 @@ type SettingsContextValue = {
   editValue: (
     id: string,
     type: SettingType,
-    label: string
+    label: string,
+    color?: string | null
   ) => Promise<SettingValue>;
   removeValue: (id: string, type: SettingType) => Promise<void>;
 };
@@ -79,8 +80,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const editValue = useCallback(
-    async (id: string, type: SettingType, label: string) => {
-      const updated = await updateSettingValue(id, label);
+    async (id: string, type: SettingType, label: string, color?: string | null) => {
+      const updated = await updateSettingValue(id, label, color);
       setSettings((prev) => {
         const next = prev[type].map((item) =>
           item.id === id ? updated : item

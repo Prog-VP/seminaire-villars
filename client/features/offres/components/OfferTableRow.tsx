@@ -11,6 +11,7 @@ type OfferTableRowProps = {
   isSelected: boolean;
   onToggleSelect: (id: string, e: React.MouseEvent) => void;
   onNavigate: (id: string) => void;
+  statutColorMap?: Record<string, string | null>;
 };
 
 export function OfferTableRow({
@@ -20,6 +21,7 @@ export function OfferTableRow({
   isSelected,
   onToggleSelect,
   onNavigate,
+  statutColorMap,
 }: OfferTableRowProps) {
   return (
     <tr
@@ -85,7 +87,7 @@ export function OfferTableRow({
       <td className="hidden px-4 py-2.5 sm:table-cell">
         {(() => {
           const s = normalizeStatut(offer.statut);
-          const classes = getStatutBadgeStyle(s, DEFAULT_STATUTS);
+          const classes = getStatutBadgeStyle(s, DEFAULT_STATUTS, statutColorMap);
           return (
             <span
               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${classes}`}

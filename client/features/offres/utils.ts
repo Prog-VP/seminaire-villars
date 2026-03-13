@@ -27,8 +27,7 @@ export function normalizeStatut(statut?: string | null): string {
 }
 
 /**
- * Rotating palette of badge styles for statuts.
- * The first statut gets slate (draft-like), then blue, rose, emerald, etc.
+ * Rotating palette of badge styles for statuts (fallback when no color is set).
  */
 const BADGE_PALETTE = [
   "bg-slate-100 text-slate-700",
@@ -41,7 +40,22 @@ const BADGE_PALETTE = [
   "bg-pink-100 text-pink-700",
 ];
 
-export function getStatutBadgeStyle(statut: string, allStatuts: string[]): string {
+const COLOR_TO_BADGE: Record<string, string> = {
+  slate: "bg-slate-100 text-slate-700",
+  blue: "bg-blue-100 text-blue-700",
+  rose: "bg-rose-100 text-rose-700",
+  emerald: "bg-emerald-100 text-emerald-700",
+  amber: "bg-amber-100 text-amber-700",
+  purple: "bg-purple-100 text-purple-700",
+  cyan: "bg-cyan-100 text-cyan-700",
+  pink: "bg-pink-100 text-pink-700",
+};
+
+export function getStatutBadgeStyle(statut: string, allStatuts: string[], colorMap?: Record<string, string | null>): string {
+  if (colorMap) {
+    const color = colorMap[statut];
+    if (color && COLOR_TO_BADGE[color]) return COLOR_TO_BADGE[color];
+  }
   const idx = allStatuts.indexOf(statut);
   if (idx >= 0) return BADGE_PALETTE[idx % BADGE_PALETTE.length];
   return BADGE_PALETTE[0];

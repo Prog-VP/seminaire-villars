@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Offer } from "../types";
@@ -14,6 +14,7 @@ import { ImportOffersDropzone } from "./ImportOffersDropzone";
 import { saveOfferListIds } from "./OfferNavArrows";
 import { OfferTableRow } from "./OfferTableRow";
 import { SelectionActionBar } from "./SelectionActionBar";
+import { useSettings } from "@/features/settings/context";
 import { Pagination } from "./Pagination";
 import { ConfirmModal, DuplicateModal } from "./OfferModals";
 
@@ -54,6 +55,11 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
   const [showImport, setShowImport] = useState(false);
   const [modal, setModal] = useState<ModalState>({ type: "none" });
   const [actionLoading, setActionLoading] = useState(false);
+  const { settings } = useSettings();
+  const statutColorMap = useMemo(
+    () => Object.fromEntries(settings.statut.map((s) => [s.label, s.color ?? null])),
+    [settings.statut]
+  );
 
   const {
     filters,
@@ -238,6 +244,7 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
                 isSelected={selectedIds.has(offer.id)}
                 onToggleSelect={toggleSelect}
                 onNavigate={handleNavigate}
+                statutColorMap={statutColorMap}
               />
             ))}
             {noResults && (
