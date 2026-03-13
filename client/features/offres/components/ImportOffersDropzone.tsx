@@ -150,7 +150,18 @@ export function ImportOffersDropzone({ onImportDone }: Props) {
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={downloadImportTemplate}
+          onClick={() => downloadImportTemplate({
+            typeSociete: options.typeSociete,
+            typeSejour: options.typeSejour,
+            categorieHotel: options.categorieHotel,
+            stationDemandee: options.stationDemandee,
+            transmisPar: options.transmisPar,
+            traitePar: options.traitePar,
+            langue: options.langue,
+            pays: options.pays,
+            titreContact: options.titreContact,
+            statut: options.statut,
+          })}
           className="text-sm font-medium text-brand-600 underline underline-offset-2 hover:text-brand-800"
         >
           Télécharger le modèle d'import (.xlsx)
