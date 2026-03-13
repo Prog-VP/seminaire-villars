@@ -98,12 +98,12 @@ export const sortableColumns: { label: string; key: SortKey; className?: string 
   { label: "Société", key: "societeContact" },
   { label: "Contact", key: "contact", className: "hidden md:table-cell" },
   { label: "Pays", key: "pays", className: "hidden sm:table-cell" },
-  { label: "Type séjour", key: "typeSejour", className: "hidden lg:table-cell" },
+  { label: "Séjour", key: "typeSejour", className: "hidden lg:table-cell" },
   { label: "Statut", key: "statut", className: "hidden sm:table-cell" },
   { label: "Envoi", key: "createdAt", className: "hidden lg:table-cell" },
-  { label: "Relance", key: "relance", className: "hidden lg:table-cell" },
-  { label: "Hôtels contactés", key: "hotelSendsCount", className: "hidden lg:table-cell" },
-  { label: "Réponses", key: "hotelResponsesCount", className: "hidden lg:table-cell" },
+  { label: "Rel.", key: "relance", className: "hidden lg:table-cell" },
+  { label: "Hôtels", key: "hotelSendsCount", className: "hidden lg:table-cell" },
+  { label: "Rép.", key: "hotelResponsesCount", className: "hidden lg:table-cell" },
   { label: "Notes", key: "commentsCount", className: "hidden lg:table-cell" },
 ];
 

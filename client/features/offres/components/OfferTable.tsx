@@ -28,6 +28,20 @@ type ModalState =
   | { type: "delete"; ids: string[] }
   | { type: "duplicate"; ids: string[] };
 
+const COL_WIDTHS: Record<string, string> = {
+  numeroOffre: "w-[60px]",
+  societeContact: "w-[18%]",
+  contact: "w-[14%]",
+  pays: "w-[50px]",
+  typeSejour: "w-[10%]",
+  statut: "w-[90px]",
+  createdAt: "w-[80px]",
+  relance: "w-[55px]",
+  hotelSendsCount: "w-[55px]",
+  hotelResponsesCount: "w-[55px]",
+  commentsCount: "w-[50px]",
+};
+
 function SortIndicator({
   active,
   direction,
@@ -192,10 +206,17 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
       )}
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm sm:text-[15px]">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+        <table className="w-full table-fixed text-left text-sm">
+          <colgroup>
+            <col className="w-8" />
+            <col className="w-8" />
+            {sortableColumns.map((col) => (
+              <col key={col.key} className={COL_WIDTHS[col.key] ?? ""} />
+            ))}
+          </colgroup>
+          <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="w-10 px-4 py-2">
+              <th className="px-2 py-1.5">
                 <input
                   type="checkbox"
                   checked={allPageSelected}
@@ -203,7 +224,7 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
                   className="h-3.5 w-3.5 rounded border-slate-300 text-brand-900 focus:ring-brand-500"
                 />
               </th>
-              <th className="px-4 py-2 font-medium text-slate-400 w-10">#</th>
+              <th className="px-2 py-1.5 font-medium text-slate-400">#</th>
               {sortableColumns.map((column) => {
                 const isActive = sortConfig.key === column.key;
                 const ariaSort = isActive
@@ -215,7 +236,7 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
                 return (
                   <th
                     key={column.key}
-                    className={`px-4 py-2 font-medium ${column.className ?? ""}`}
+                    className={`px-2 py-1.5 font-medium ${column.className ?? ""}`}
                     aria-sort={ariaSort}
                   >
                     <button
