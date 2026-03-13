@@ -15,7 +15,7 @@ const boolOptions = [
 type FilterDef = {
   key: string;
   label: string;
-  type: "text" | "select" | "number" | "textarea" | "bool" | "date";
+  type: "text" | "select" | "multiselect" | "number" | "textarea" | "bool" | "date";
   options?: string[];
   formatOption?: (v: string) => string;
   placeholder?: string;
@@ -78,19 +78,19 @@ export function OfferFilters({
       title: "Classification",
       filters: [
         { key: "anneeOffre", label: "Année offre", type: "select", options: anneeOptions },
-        { key: "statut", label: "Statut", type: "select", options: filterChoices.statut },
-        { key: "typeSociete", label: "Type de société", type: "select", options: filterChoices.typeSociete },
-        { key: "typeSejour", label: "Type de séjour", type: "select", options: filterChoices.typeSejour },
-        { key: "langue", label: "Langue", type: "select", options: filterChoices.langue },
-        { key: "traitePar", label: "Traité par", type: "select", options: filterChoices.traitePar },
+        { key: "statut", label: "Statut", type: "multiselect", options: filterChoices.statut },
+        { key: "typeSociete", label: "Type de société", type: "multiselect", options: filterChoices.typeSociete },
+        { key: "typeSejour", label: "Type de séjour", type: "multiselect", options: filterChoices.typeSejour },
+        { key: "langue", label: "Langue", type: "multiselect", options: filterChoices.langue },
+        { key: "traitePar", label: "Traité par", type: "multiselect", options: filterChoices.traitePar },
       ],
     },
     {
       title: "Séjour",
       filters: [
-        { key: "pays", label: "Pays", type: "select", options: filterChoices.pays },
-        { key: "stationDemandee", label: "Destination", type: "select", options: filterChoices.stationDemandee },
-        { key: "categorieHotel", label: "Catégorie hôtel", type: "select", options: filterChoices.categorieHotel, formatOption: formatStars },
+        { key: "pays", label: "Pays", type: "multiselect", options: filterChoices.pays },
+        { key: "stationDemandee", label: "Destination", type: "multiselect", options: filterChoices.stationDemandee },
+        { key: "categorieHotel", label: "Catégorie hôtel", type: "multiselect", options: filterChoices.categorieHotel, formatOption: formatStars },
         { key: "paxMin", label: "Participants (min)", type: "number" },
         { key: "paxMax", label: "Participants (max)", type: "number" },
         { key: "sejourDu", label: "Séjour du", type: "date" },
@@ -134,6 +134,21 @@ export function OfferFilters({
     onChange({ [name]: value });
   };
 
+  const handleMultiToggle = (key: string, option: string) => {
+    if (option === "__clear__") {
+      onChange({ [key]: "all" });
+      return;
+    }
+    const current = (filters as Record<string, string>)[key] ?? "all";
+    const selected = current === "all" ? new Set<string>() : new Set(current.split(","));
+    if (selected.has(option)) {
+      selected.delete(option);
+    } else {
+      selected.add(option);
+    }
+    onChange({ [key]: selected.size === 0 ? "all" : Array.from(selected).join(",") });
+  };
+
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center gap-3">
@@ -172,6 +187,7 @@ export function OfferFilters({
               def={def}
               value={(filters as Record<string, string>)[def.key] ?? ""}
               onChange={handleChange}
+              onMultiToggle={handleMultiToggle}
               inputClass={inputClass}
               isFavorite={true}
               onToggleFavorite={() => toggleFavoriteFilter(def.key)}
@@ -198,6 +214,7 @@ export function OfferFilters({
                       def={def}
                       value={(filters as Record<string, string>)[def.key] ?? ""}
                       onChange={handleChange}
+                      onMultiToggle={handleMultiToggle}
                       inputClass={inputClass}
                       isFavorite={false}
                       onToggleFavorite={() => toggleFavoriteFilter(def.key)}
@@ -217,6 +234,7 @@ function FilterFieldWithStar({
   def,
   value,
   onChange,
+  onMultiToggle,
   inputClass,
   isFavorite,
   onToggleFavorite,
@@ -224,6 +242,7 @@ function FilterFieldWithStar({
   def: FilterDef;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement> | React.ChangeEvent<HTMLSelectElement> | React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onMultiToggle: (key: string, option: string) => void;
   inputClass: string;
   isFavorite: boolean;
   onToggleFavorite: () => void;
@@ -231,8 +250,12 @@ function FilterFieldWithStar({
   const allValue = def.key === "hotelContacte" || def.key === "hotelRepondu" ? "" : "all";
   const allLabel = def.key === "stationDemandee" || def.key === "categorieHotel" ? "Toutes" : "Tous";
 
+  const selectedSet = def.type === "multiselect" && value && value !== "all"
+    ? new Set(value.split(","))
+    : new Set<string>();
+
   return (
-    <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <div className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
       <span className="flex items-center gap-1.5">
         <button
           type="button"
@@ -252,6 +275,15 @@ function FilterFieldWithStar({
           </svg>
         </button>
         {def.label}
+        {def.type === "multiselect" && selectedSet.size > 0 && (
+          <button
+            type="button"
+            onClick={() => onMultiToggle(def.key, "__clear__")}
+            className="ml-auto text-[10px] font-medium normal-case text-slate-400 hover:text-slate-600"
+          >
+            effacer
+          </button>
+        )}
       </span>
       {def.type === "text" && (
         <input name={def.key} value={value} onChange={onChange} className={inputClass} />
@@ -272,6 +304,27 @@ function FilterFieldWithStar({
           ))}
         </select>
       )}
+      {def.type === "multiselect" && (
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {(def.options ?? []).map((opt) => {
+            const isActive = selectedSet.has(opt);
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => onMultiToggle(def.key, opt)}
+                className={`rounded-md border px-2 py-1 text-[11px] font-medium normal-case transition ${
+                  isActive
+                    ? "border-brand-900 bg-brand-900/10 text-brand-900"
+                    : "border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                }`}
+              >
+                {def.formatOption ? def.formatOption(opt) : opt}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {def.type === "date" && (
         <input name={def.key} type="date" value={value} onChange={onChange} className={inputClass} />
       )}
@@ -284,7 +337,7 @@ function FilterFieldWithStar({
           ))}
         </select>
       )}
-    </label>
+    </div>
   );
 }
 
@@ -295,7 +348,8 @@ function mergeFilterOption(
   if (!currentValue || currentValue === "all") {
     return options;
   }
-  return options.includes(currentValue)
-    ? options
-    : [...options, currentValue];
+  // Support comma-separated multi-values
+  const values = currentValue.split(",");
+  const missing = values.filter((v) => !options.includes(v));
+  return missing.length > 0 ? [...options, ...missing] : options;
 }

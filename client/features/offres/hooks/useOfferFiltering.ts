@@ -130,7 +130,21 @@ function matchesText(filter: string, value?: string | null) {
 }
 
 function matchesExact(filter: string, value?: string | null) {
-  return filter === "all" || value === filter;
+  if (filter === "all") return true;
+  // Support comma-separated multi-values
+  if (filter.includes(",")) {
+    const set = new Set(filter.split(","));
+    return value != null && set.has(value);
+  }
+  return value === filter;
+}
+
+/** For multi-value offer fields (station, categorie) — any selected filter must overlap */
+function matchesMultiField(filter: string, offerValue?: string | null) {
+  if (filter === "all") return true;
+  const filterSet = new Set(filter.split(","));
+  const offerValues = (offerValue ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  return offerValues.some((v) => filterSet.has(v));
 }
 
 function matchesBoolean(filter: BooleanFilterValue, actual?: boolean | null) {
@@ -159,21 +173,14 @@ function matchesOffer(offer: Offer, filters: OfferFiltersState): boolean {
     if (!commentsText.includes(norm.notes)) return false;
   }
 
-  if (filters.statut !== "all" && normalizeStatut(offer.statut) !== filters.statut) return false;
+  if (!matchesExact(filters.statut, normalizeStatut(offer.statut))) return false;
   if (!matchesExact(filters.typeSociete as string, offer.typeSociete)) return false;
   if (!matchesExact(filters.pays as string, offer.pays)) return false;
   if (!matchesExact(filters.typeSejour as string, offer.typeSejour)) return false;
-  if (
-    filters.stationDemandee !== "all" &&
-    !(offer.stationDemandee ?? "").split(",").map((s) => s.trim()).includes(filters.stationDemandee as string)
-  ) return false;
+  if (!matchesMultiField(filters.stationDemandee as string, offer.stationDemandee)) return false;
   if (!matchesExact(filters.traitePar as string, offer.traitePar)) return false;
   if (!matchesExact(filters.langue, offer.langue)) return false;
-
-  if (
-    filters.categorieHotel !== "all" &&
-    !(offer.categorieHotel ?? "").split(",").includes(filters.categorieHotel as string)
-  ) return false;
+  if (!matchesMultiField(filters.categorieHotel as string, offer.categorieHotel)) return false;
 
   const paxMin = filters.paxMin ? Number(filters.paxMin) : null;
   const paxMax = filters.paxMax ? Number(filters.paxMax) : null;
