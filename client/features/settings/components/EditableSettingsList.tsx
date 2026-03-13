@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import type { SettingType, SettingValue } from "../types";
 import { useSettings } from "../context";
+import { countOffersUsingSetting } from "../api";
 import { IconButton } from "@/components/ui/IconButton";
+import { INITIAL_FILTERS } from "@/features/offres/hooks/useOfferFiltering";
 
 type EditableSettingsListProps = {
   type: SettingType;
@@ -108,6 +111,19 @@ const PRESET_COLORS = [
   { label: "Rose vif", bg: "bg-pink-100", text: "text-pink-700", value: "pink" },
 ];
 
+const FILTER_KEY_MAP: Partial<Record<SettingType, string>> = {
+  statut: "statut",
+  pays: "pays",
+  typeSociete: "typeSociete",
+  typeSejour: "typeSejour",
+  stationDemandee: "stationDemandee",
+  categorieHotel: "categorieHotel",
+  traitePar: "traitePar",
+  langue: "langue",
+  transmisPar: "transmisPar",
+  titreContact: "contact",
+};
+
 function SettingListItem({
   item,
   type,
@@ -123,6 +139,7 @@ function SettingListItem({
   const [value, setValue] = useState(item.label);
   const [color, setColor] = useState(item.color ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [usageCount, setUsageCount] = useState<number | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "deleting">("idle");
   const showColor = type === "statut";
 
@@ -153,12 +170,23 @@ function SettingListItem({
   };
 
   const handleDelete = async () => {
-    const confirmation = window.confirm(
-      `Supprimer "${item.label}" de la liste "${type}" ?`
-    );
-    if (!confirmation) return;
     try {
       setStatus("deleting");
+      setError(null);
+      setUsageCount(null);
+      const count = await countOffersUsingSetting(type, item.label);
+      if (count > 0) {
+        setUsageCount(count);
+        setStatus("idle");
+        return;
+      }
+      const confirmation = window.confirm(
+        `Supprimer "${item.label}" de la liste "${type}" ?`
+      );
+      if (!confirmation) {
+        setStatus("idle");
+        return;
+      }
       await onDelete();
     } catch (err) {
       setError(
@@ -169,6 +197,13 @@ function SettingListItem({
     } finally {
       setStatus("idle");
     }
+  };
+
+  const handleViewOffers = () => {
+    const filterKey = FILTER_KEY_MAP[type];
+    if (!filterKey) return;
+    const filters = { ...INITIAL_FILTERS, [filterKey]: item.label };
+    sessionStorage.setItem("offer-filters", JSON.stringify(filters));
   };
 
   const currentPreset = PRESET_COLORS.find((c) => c.value === (item.color ?? "slate")) ?? PRESET_COLORS[0];
@@ -225,6 +260,7 @@ function SettingListItem({
                 setValue(item.label);
                 setColor(item.color ?? "");
                 setError(null);
+                setUsageCount(null);
               }}
               disabled={status === "saving"}
             />
@@ -247,8 +283,20 @@ function SettingListItem({
         )}
       </div>
       {error && (
-        <p className="ml-auto text-sm text-red-600" role="alert">
+        <p className="w-full text-sm text-red-600" role="alert">
           {error}
+        </p>
+      )}
+      {usageCount !== null && usageCount > 0 && (
+        <p className="w-full text-sm text-amber-700" role="alert">
+          Suppression impossible : cette valeur est utilisée par{" "}
+          <Link
+            href="/offres"
+            onClick={handleViewOffers}
+            className="font-medium underline hover:text-amber-900"
+          >
+            {usageCount} offre{usageCount > 1 ? "s" : ""}
+          </Link>.
         </p>
       )}
     </li>

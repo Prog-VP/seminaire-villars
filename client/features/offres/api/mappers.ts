@@ -68,6 +68,7 @@ export function mapRow(row: Record<string, unknown>): Offer {
     dateConfirmeeDu: (row.dateConfirmeeDu as string) ?? null,
     dateConfirmeeAu: (row.dateConfirmeeAu as string) ?? null,
     activiteUniquement: row.activiteUniquement as boolean | undefined,
+    activitesDemandees: row.activitesDemandees as boolean | undefined,
     nombreDeNuits: row.nombreDeNuits as string | undefined,
     nombrePax: row.nombrePax as number | undefined,
     chambresSimple: row.chambresSimple as number | undefined,

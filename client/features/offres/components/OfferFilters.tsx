@@ -112,6 +112,7 @@ export function OfferFilters({
       title: "Options",
       filters: [
         { key: "activiteUniquement", label: "Activité uniquement", type: "bool" },
+        { key: "activitesDemandees", label: "Activités demandées", type: "bool" },
         { key: "seminaire", label: "Séminaire", type: "bool" },
         { key: "reservationEffectuee", label: "Réservation effectuée", type: "bool" },
         { key: "retourEffectueHotels", label: "Retour effectué aux hôtels", type: "bool" },

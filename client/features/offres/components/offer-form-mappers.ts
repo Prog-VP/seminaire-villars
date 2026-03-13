@@ -12,11 +12,13 @@ export function mapFormValuesToPayload(values: OfferFormValues) {
     dateConfirmeeAu: values.dateConfirmeeAu || null,
   });
 
-  const nights = computeNights(effective.du, effective.au);
+  const hasApprox = dateOptions.some((opt) => opt.approximatif);
+  const nights = computeNights(effective.du, effective.au, hasApprox);
 
   return {
     ...values,
     activiteUniquement: values.activiteUniquement,
+    activitesDemandees: values.activitesDemandees,
     nombreDeNuits: nights !== null ? String(nights) : "",
     nombrePax: values.nombrePax ? Number(values.nombrePax) : undefined,
     chambresSimple: values.chambresSimple ? Number(values.chambresSimple) : undefined,
@@ -50,6 +52,7 @@ export function mapOfferToFormValues(offer: Offer): OfferFormValues {
 
   return {
     activiteUniquement: offer.activiteUniquement ?? false,
+    activitesDemandees: offer.activitesDemandees ?? false,
     societeContact: offer.societeContact || "",
     typeSociete: offer.typeSociete || "",
     pays: offer.pays || "",

@@ -33,6 +33,7 @@ const COLUMN_MAP: Record<string, keyof Offer> = {
   "Traité par": "traitePar",
   "Statut": "statut",
   "Activité uniquement": "activiteUniquement",
+  "Activités demandées": "activitesDemandees",
   "Séminaire": "seminaire",
   "Séminaire journée": "seminaireJournee",
   "Séminaire demi-journée": "seminaireDemiJournee",
@@ -155,6 +156,7 @@ function parseRow(row: Record<string, unknown>): Partial<Offer> | null {
   payload.traitePar = parseString(row["Traité par"]);
   payload.statut = parseStatut(row["Statut"]) ?? "Brouillon";
   payload.activiteUniquement = parseBool(row["Activité uniquement"]);
+  payload.activitesDemandees = parseBool(row["Activités demandées"]);
   payload.seminaire = parseBool(row["Séminaire"]);
   payload.seminaireJournee = parseBool(row["Séminaire journée"]);
   payload.seminaireDemiJournee = parseBool(row["Séminaire demi-journée"]);
@@ -349,13 +351,15 @@ export function exportOffersXLSX(offers: Offer[]) {
     "Chambres doubles": o.chambresDouble ?? "",
     "Chambres autres": o.chambresAutre ?? "",
     "Type de séjour": o.typeSejour ?? "",
-    "Catégorie hôtel": (o.categorieHotel ?? "").split(",").filter(Boolean).join(", "),
+    "Catégorie hôtel": (o.categorieHotel ?? "").split(",").map(s => s.trim()).filter(Boolean).join(", "),
     "Catégorie hôtel autre": o.categorieHotelAutre ?? "",
-    "Station demandée": (o.stationDemandee ?? "").split(",").filter(Boolean).join(", "),
+    "Station demandée": (o.stationDemandee ?? "").split(",").map(s => s.trim()).filter(Boolean).join(", "),
     "Transmis par": o.transmisPar ?? "",
     "Traité par": o.traitePar ?? "",
+    "Hôtels envoyés": (o.hotelSendsNames ?? []).join(", "),
     "Statut": normalizeStatut(o.statut),
     "Activité uniquement": o.activiteUniquement ? "Oui" : "Non",
+    "Activités demandées": o.activitesDemandees ? "Oui" : "Non",
     "Séminaire": o.seminaire ? "Oui" : "Non",
     "Séminaire journée": o.seminaireJournee ? "Oui" : "Non",
     "Séminaire demi-journée": o.seminaireDemiJournee ? "Oui" : "Non",
@@ -427,6 +431,7 @@ export function downloadImportTemplate(opts?: AllowedValues) {
     "Traité par": first("traitePar"),
     "Statut": first("statut", "Brouillon"),
     "Activité uniquement": "Non",
+    "Activités demandées": "Non",
     "Séminaire": "Oui",
     "Séminaire journée": "Oui",
     "Séminaire demi-journée": "Non",
@@ -467,7 +472,7 @@ export function downloadImportTemplate(opts?: AllowedValues) {
     ["Transmis par", "Texte (choix)", v("transmisPar"), ""],
     ["Traité par", "Texte (choix)", v("traitePar"), ""],
     ["Statut", "Texte (choix)", v("statut"), ""],
-    ["Booléens", "Oui / Non", "", "Activité uniquement, Séminaire, Séminaire journée/demi-journée, Réservation, Retour hôtels, Brevo"],
+    ["Booléens", "Oui / Non", "", "Activité uniquement, Activités demandées, Séminaire, Séminaire journée/demi-journée, Réservation, Retour hôtels, Brevo"],
     ["", "", "", "Valeurs acceptées : Oui/Non, Yes/No, Vrai/Faux, True/False, 1/0"],
     ["Notes / Commentaires", "Texte libre", "", "Importé comme commentaire (auteur « Import »)"],
     ["N° offre", "Texte", "", "Numéro de référence interne"],

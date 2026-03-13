@@ -59,6 +59,11 @@ export const ANALYZABLE_FIELDS: AnalyzableField[] = [
     accessor: (o) => (o.activiteUniquement ? "Oui" : "Non"),
   },
   {
+    key: "activitesDemandees",
+    label: "Activités demandées",
+    accessor: (o) => (o.activitesDemandees ? "Oui" : "Non"),
+  },
+  {
     key: "seminaire",
     label: "Séminaire",
     accessor: (o) => (o.seminaire ? "Oui" : "Non"),

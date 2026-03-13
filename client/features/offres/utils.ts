@@ -92,9 +92,10 @@ export function getEffectiveDates(offer: {
 
 /**
  * Computes the number of nights between two ISO date strings.
- * Returns `null` if either date is missing or invalid.
+ * Returns `null` if either date is missing, invalid, or approximatif.
  */
-export function computeNights(du: string | null, au: string | null): number | null {
+export function computeNights(du: string | null, au: string | null, approximatif?: boolean): number | null {
+  if (approximatif) return null;
   if (!du || !au) return null;
   const start = new Date(du);
   const end = new Date(au);
@@ -102,6 +103,21 @@ export function computeNights(du: string | null, au: string | null): number | nu
   const diffMs = end.getTime() - start.getTime();
   if (diffMs <= 0) return null;
   return Math.round(diffMs / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Formats an approximate date option as a readable month/year string.
+ * E.g. "2025-01-01" → "Janvier 2025"
+ */
+const MONTH_NAMES_FR = [
+  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+];
+
+export function formatApproxDate(isoDate: string): string {
+  const d = new Date(isoDate);
+  if (Number.isNaN(d.getTime())) return isoDate;
+  return `${MONTH_NAMES_FR[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 /**

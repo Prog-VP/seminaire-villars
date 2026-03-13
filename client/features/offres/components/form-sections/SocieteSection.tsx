@@ -14,7 +14,7 @@ export function SocieteSection({
   typeSocieteChoices: string[];
   langueChoices: string[];
 }) {
-  const { formState, handleChange, inputClass, checkboxClass } = useOfferFormCtx();
+  const { formState, handleChange, handleCheckbox, inputClass, checkboxClass } = useOfferFormCtx();
 
   return (
     <FormSection title="Informations société">
@@ -26,6 +26,16 @@ export function SocieteSection({
           className={checkboxClass}
         />
         Activité uniquement (pas d&apos;hébergement)
+      </label>
+      <label className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800 cursor-pointer">
+        <input
+          type="checkbox"
+          name="activitesDemandees"
+          checked={formState.activitesDemandees}
+          onChange={handleCheckbox}
+          className={checkboxClass}
+        />
+        Activités demandées
       </label>
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Société de contact" required>

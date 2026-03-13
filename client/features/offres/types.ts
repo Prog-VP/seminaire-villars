@@ -1,6 +1,7 @@
 export type DateOption = {
   du: string;
   au: string;
+  approximatif?: boolean;
 };
 
 export type Offer = {
@@ -20,6 +21,7 @@ export type Offer = {
   dateConfirmeeDu?: string | null;
   dateConfirmeeAu?: string | null;
   activiteUniquement?: boolean;
+  activitesDemandees?: boolean;
   nombreDeNuits?: string;
   nombrePax?: number;
   chambresSimple?: number;

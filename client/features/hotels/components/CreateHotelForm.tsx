@@ -4,11 +4,14 @@ import { useState } from "react";
 
 export function CreateHotelForm({
   onCreate,
+  destinations,
 }: {
-  onCreate: (nom: string, email: string) => Promise<void>;
+  onCreate: (nom: string, email: string, destination: string) => Promise<void>;
+  destinations: string[];
 }) {
   const [nom, setNom] = useState("");
   const [email, setEmail] = useState("");
+  const [destination, setDestination] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -21,9 +24,10 @@ export function CreateHotelForm({
     try {
       setIsCreating(true);
       setError(null);
-      await onCreate(nom.trim(), email.trim());
+      await onCreate(nom.trim(), email.trim(), destination);
       setNom("");
       setEmail("");
+      setDestination("");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Impossible d'ajouter cet hôtel."
@@ -49,6 +53,17 @@ export function CreateHotelForm({
           onChange={(e) => setNom(e.target.value)}
           disabled={isCreating}
         />
+        <select
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+          value={destination}
+          onChange={(e) => setDestination(e.target.value)}
+          disabled={isCreating}
+        >
+          <option value="">Destination…</option>
+          {destinations.map((d) => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
         <input
           type="email"
           className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"

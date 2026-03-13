@@ -6,6 +6,7 @@ import type { SharedOfferResponse } from "@/features/offres/api";
 import type { HotelResponseConfirmation } from "@/features/offres/types";
 import type { Lang } from "@/features/offres/i18n";
 import { t, formatDateLocale } from "@/features/offres/i18n";
+import { formatApproxDate } from "@/features/offres/utils";
 import { ConfirmationPreview, TemplateField } from "./ShareOfferWidgets";
 import {
   type TemplateState,
@@ -199,7 +200,9 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
                   <div className="mt-1 flex flex-wrap gap-2">
                     {offer.dateOptions.map((opt, i) => (
                       <span key={i} className="rounded-xl bg-slate-100 px-3 py-1 text-sm">
-                        {formatDateLocale(opt.du, lang)} → {formatDateLocale(opt.au, lang)}
+                        {opt.approximatif
+                          ? formatApproxDate(opt.du)
+                          : `${formatDateLocale(opt.du, lang)} → ${formatDateLocale(opt.au, lang)}`}
                       </span>
                     ))}
                   </div>

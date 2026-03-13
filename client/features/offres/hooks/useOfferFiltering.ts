@@ -24,6 +24,7 @@ export type OfferFiltersState = {
   paxMin: string;
   paxMax: string;
   activiteUniquement: BooleanFilterValue;
+  activitesDemandees: BooleanFilterValue;
   seminaire: BooleanFilterValue;
   reservationEffectuee: BooleanFilterValue;
   retourEffectueHotels: BooleanFilterValue;
@@ -75,6 +76,7 @@ export const INITIAL_FILTERS: OfferFiltersState = {
   paxMin: "",
   paxMax: "",
   activiteUniquement: "all",
+  activitesDemandees: "all",
   seminaire: "all",
   reservationEffectuee: "all",
   retourEffectueHotels: "all",
@@ -180,6 +182,7 @@ function matchesOffer(offer: Offer, filters: OfferFiltersState): boolean {
   if (paxMax !== null && (pax === null || pax > paxMax)) return false;
 
   if (!matchesBoolean(filters.activiteUniquement, offer.activiteUniquement)) return false;
+  if (!matchesBoolean(filters.activitesDemandees, offer.activitesDemandees)) return false;
   if (!matchesBoolean(filters.seminaire, offer.seminaire)) return false;
   if (!matchesBoolean(filters.reservationEffectuee, offer.reservationEffectuee)) return false;
   if (!matchesBoolean(filters.retourEffectueHotels, offer.retourEffectueHotels)) return false;

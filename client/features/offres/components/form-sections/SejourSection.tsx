@@ -157,7 +157,7 @@ export function SejourSection({
               />
             </Field>
             {(() => {
-              const n = computeNights(opt.du || null, opt.au || null);
+              const n = computeNights(opt.du || null, opt.au || null, opt.approximatif);
               return n !== null ? (
                 <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
                   {n} nuit{n > 1 ? "s" : ""}

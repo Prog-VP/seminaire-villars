@@ -91,7 +91,8 @@ function computeAverage(values: number[]): number | null {
 
 function getStayLengthInNights(offer: Offer): number | null {
   const eff = getEffectiveDates(offer);
-  const fromDates = computeNights(eff.du, eff.au);
+  const firstOpt = offer.dateOptions?.[0];
+  const fromDates = computeNights(eff.du, eff.au, firstOpt?.approximatif);
   if (fromDates !== null) return fromDates;
 
   if (typeof offer.nombreDeNuits === "string") {

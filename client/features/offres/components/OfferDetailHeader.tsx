@@ -2,7 +2,7 @@
 
 import { StatusChanger } from "./StatusChanger";
 import { normalizeStatut } from "../utils";
-import { getEffectiveDates } from "../utils";
+import { getEffectiveDates, formatApproxDate } from "../utils";
 import type { Offer, OfferComment } from "../types";
 
 type OfferDetailHeaderProps = {
@@ -111,14 +111,17 @@ export function OfferDetailHeader({
           </p>
           {(() => {
             const eff = getEffectiveDates(offer);
+            const firstOpt = offer.dateOptions?.[0];
             return (
               <p className="text-base font-semibold text-slate-900">
                 {eff.du
-                  ? `${new Date(eff.du).toLocaleDateString("fr-CH")} → ${
-                      eff.au
-                        ? new Date(eff.au).toLocaleDateString("fr-CH")
-                        : "?"
-                    }`
+                  ? firstOpt?.approximatif
+                    ? formatApproxDate(eff.du)
+                    : `${new Date(eff.du).toLocaleDateString("fr-CH")} → ${
+                        eff.au
+                          ? new Date(eff.au).toLocaleDateString("fr-CH")
+                          : "?"
+                      }`
                   : "Non défini"}
                 {(offer.dateConfirmeeDu || offer.dateConfirmeeAu) && (
                   <span className="ml-2 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Hotel, HotelDocument } from "../types";
 import {
   fetchHotels,
@@ -23,6 +23,8 @@ export function HotelsPage() {
   const [hotelDocs, setHotelDocs] = useState<HotelDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [nameFilter, setNameFilter] = useState("");
+  const [destinationFilter, setDestinationFilter] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -47,8 +49,28 @@ export function HotelsPage() {
     void load();
   }, [load]);
 
-  const handleCreate = async (nom: string, email: string) => {
-    const created = await createHotel(nom, email || null);
+  const filteredHotels = useMemo(() => {
+    let result = hotels;
+    if (nameFilter) {
+      const q = nameFilter.toLowerCase();
+      result = result.filter((h) => h.nom.toLowerCase().includes(q));
+    }
+    if (destinationFilter) {
+      result = result.filter((h) => h.destination === destinationFilter);
+    }
+    return result;
+  }, [hotels, nameFilter, destinationFilter]);
+
+  const destinations = useMemo(() => {
+    const set = new Set<string>();
+    for (const h of hotels) {
+      if (h.destination) set.add(h.destination);
+    }
+    return Array.from(set).sort();
+  }, [hotels]);
+
+  const handleCreate = async (nom: string, email: string, destination: string) => {
+    const created = await createHotel(nom, email || null, destination || null);
     setHotels((prev) =>
       [...prev, created].sort((a, b) =>
         a.nom.localeCompare(b.nom, "fr", { sensitivity: "base" })
@@ -58,7 +80,7 @@ export function HotelsPage() {
 
   const handleUpdate = async (
     id: string,
-    fields: { nom: string; email: string | null }
+    fields: { nom: string; email: string | null; destination: string | null }
   ) => {
     const updated = await updateHotel(id, fields);
     setHotels((prev) => {
@@ -79,7 +101,6 @@ export function HotelsPage() {
   const handleUploadDoc = async (hotelId: string, lang: string, file: File) => {
     const doc = await uploadHotelDocument(hotelId, lang, file);
     setHotelDocs((prev) => {
-      // Remove existing doc for same hotel+lang, add new one
       const filtered = prev.filter(
         (d) => !(d.hotelId === hotelId && d.lang === lang)
       );
@@ -105,14 +126,61 @@ export function HotelsPage() {
         </div>
       )}
 
-      <CreateHotelForm onCreate={handleCreate} />
+      <CreateHotelForm onCreate={handleCreate} destinations={destinations} />
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
-              <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Nom
+              <th className="px-5 py-3">
+                <div className="space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Nom
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Filtrer…"
+                    value={nameFilter}
+                    onChange={(e) => setNameFilter(e.target.value)}
+                    className="block w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                  />
+                </div>
+              </th>
+              <th className="px-5 py-3">
+                <div className="space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Destination
+                  </span>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setDestinationFilter(null)}
+                      className={`rounded px-2 py-0.5 text-[11px] font-medium transition ${
+                        destinationFilter === null
+                          ? "bg-slate-700 text-white"
+                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      }`}
+                    >
+                      Tous
+                    </button>
+                    {destinations.map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() =>
+                          setDestinationFilter(destinationFilter === d ? null : d)
+                        }
+                        className={`rounded px-2 py-0.5 text-[11px] font-medium transition ${
+                          destinationFilter === d
+                            ? "bg-slate-700 text-white"
+                            : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                        }`}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </th>
               <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Email
@@ -129,27 +197,30 @@ export function HotelsPage() {
             {isLoading ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   className="px-5 py-8 text-center text-sm text-slate-500"
                 >
                   Chargement…
                 </td>
               </tr>
-            ) : hotels.length === 0 ? (
+            ) : filteredHotels.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   className="px-5 py-8 text-center text-sm text-slate-500"
                 >
-                  Aucun hôtel enregistré pour l&apos;instant.
+                  {hotels.length === 0
+                    ? "Aucun hôtel enregistré pour l\u2019instant."
+                    : "Aucun hôtel ne correspond au filtre."}
                 </td>
               </tr>
             ) : (
-              hotels.map((hotel) => (
+              filteredHotels.map((hotel) => (
                 <HotelRow
                   key={hotel.id}
                   hotel={hotel}
                   docs={hotelDocs.filter((d) => d.hotelId === hotel.id)}
+                  destinations={destinations}
                   onSave={(fields) => handleUpdate(hotel.id, fields)}
                   onDelete={() => handleDelete(hotel.id)}
                   onUploadDoc={(lang, file) =>

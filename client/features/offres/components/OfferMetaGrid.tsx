@@ -3,7 +3,7 @@
 import { useCallback, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Offer } from "../types";
-import { formatStars, getEffectiveDates, computeNights, normalizeStatut } from "../utils";
+import { formatStars, getEffectiveDates, computeNights, normalizeStatut, formatApproxDate } from "../utils";
 import { formatDate } from "@/lib/format";
 
 type OfferMetaGridProps = {
@@ -45,7 +45,8 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
   const activeGroup = parseSection(searchParams.get("section"));
 
   const effectiveDates = getEffectiveDates(offer);
-  const computedNights = computeNights(effectiveDates.du, effectiveDates.au);
+  const firstOpt = offer.dateOptions?.[0];
+  const computedNights = computeNights(effectiveDates.du, effectiveDates.au, firstOpt?.approximatif);
 
   const visibleGroups = offer.activiteUniquement
     ? SUB_GROUPS.filter((g) => g.key !== "seminaire")
@@ -91,6 +92,7 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
         <MetaSection title="Informations société">
           <dl className="mt-4 grid gap-5 sm:grid-cols-2">
             <InfoItem label="Activité uniquement" value={formatBoolean(offer.activiteUniquement)} />
+            <InfoItem label="Activités demandées" value={formatBoolean(offer.activitesDemandees)} />
             <InfoItem label="Type de société" value={offer.typeSociete} />
             <InfoItem label="Pays" value={offer.pays} />
             <InfoItem label="Langue" value={offer.langue} />
@@ -147,7 +149,9 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
                   {offer.dateOptions.map((opt, i) => (
                     <p key={i} className="text-sm text-slate-900">
                       <span className="font-medium text-slate-500">Option {i + 1} :</span>{" "}
-                      {formatDate(opt.du)} → {formatDate(opt.au)}
+                      {opt.approximatif
+                        ? formatApproxDate(opt.du)
+                        : `${formatDate(opt.du)} → ${formatDate(opt.au)}`}
                     </p>
                   ))}
                 </dd>

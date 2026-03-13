@@ -10,7 +10,7 @@ export async function fetchHotels(): Promise<Hotel[]> {
   const data = throwOnError(
     await supabase()
       .from("hotels")
-      .select("id, nom, email, created_at")
+      .select("id, nom, email, destination, created_at")
       .order("nom", { ascending: true })
   );
   return data ?? [];
@@ -18,13 +18,14 @@ export async function fetchHotels(): Promise<Hotel[]> {
 
 export async function createHotel(
   nom: string,
-  email: string | null
+  email: string | null,
+  destination: string | null = null
 ): Promise<Hotel> {
   const data = throwOnError(
     await supabase()
       .from("hotels")
-      .insert({ nom, email: email || null })
-      .select("id, nom, email, created_at")
+      .insert({ nom, email: email || null, destination: destination || null })
+      .select("id, nom, email, destination, created_at")
       .single()
   );
   if (!data) throw new Error("Création échouée.");
@@ -33,18 +34,28 @@ export async function createHotel(
 
 export async function updateHotel(
   id: string,
-  fields: { nom: string; email: string | null }
+  fields: { nom: string; email: string | null; destination: string | null }
 ): Promise<Hotel> {
   const data = throwOnError(
     await supabase()
       .from("hotels")
-      .update({ nom: fields.nom, email: fields.email || null })
+      .update({ nom: fields.nom, email: fields.email || null, destination: fields.destination || null })
       .eq("id", id)
-      .select("id, nom, email, created_at")
+      .select("id, nom, email, destination, created_at")
       .single()
   );
   if (!data) throw new Error("Mise à jour échouée.");
   return data;
+}
+
+/** Count how many offer_hotel_sends reference this hotel. */
+export async function countOffersUsingHotel(hotelId: string): Promise<number> {
+  const { count, error } = await supabase()
+    .from("offer_hotel_sends")
+    .select("id", { count: "exact", head: true })
+    .eq("hotel_id", hotelId);
+  if (error) throw error;
+  return count ?? 0;
 }
 
 export async function deleteHotel(id: string): Promise<void> {

@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { Hotel, HotelDocument } from "../types";
+import { countOffersUsingHotel } from "../api";
 import { IconButton } from "@/components/ui/IconButton";
+import { INITIAL_FILTERS } from "@/features/offres/hooks/useOfferFiltering";
 
 const ALL_LANGS = ["fr", "en", "de"] as const;
 
 export function HotelRow({
   hotel,
   docs,
+  destinations,
   onSave,
   onDelete,
   onUploadDoc,
@@ -17,7 +21,8 @@ export function HotelRow({
 }: {
   hotel: Hotel;
   docs: HotelDocument[];
-  onSave: (fields: { nom: string; email: string | null }) => Promise<void>;
+  destinations: string[];
+  onSave: (fields: { nom: string; email: string | null; destination: string | null }) => Promise<void>;
   onDelete: () => Promise<void>;
   onUploadDoc: (lang: string, file: File) => Promise<void>;
   onDeleteDoc: (doc: HotelDocument) => Promise<void>;
@@ -26,6 +31,7 @@ export function HotelRow({
   const [isEditing, setIsEditing] = useState(false);
   const [nom, setNom] = useState(hotel.nom);
   const [email, setEmail] = useState(hotel.email ?? "");
+  const [destination, setDestination] = useState(hotel.destination ?? "");
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "deleting">("idle");
   const [uploadLang, setUploadLang] = useState<string | null>(null);
@@ -34,7 +40,8 @@ export function HotelRow({
   useEffect(() => {
     setNom(hotel.nom);
     setEmail(hotel.email ?? "");
-  }, [hotel.nom, hotel.email]);
+    setDestination(hotel.destination ?? "");
+  }, [hotel.nom, hotel.email, hotel.destination]);
 
   const handleSave = async () => {
     if (!nom.trim()) {
@@ -44,7 +51,11 @@ export function HotelRow({
     try {
       setStatus("saving");
       setError(null);
-      await onSave({ nom: nom.trim(), email: email.trim() || null });
+      await onSave({
+        nom: nom.trim(),
+        email: email.trim() || null,
+        destination: destination.trim() || null,
+      });
       setIsEditing(false);
     } catch (err) {
       setError(
@@ -55,13 +66,26 @@ export function HotelRow({
     }
   };
 
+  const [usageCount, setUsageCount] = useState<number | null>(null);
+
   const handleDelete = async () => {
-    const confirmation = window.confirm(
-      `Supprimer l'hôtel « ${hotel.nom} » ?`
-    );
-    if (!confirmation) return;
     try {
       setStatus("deleting");
+      setError(null);
+      setUsageCount(null);
+      const count = await countOffersUsingHotel(hotel.id);
+      if (count > 0) {
+        setUsageCount(count);
+        setStatus("idle");
+        return;
+      }
+      const confirmation = window.confirm(
+        `Supprimer l'hôtel « ${hotel.nom} » ?`
+      );
+      if (!confirmation) {
+        setStatus("idle");
+        return;
+      }
       await onDelete();
     } catch (err) {
       setError(
@@ -72,10 +96,16 @@ export function HotelRow({
     }
   };
 
+  const handleViewOffers = () => {
+    const filters = { ...INITIAL_FILTERS, hotelContacte: hotel.nom };
+    sessionStorage.setItem("offer-filters", JSON.stringify(filters));
+  };
+
   const handleCancel = () => {
     setIsEditing(false);
     setNom(hotel.nom);
     setEmail(hotel.email ?? "");
+    setDestination(hotel.destination ?? "");
     setError(null);
   };
 
@@ -123,6 +153,19 @@ export function HotelRow({
               />
             </td>
             <td className="px-5 py-3">
+              <select
+                className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                disabled={status === "saving"}
+              >
+                <option value="">—</option>
+                {destinations.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </td>
+            <td className="px-5 py-3">
               <input
                 type="email"
                 className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
@@ -153,6 +196,15 @@ export function HotelRow({
           <>
             <td className="px-5 py-3.5 font-medium text-slate-900">
               {hotel.nom}
+            </td>
+            <td className="px-5 py-3.5">
+              {hotel.destination ? (
+                <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                  {hotel.destination}
+                </span>
+              ) : (
+                <span className="text-slate-300">—</span>
+              )}
             </td>
             <td className="px-5 py-3.5 text-slate-500">
               {hotel.email ?? "—"}
@@ -253,9 +305,25 @@ export function HotelRow({
       </tr>
       {error && (
         <tr>
-          <td colSpan={4} className="px-5 pb-2">
+          <td colSpan={5} className="px-5 pb-2">
             <p className="text-sm text-red-600" role="alert">
               {error}
+            </p>
+          </td>
+        </tr>
+      )}
+      {usageCount !== null && usageCount > 0 && (
+        <tr>
+          <td colSpan={5} className="px-5 pb-2">
+            <p className="text-sm text-amber-700" role="alert">
+              Suppression impossible : cet hôtel est lié à{" "}
+              <Link
+                href="/offres"
+                onClick={handleViewOffers}
+                className="font-medium underline hover:text-amber-900"
+              >
+                {usageCount} offre{usageCount > 1 ? "s" : ""}
+              </Link>.
             </p>
           </td>
         </tr>

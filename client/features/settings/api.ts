@@ -95,6 +95,33 @@ export async function updateSettingValue(
   return { id: data.id, type: data.type as SettingType, label: data.label, color: data.color };
 }
 
+/** Count how many offers reference a given setting value. */
+export async function countOffersUsingSetting(
+  type: SettingType,
+  label: string
+): Promise<number> {
+  // These types are not stored in offers
+  if (type === "emailNotification") return 0;
+
+  // For comma-separated fields, use ilike
+  const multiFields: SettingType[] = ["categorieHotel", "stationDemandee"];
+  const column = type as string;
+
+  let query = supabase()
+    .from("offers")
+    .select("id", { count: "exact", head: true });
+
+  if (multiFields.includes(type)) {
+    query = query.like(column, `%${label}%`);
+  } else {
+    query = query.eq(column, label);
+  }
+
+  const { count, error } = await query;
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function deleteSettingValue(id: string) {
   throwOnError(
     await supabase().from("settings").delete().eq("id", id)
