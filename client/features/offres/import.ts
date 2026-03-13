@@ -174,6 +174,62 @@ function parseRow(row: Record<string, unknown>): Partial<Offer> | null {
 }
 
 // ---------------------------------------------------------------------------
+// Validation against allowed values
+// ---------------------------------------------------------------------------
+
+export type AllowedValues = {
+  typeSociete?: string[];
+  typeSejour?: string[];
+  categorieHotel?: string[];
+  stationDemandee?: string[];
+  transmisPar?: string[];
+  traitePar?: string[];
+  langue?: string[];
+  pays?: string[];
+  titreContact?: string[];
+  statut?: string[];
+};
+
+type ValidationError = { field: string; value: string; allowed: string[] };
+
+function validateRow(row: Record<string, unknown>, allowed: AllowedValues): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  const checks: { excelCol: string; key: keyof AllowedValues; multi?: boolean }[] = [
+    { excelCol: "Type de société", key: "typeSociete" },
+    { excelCol: "Type de séjour", key: "typeSejour" },
+    { excelCol: "Catégorie hôtel", key: "categorieHotel", multi: true },
+    { excelCol: "Station demandée", key: "stationDemandee", multi: true },
+    { excelCol: "Transmis par", key: "transmisPar" },
+    { excelCol: "Traité par", key: "traitePar" },
+    { excelCol: "Langue", key: "langue" },
+    { excelCol: "Pays", key: "pays" },
+    { excelCol: "Titre", key: "titreContact" },
+    { excelCol: "Statut", key: "statut" },
+  ];
+
+  for (const { excelCol, key, multi } of checks) {
+    const list = allowed[key];
+    if (!list || list.length === 0) continue;
+
+    const raw = parseString(row[excelCol]);
+    if (!raw) continue;
+
+    const values = multi
+      ? raw.split(",").map((s) => s.trim()).filter(Boolean)
+      : [raw.trim()];
+
+    for (const v of values) {
+      if (!list.includes(v)) {
+        errors.push({ field: excelCol, value: v, allowed: list });
+      }
+    }
+  }
+
+  return errors;
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -185,7 +241,7 @@ export type ImportResult = {
   errors: { row: number; message: string }[];
 };
 
-export async function importOffersFromFile(file: File): Promise<ImportResult> {
+export async function importOffersFromFile(file: File, allowed?: AllowedValues): Promise<ImportResult> {
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: "array", cellDates: true });
   const sheetName = wb.SheetNames[0];
@@ -214,6 +270,21 @@ export async function importOffersFromFile(file: File): Promise<ImportResult> {
         message: "Colonne « Société » manquante ou vide.",
       });
       continue;
+    }
+
+    // Validate against allowed values
+    if (allowed) {
+      const valErrors = validateRow(row, allowed);
+      if (valErrors.length > 0) {
+        result.skipped += 1;
+        for (const ve of valErrors) {
+          result.errors.push({
+            row: i + 2,
+            message: `« ${ve.field} » : "${ve.value}" n'est pas une valeur autorisée. Valeurs possibles : ${ve.allowed.join(", ")}`,
+          });
+        }
+        continue;
+      }
     }
 
     const existingId = parseString(row["ID"]);

@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useSettings } from "@/features/settings/context";
 import {
   importOffersFromFile,
   downloadImportTemplate,
   type ImportResult,
+  type AllowedValues,
 } from "../import";
 
 type Props = {
@@ -12,6 +14,7 @@ type Props = {
 };
 
 export function ImportOffersDropzone({ onImportDone }: Props) {
+  const { options } = useSettings();
   const [isDragging, setIsDragging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -31,7 +34,19 @@ export function ImportOffersDropzone({ onImportDone }: Props) {
       setIsImporting(true);
 
       try {
-        const res = await importOffersFromFile(file);
+        const allowed: AllowedValues = {
+          typeSociete: options.typeSociete,
+          typeSejour: options.typeSejour,
+          categorieHotel: options.categorieHotel,
+          stationDemandee: options.stationDemandee,
+          transmisPar: options.transmisPar,
+          traitePar: options.traitePar,
+          langue: options.langue,
+          pays: options.pays,
+          titreContact: options.titreContact,
+          statut: options.statut,
+        };
+        const res = await importOffersFromFile(file, allowed);
         setResult(res);
         if (res.created > 0 || res.updated > 0) {
           onImportDone();
