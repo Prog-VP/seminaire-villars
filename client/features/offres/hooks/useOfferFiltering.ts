@@ -195,11 +195,8 @@ function matchesOffer(offer: Offer, filters: OfferFiltersState): boolean {
   if (!matchesBoolean(filters.retourEffectueHotels, offer.retourEffectueHotels)) return false;
   if (!matchesBoolean(filters.contactEntreDansBrevo, offer.contactEntreDansBrevo)) return false;
 
-  // Année offre (basée sur dateEnvoiOffre)
-  if (filters.anneeOffre !== "all") {
-    const year = offer.dateEnvoiOffre?.slice(0, 4) ?? "";
-    if (year !== filters.anneeOffre) return false;
-  }
+  // Année offre (basée sur dateEnvoiOffre) — supports multi
+  if (!matchesExact(filters.anneeOffre, offer.dateEnvoiOffre?.slice(0, 4) ?? "")) return false;
 
   // Date d'envoi range
   if (filters.dateEnvoiDu && (!offer.dateEnvoiOffre || offer.dateEnvoiOffre < filters.dateEnvoiDu)) return false;

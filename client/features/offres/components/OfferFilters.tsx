@@ -77,7 +77,7 @@ export function OfferFilters({
     {
       title: "Classification",
       filters: [
-        { key: "anneeOffre", label: "Année offre", type: "select", options: anneeOptions },
+        { key: "anneeOffre", label: "Année offre", type: "multiselect", options: anneeOptions },
         { key: "statut", label: "Statut", type: "multiselect", options: filterChoices.statut },
         { key: "typeSociete", label: "Type de société", type: "multiselect", options: filterChoices.typeSociete },
         { key: "typeSejour", label: "Type de séjour", type: "multiselect", options: filterChoices.typeSejour },
