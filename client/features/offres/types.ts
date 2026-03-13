@@ -38,7 +38,6 @@ export type Offer = {
   seminaireJournee?: boolean;
   seminaireDemiJournee?: boolean;
   seminaireDetails?: string;
-  autres?: string;
   traitePar?: string;
   createdAt?: string;
   updatedAt?: string;

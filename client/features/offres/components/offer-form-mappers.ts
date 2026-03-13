@@ -70,7 +70,6 @@ export function mapOfferToFormValues(offer: Offer): OfferFormValues {
     dateOptions,
     dateConfirmeeDu: offer.dateConfirmeeDu ? offer.dateConfirmeeDu.slice(0, 10) : "",
     dateConfirmeeAu: offer.dateConfirmeeAu ? offer.dateConfirmeeAu.slice(0, 10) : "",
-    autres: offer.autres || "",
     transmisPar: offer.transmisPar || "",
     traitePar: offer.traitePar || "",
     seminaire: offer.seminaire ?? false,

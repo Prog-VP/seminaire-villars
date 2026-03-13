@@ -77,7 +77,6 @@ export function mapRow(row: Record<string, unknown>): Offer {
     seminaireJournee: row.seminaireJournee as boolean | undefined,
     seminaireDemiJournee: row.seminaireDemiJournee as boolean | undefined,
     seminaireDetails: row.seminaireDetails as string | undefined,
-    autres: row.autres as string | undefined,
     traitePar: row.traitePar as string | undefined,
     createdAt: row.createdAt as string | undefined,
     updatedAt: row.updatedAt as string | undefined,

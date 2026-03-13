@@ -39,7 +39,6 @@ export default async function StatsPage() {
       relanceEffectueeLe: (row.relanceEffectueeLe as string) ?? null,
       reservationEffectuee: row.reservationEffectuee as boolean | undefined,
       contactEntreDansBrevo: row.contactEntreDansBrevo as boolean | undefined,
-      autres: row.autres as string | undefined,
       traitePar: row.traitePar as string | undefined,
       createdAt: row.createdAt as string | undefined,
       updatedAt: row.updatedAt as string | undefined,

@@ -20,7 +20,6 @@ export type OfferFormValues = {
   dateOptions: { du: string; au: string }[];
   dateConfirmeeDu: string;
   dateConfirmeeAu: string;
-  autres: string;
   transmisPar: string;
   traitePar: string;
   seminaire: boolean;
@@ -57,7 +56,6 @@ export const defaultOfferFormValues: OfferFormValues = {
   dateOptions: [{ du: "", au: "" }],
   dateConfirmeeDu: "",
   dateConfirmeeAu: "",
-  autres: "",
   transmisPar: "",
   traitePar: "",
   seminaire: false,

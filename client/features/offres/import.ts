@@ -43,7 +43,6 @@ const COLUMN_MAP: Record<string, keyof Offer> = {
   "Retour effectué aux hôtels": "retourEffectueHotels",
   "Contact dans Brevo": "contactEntreDansBrevo",
   "N° offre": "numeroOffre",
-  "Autres / Notes": "autres",
 };
 
 
@@ -166,8 +165,6 @@ function parseRow(row: Record<string, unknown>): Partial<Offer> | null {
   payload.retourEffectueHotels = parseBool(row["Retour effectué aux hôtels"]);
   payload.contactEntreDansBrevo = parseBool(row["Contact dans Brevo"]);
   payload.numeroOffre = parseString(row["N° offre"]);
-  payload.autres = parseString(row["Autres / Notes"]);
-
   // Clean undefined values
   for (const key of Object.keys(payload)) {
     if (payload[key] === undefined) delete payload[key];
@@ -221,9 +218,8 @@ export async function importOffersFromFile(file: File): Promise<ImportResult> {
 
     const existingId = parseString(row["ID"]);
 
-    // Extract 'autres' to save as comment separately
-    const autresNote = payload.autres ? String(payload.autres) : null;
-    delete payload.autres;
+    // Extract "Notes / Commentaires" to save as comment
+    const autresNote = parseString(row["Notes / Commentaires"]) ?? null;
 
     try {
       if (existingId) {
@@ -327,7 +323,7 @@ export function exportOffersXLSX(offers: Offer[]) {
 // ---------------------------------------------------------------------------
 
 export function downloadImportTemplate() {
-  const headers = Object.keys(COLUMN_MAP);
+  const headers = [...Object.keys(COLUMN_MAP), "Notes / Commentaires"];
   const exampleRow: Record<string, string> = {
     "Société": "Exemple SA",
     "Type de société": "Entreprise",
