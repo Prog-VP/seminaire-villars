@@ -55,9 +55,9 @@ export function getStatutBadgeStyle(statut: string, allStatuts: string[], colorM
   if (colorMap) {
     const color = colorMap[statut];
     if (color && COLOR_TO_BADGE[color]) return COLOR_TO_BADGE[color];
+    // If colorMap exists but no color set for this statut → default grey
+    if (statut in colorMap) return BADGE_PALETTE[0];
   }
-  const idx = allStatuts.indexOf(statut);
-  if (idx >= 0) return BADGE_PALETTE[idx % BADGE_PALETTE.length];
   return BADGE_PALETTE[0];
 }
 
