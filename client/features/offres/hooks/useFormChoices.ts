@@ -26,11 +26,10 @@ export function useFormChoices(formState: OfferFormValues) {
   }, [options.categorieHotel, formState.categorieHotel]);
 
   const station = useMemo(() => {
-    const base = ["Villars", "Diablerets"];
-    for (const val of options.stationDemandee) if (!base.includes(val)) base.push(val);
+    const merged = [...options.stationDemandee];
     const selected = formState.stationDemandee ? formState.stationDemandee.split(",").map((s) => s.trim()).filter(Boolean) : [];
-    for (const val of selected) if (!base.includes(val)) base.push(val);
-    return base;
+    for (const val of selected) if (!merged.includes(val)) merged.push(val);
+    return merged;
   }, [options.stationDemandee, formState.stationDemandee]);
 
   return { pays, typeSociete, langue, titre, typeSejour, traitePar, transmisPar, categorie, station };
