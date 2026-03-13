@@ -1,73 +1,203 @@
-export type TemplateState = {
+import type { Lang } from "../i18n";
+import { t, formatDateLocale } from "../i18n";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type DateOptionResponse = {
+  disponible: boolean;
   dateFrom: string;
   dateTo: string;
-  roomsSimple: string;
-  roomsDouble: string;
-  priceChf: string;
-  priceEur: string;
-  forfaitChf: string;
-  forfaitEur: string;
+  priceSimpleChf: string;
+  priceDoubleChf: string;
+  demiPensionChf: string;
+  pensionCompleteChf: string;
+  forfaitSeminaireChf: string;
   taxeChf: string;
-  taxeEur: string;
+  commentaire: string;
 };
 
-export const TEMPLATE_DEFAULTS: TemplateState = {
-  dateFrom: "",
-  dateTo: "",
-  roomsSimple: "",
-  roomsDouble: "",
-  priceChf: "",
-  priceEur: "",
-  forfaitChf: "",
-  forfaitEur: "",
-  taxeChf: "",
-  taxeEur: "",
+export type TemplateState = {
+  dateResponses: DateOptionResponse[];
+  roomsSimple: string;
+  roomsDouble: string;
+  forfaitType: "journee" | "demi-journee";
+  commentaireGeneral: string;
 };
+
+// ---------------------------------------------------------------------------
+// Defaults
+// ---------------------------------------------------------------------------
+
+export function createDateOptionResponse(du: string, au: string): DateOptionResponse {
+  return {
+    disponible: true,
+    dateFrom: du,
+    dateTo: au,
+    priceSimpleChf: "",
+    priceDoubleChf: "",
+    demiPensionChf: "",
+    pensionCompleteChf: "",
+    forfaitSeminaireChf: "",
+    taxeChf: "",
+    commentaire: "",
+  };
+}
+
+export function createTemplateDefaults(
+  dateOptions: { du: string; au: string }[] | undefined,
+  confirmeeDu?: string | null,
+  confirmeeAu?: string | null,
+): TemplateState {
+  const options = dateOptions?.length
+    ? dateOptions
+    : confirmeeDu || confirmeeAu
+      ? [{ du: confirmeeDu || "", au: confirmeeAu || "" }]
+      : [{ du: "", au: "" }];
+
+  return {
+    dateResponses: options.map((o) => createDateOptionResponse(o.du || "", o.au || "")),
+    roomsSimple: "",
+    roomsDouble: "",
+    forfaitType: "journee",
+    commentaireGeneral: "",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// CSS
+// ---------------------------------------------------------------------------
 
 export const inputClass =
   "mt-1 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200";
 
-export function buildTemplateMessage(values: TemplateState) {
-  const arrival = formatTemplateDate(values.dateFrom);
-  const departure = formatTemplateDate(values.dateTo);
-  return [
-    `Dates disponibles du ${arrival} au ${departure}`,
-    `Chambres disponibles : ${values.roomsSimple} chambres simples / ${values.roomsDouble} doubles`,
-    `CHF ${values.priceChf} (€ ${values.priceEur}) par nuit en chambre (simple / double) avec petit-déjeuner (parking inclus)`,
-    `Forfait séminaire : CHF ${values.forfaitChf} (€ ${values.forfaitEur}) par personne et par jour`,
-    `Taxe de séjour : CHF ${values.taxeChf} (€ ${values.taxeEur}) par personne et par nuit`,
-  ].join("\n");
+// ---------------------------------------------------------------------------
+// EUR conversion
+// ---------------------------------------------------------------------------
+
+export function chfToEur(chf: string, rate: number): string {
+  const n = parseFloat(chf.replace(",", "."));
+  if (isNaN(n) || n === 0) return "";
+  return (n * rate).toFixed(2);
 }
 
-export function isTemplateValid(values: TemplateState) {
-  return (
-    values.dateFrom.trim().length > 0 &&
-    values.dateTo.trim().length > 0 &&
-    values.roomsSimple.trim().length > 0 &&
-    values.roomsDouble.trim().length > 0 &&
-    values.priceChf.trim().length > 0 &&
-    values.priceEur.trim().length > 0 &&
-    values.forfaitChf.trim().length > 0 &&
-    values.forfaitEur.trim().length > 0 &&
-    values.taxeChf.trim().length > 0 &&
-    values.taxeEur.trim().length > 0
-  );
-}
+// ---------------------------------------------------------------------------
+// Build message
+// ---------------------------------------------------------------------------
 
-export function formatTemplateDate(value: string) {
-  if (!value) return "…";
-  try {
-    return new Intl.DateTimeFormat("fr-CH", { dateStyle: "medium" }).format(
-      new Date(value)
-    );
-  } catch {
-    return value;
+export function buildTemplateMessage(state: TemplateState, lang: Lang, rate: number, opts: {
+  showSimple: boolean;
+  showDouble: boolean;
+  showSeminaire: boolean;
+  activiteUniquement: boolean;
+}): string {
+  const allClosed = state.dateResponses.every((d) => !d.disponible);
+  if (allClosed) {
+    return t(lang, "noAvailability");
   }
+
+  const lines: string[] = [];
+
+  for (let i = 0; i < state.dateResponses.length; i++) {
+    const dr = state.dateResponses[i];
+    const label = state.dateResponses.length > 1
+      ? `--- ${t(lang, "dateOption")} ${i + 1} ---`
+      : null;
+
+    if (label) lines.push(label);
+
+    if (!dr.disponible) {
+      lines.push(t(lang, "closed"));
+      lines.push("");
+      continue;
+    }
+
+    const arrival = formatDateLocale(dr.dateFrom, lang);
+    const departure = formatDateLocale(dr.dateTo, lang);
+    lines.push(`${t(lang, "availableDates")}: ${arrival} → ${departure}`);
+
+    if (!opts.activiteUniquement) {
+      if (opts.showSimple && dr.priceSimpleChf) {
+        const eur = chfToEur(dr.priceSimpleChf, rate);
+        lines.push(`${t(lang, "priceSingleChf")}: CHF ${dr.priceSimpleChf}${eur ? ` (≈ €${eur})` : ""}`);
+      }
+      if (opts.showDouble && dr.priceDoubleChf) {
+        const eur = chfToEur(dr.priceDoubleChf, rate);
+        lines.push(`${t(lang, "priceDoubleChf")}: CHF ${dr.priceDoubleChf}${eur ? ` (≈ €${eur})` : ""}`);
+      }
+      if (dr.demiPensionChf) {
+        const eur = chfToEur(dr.demiPensionChf, rate);
+        lines.push(`${t(lang, "halfBoardChf")}: CHF ${dr.demiPensionChf}${eur ? ` (≈ €${eur})` : ""}`);
+      }
+      if (dr.pensionCompleteChf) {
+        const eur = chfToEur(dr.pensionCompleteChf, rate);
+        lines.push(`${t(lang, "fullBoardChf")}: CHF ${dr.pensionCompleteChf}${eur ? ` (≈ €${eur})` : ""}`);
+      }
+    }
+
+    if (opts.showSeminaire && dr.forfaitSeminaireChf) {
+      const eur = chfToEur(dr.forfaitSeminaireChf, rate);
+      const typeLabel = state.forfaitType === "journee" ? t(lang, "fullDay") : t(lang, "halfDay");
+      lines.push(`${t(lang, "seminarPackageChf")} (${typeLabel}): CHF ${dr.forfaitSeminaireChf}${eur ? ` (≈ €${eur})` : ""}`);
+    }
+
+    if (dr.taxeChf) {
+      const eur = chfToEur(dr.taxeChf, rate);
+      lines.push(`${t(lang, "touristTaxChf")}: CHF ${dr.taxeChf}${eur ? ` (≈ €${eur})` : ""}`);
+    }
+
+    if (dr.commentaire.trim()) {
+      lines.push(`${dr.commentaire.trim()}`);
+    }
+
+    lines.push("");
+  }
+
+  if (!opts.activiteUniquement) {
+    if (opts.showSimple && state.roomsSimple) {
+      lines.push(`${t(lang, "availableRoomsSimple")}: ${state.roomsSimple}`);
+    }
+    if (opts.showDouble && state.roomsDouble) {
+      lines.push(`${t(lang, "availableRoomsDouble")}: ${state.roomsDouble}`);
+    }
+  }
+
+  if (state.commentaireGeneral.trim()) {
+    lines.push("");
+    lines.push(state.commentaireGeneral.trim());
+  }
+
+  return lines.join("\n").trim();
 }
+
+// ---------------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------------
+
+export function isTemplateValid(state: TemplateState): boolean {
+  return state.dateResponses.some((d) => d.disponible);
+}
+
+// ---------------------------------------------------------------------------
+// Date formatting
+// ---------------------------------------------------------------------------
 
 export function formatDateInput(value?: string | null) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toISOString().slice(0, 10);
+}
+
+// ---------------------------------------------------------------------------
+// Lang detection
+// ---------------------------------------------------------------------------
+
+export function detectLang(langue?: string | null): Lang {
+  if (!langue) return "fr";
+  const l = langue.toLowerCase();
+  if (l.startsWith("ang") || l.startsWith("en")) return "en";
+  if (l.startsWith("all") || l.startsWith("de") || l.startsWith("ger")) return "de";
+  return "fr";
 }

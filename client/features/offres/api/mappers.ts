@@ -13,7 +13,16 @@ export type SharedOfferResponse = {
   dateConfirmeeAu?: string | null;
   nombrePax?: number | null;
   nombreDeNuits?: string | null;
-  hotelResponses: HotelResponse[];
+  chambresSimple?: number | null;
+  chambresDouble?: number | null;
+  chambresAutre?: number | null;
+  seminaire?: boolean | null;
+  seminaireJournee?: boolean | null;
+  seminaireDemiJournee?: boolean | null;
+  seminaireDetails?: string | null;
+  langue?: string | null;
+  typeSejour?: string | null;
+  activiteUniquement?: boolean | null;
 };
 
 export function mapRow(row: Record<string, unknown>): Offer {
@@ -120,14 +129,15 @@ export function mapSharedOfferRow(row: Record<string, unknown>): SharedOfferResp
     dateConfirmeeAu: (row.dateConfirmeeAu as string) ?? null,
     nombrePax: (row.nombrePax as number) ?? null,
     nombreDeNuits: (row.nombreDeNuits as string) ?? null,
-    hotelResponses: ((row.hotelResponses as Record<string, unknown>[]) ?? []).map(
-      (r) => ({
-        id: r.id as string,
-        hotelName: r.hotelName as string,
-        respondentName: r.respondentName as string | undefined,
-        message: r.message as string,
-        createdAt: r.createdAt as string | undefined,
-      })
-    ),
+    chambresSimple: (row.chambresSimple as number) ?? null,
+    chambresDouble: (row.chambresDouble as number) ?? null,
+    chambresAutre: (row.chambresAutre as number) ?? null,
+    seminaire: (row.seminaire as boolean) ?? null,
+    seminaireJournee: (row.seminaireJournee as boolean) ?? null,
+    seminaireDemiJournee: (row.seminaireDemiJournee as boolean) ?? null,
+    seminaireDetails: (row.seminaireDetails as string) ?? null,
+    langue: (row.langue as string) ?? null,
+    typeSejour: (row.typeSejour as string) ?? null,
+    activiteUniquement: (row.activiteUniquement as boolean) ?? null,
   };
 }

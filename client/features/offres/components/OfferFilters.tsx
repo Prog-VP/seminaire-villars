@@ -32,12 +32,14 @@ export function OfferFilters({
   onReset,
   hotelContacteOptions = [],
   hotelReponduOptions = [],
+  anneeOptions = [],
 }: {
   filters: OfferFiltersState;
   onChange: (next: Partial<OfferFiltersState>) => void;
   onReset: () => void;
   hotelContacteOptions?: string[];
   hotelReponduOptions?: string[];
+  anneeOptions?: string[];
 }) {
   const [showAll, setShowAll] = useState(false);
   const { options } = useSettings();
@@ -75,6 +77,7 @@ export function OfferFilters({
     {
       title: "Classification",
       filters: [
+        { key: "anneeOffre", label: "Année offre", type: "select", options: anneeOptions },
         { key: "statut", label: "Statut", type: "select", options: filterChoices.statut },
         { key: "typeSociete", label: "Type de société", type: "select", options: filterChoices.typeSociete },
         { key: "typeSejour", label: "Type de séjour", type: "select", options: filterChoices.typeSejour },
@@ -92,6 +95,10 @@ export function OfferFilters({
         { key: "paxMax", label: "Participants (max)", type: "number" },
         { key: "sejourDu", label: "Séjour du", type: "date" },
         { key: "sejourAu", label: "Séjour au", type: "date" },
+        { key: "dateEnvoiDu", label: "Date d'envoi du", type: "date" },
+        { key: "dateEnvoiAu", label: "Date d'envoi au", type: "date" },
+        { key: "relanceDu", label: "Relance du", type: "date" },
+        { key: "relanceAu", label: "Relance au", type: "date" },
       ],
     },
     {
@@ -105,6 +112,7 @@ export function OfferFilters({
       title: "Options",
       filters: [
         { key: "activiteUniquement", label: "Activité uniquement", type: "bool" },
+        { key: "seminaire", label: "Séminaire", type: "bool" },
         { key: "reservationEffectuee", label: "Réservation effectuée", type: "bool" },
         { key: "retourEffectueHotels", label: "Retour effectué aux hôtels", type: "bool" },
         { key: "contactEntreDansBrevo", label: "Contact dans Brevo", type: "bool" },

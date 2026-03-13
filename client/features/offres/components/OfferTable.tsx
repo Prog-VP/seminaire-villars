@@ -63,6 +63,7 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
     handleFilterChange: rawHandleFilterChange,
     handleResetFilters: rawHandleResetFilters,
     hotelOptions,
+    anneeOptions,
     hasActiveFilters,
   } = useOfferFiltering(data);
 
@@ -155,6 +156,7 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
           onReset={handleResetFilters}
           hotelContacteOptions={hotelOptions.contactes}
           hotelReponduOptions={hotelOptions.repondus}
+          anneeOptions={anneeOptions}
         />
       </div>
 

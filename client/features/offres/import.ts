@@ -257,7 +257,7 @@ export async function importOffersFromFile(file: File): Promise<ImportResult> {
 export function exportOffersXLSX(offers: Offer[]) {
   const rows = offers.map((o) => ({
     "ID": o.id,
-    "N°": o.numeroOffre ?? "",
+    "N° offre": o.numeroOffre ?? "",
     "Société": o.societeContact,
     "Type de société": o.typeSociete ?? "",
     "Pays": o.pays ?? "",
@@ -324,43 +324,48 @@ export function exportOffersXLSX(offers: Offer[]) {
 
 export function downloadImportTemplate() {
   const headers = [...Object.keys(COLUMN_MAP), "Notes / Commentaires"];
+  // Exemple complet montrant les conventions de saisie
+  // - Dates multiples : séparées par " | "
+  // - Catégories multiples : séparées par ","
+  // - Stations multiples : séparées par ","
+  // - Booléens : "Oui" / "Non"
   const exampleRow: Record<string, string> = {
-    "Société": "Exemple SA",
-    "Type de société": "Entreprise",
+    "Société": "Acme Events International SA",
+    "Type de société": "Agence",
     "Pays": "CH",
-    "Email": "contact@exemple.ch",
+    "Email": "j.dupont@acme-events.ch",
     "Téléphone": "+41 21 123 45 67",
     "Langue": "Français",
     "Titre": "M.",
     "Nom": "Dupont",
     "Prénom": "Jean",
-    "Date option du": "2026-06-15",
-    "Date option au": "2026-06-18",
-    "Date confirmée du": "",
-    "Date confirmée au": "",
-    "Nombre de participants": "25",
+    "Date option du": "15.06.2026 | 22.06.2026 | 01.07.2026",
+    "Date option au": "18.06.2026 | 25.06.2026 | 04.07.2026",
+    "Date confirmée du": "22.06.2026",
+    "Date confirmée au": "25.06.2026",
+    "Nombre de participants": "45",
     "Chambres simples": "5",
-    "Chambres doubles": "10",
-    "Chambres autres": "",
+    "Chambres doubles": "20",
+    "Chambres autres": "2",
     "Type de séjour": "Séminaire",
-    "Catégorie hôtel": "4*",
-    "Catégorie hôtel autre": "",
-    "Station demandée": "Villars",
-    "Transmis par": "Site web",
-    "Traité par": "",
-    "Statut": "Brouillon",
+    "Catégorie hôtel": "3*, 4*",
+    "Catégorie hôtel autre": "Chalet de groupe",
+    "Station demandée": "Villars, Diablerets",
+    "Transmis par": "SCIB FR",
+    "Traité par": "MP",
+    "Statut": "En cours",
     "Activité uniquement": "Non",
     "Séminaire": "Oui",
     "Séminaire journée": "Oui",
     "Séminaire demi-journée": "Non",
-    "Détails séminaire": "Salle plénière + 2 breakout rooms",
-    "Date d'envoi": "2026-01-15",
-    "Relance effectuée le": "",
-    "Réservation effectuée": "Non",
-    "Retour effectué aux hôtels": "Non",
-    "Contact dans Brevo": "Non",
+    "Détails séminaire": "Salle plénière 50 pers. + 2 breakout rooms 15 pers.",
+    "Date d'envoi": "15.01.2026",
+    "Relance effectuée le": "30.01.2026",
+    "Réservation effectuée": "Oui",
+    "Retour effectué aux hôtels": "Oui",
+    "Contact dans Brevo": "Oui",
     "N° offre": "",
-    "Notes / Commentaires": "",
+    "Notes / Commentaires": "Client fidèle, 3e demande cette année. Budget max CHF 250/pers/nuit.",
   };
 
   const ws = XLSX.utils.json_to_sheet([exampleRow], { header: headers });

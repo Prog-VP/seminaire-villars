@@ -1,5 +1,5 @@
 import { throwOnError } from "@/lib/supabase/helpers";
-import type { DateOption, HotelResponse, HotelResponseConfirmation } from "../types";
+import type { HotelResponse, HotelResponseConfirmation } from "../types";
 import { supabase } from "./client";
 import type { SharedOfferResponse } from "./mappers";
 
@@ -29,18 +29,21 @@ export async function fetchSharedOffer(token: string): Promise<SharedOfferRespon
   return {
     id: row.id,
     societeContact: row.societeContact,
-    dateOptions: (row.dateOptions as DateOption[]) ?? [],
-    dateConfirmeeDu: (row.dateConfirmeeDu as string) ?? null,
-    dateConfirmeeAu: (row.dateConfirmeeAu as string) ?? null,
+    dateOptions: row.dateOptions ?? [],
+    dateConfirmeeDu: row.dateConfirmeeDu ?? null,
+    dateConfirmeeAu: row.dateConfirmeeAu ?? null,
     nombrePax: row.nombrePax ?? null,
     nombreDeNuits: row.nombreDeNuits ?? null,
-    hotelResponses: (row.hotelResponses ?? []).map((r: Record<string, unknown>) => ({
-      id: r.id as string,
-      hotelName: r.hotelName as string,
-      respondentName: r.respondentName as string | undefined,
-      message: r.message as string,
-      createdAt: r.createdAt as string | undefined,
-    })),
+    chambresSimple: row.chambresSimple ?? null,
+    chambresDouble: row.chambresDouble ?? null,
+    chambresAutre: row.chambresAutre ?? null,
+    seminaire: row.seminaire ?? null,
+    seminaireJournee: row.seminaireJournee ?? null,
+    seminaireDemiJournee: row.seminaireDemiJournee ?? null,
+    seminaireDetails: row.seminaireDetails ?? null,
+    langue: row.langue ?? null,
+    typeSejour: row.typeSejour ?? null,
+    activiteUniquement: row.activiteUniquement ?? null,
   };
 }
 

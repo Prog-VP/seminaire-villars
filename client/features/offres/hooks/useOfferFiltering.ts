@@ -24,6 +24,7 @@ export type OfferFiltersState = {
   paxMin: string;
   paxMax: string;
   activiteUniquement: BooleanFilterValue;
+  seminaire: BooleanFilterValue;
   reservationEffectuee: BooleanFilterValue;
   retourEffectueHotels: BooleanFilterValue;
   contactEntreDansBrevo: BooleanFilterValue;
@@ -31,6 +32,11 @@ export type OfferFiltersState = {
   hotelRepondu: string;
   sejourDu: string;
   sejourAu: string;
+  anneeOffre: string;
+  dateEnvoiDu: string;
+  dateEnvoiAu: string;
+  relanceDu: string;
+  relanceAu: string;
   notes: string;
 };
 
@@ -69,6 +75,7 @@ export const INITIAL_FILTERS: OfferFiltersState = {
   paxMin: "",
   paxMax: "",
   activiteUniquement: "all",
+  seminaire: "all",
   reservationEffectuee: "all",
   retourEffectueHotels: "all",
   contactEntreDansBrevo: "all",
@@ -76,6 +83,11 @@ export const INITIAL_FILTERS: OfferFiltersState = {
   hotelRepondu: "",
   sejourDu: "",
   sejourAu: "",
+  anneeOffre: "all",
+  dateEnvoiDu: "",
+  dateEnvoiAu: "",
+  relanceDu: "",
+  relanceAu: "",
   notes: "",
 };
 
@@ -168,9 +180,24 @@ function matchesOffer(offer: Offer, filters: OfferFiltersState): boolean {
   if (paxMax !== null && (pax === null || pax > paxMax)) return false;
 
   if (!matchesBoolean(filters.activiteUniquement, offer.activiteUniquement)) return false;
+  if (!matchesBoolean(filters.seminaire, offer.seminaire)) return false;
   if (!matchesBoolean(filters.reservationEffectuee, offer.reservationEffectuee)) return false;
   if (!matchesBoolean(filters.retourEffectueHotels, offer.retourEffectueHotels)) return false;
   if (!matchesBoolean(filters.contactEntreDansBrevo, offer.contactEntreDansBrevo)) return false;
+
+  // Année offre (basée sur dateEnvoiOffre)
+  if (filters.anneeOffre !== "all") {
+    const year = offer.dateEnvoiOffre?.slice(0, 4) ?? "";
+    if (year !== filters.anneeOffre) return false;
+  }
+
+  // Date d'envoi range
+  if (filters.dateEnvoiDu && (!offer.dateEnvoiOffre || offer.dateEnvoiOffre < filters.dateEnvoiDu)) return false;
+  if (filters.dateEnvoiAu && (!offer.dateEnvoiOffre || offer.dateEnvoiOffre > filters.dateEnvoiAu)) return false;
+
+  // Relance range
+  if (filters.relanceDu && (!offer.relanceEffectueeLe || offer.relanceEffectueeLe < filters.relanceDu)) return false;
+  if (filters.relanceAu && (!offer.relanceEffectueeLe || offer.relanceEffectueeLe > filters.relanceAu)) return false;
 
   if (filters.hotelContacte && !(offer.hotelSendsNames ?? []).includes(filters.hotelContacte)) return false;
   if (filters.hotelRepondu && !(offer.hotelResponses ?? []).some((r) => r.hotelName === filters.hotelRepondu)) return false;
@@ -272,6 +299,15 @@ export function useOfferFiltering(data: Offer[]) {
     return { contactes: Array.from(contactes).sort(sort), repondus: Array.from(repondus).sort(sort) };
   }, [data]);
 
+  const anneeOptions = useMemo(() => {
+    const years = new Set<string>();
+    for (const offer of data) {
+      const y = offer.dateEnvoiOffre?.slice(0, 4);
+      if (y) years.add(y);
+    }
+    return Array.from(years).sort().reverse();
+  }, [data]);
+
   const handleFilterChange = (next: Partial<OfferFiltersState>) => {
     setFilters((prev) => ({ ...prev, ...next }));
   };
@@ -288,5 +324,5 @@ export function useOfferFiltering(data: Offer[]) {
 
   const hasActiveFilters = JSON.stringify(filters) !== JSON.stringify(INITIAL_FILTERS);
 
-  return { filters, sortConfig, handleSort, sortedOffers, handleFilterChange, handleResetFilters, hotelOptions, hasActiveFilters };
+  return { filters, sortConfig, handleSort, sortedOffers, handleFilterChange, handleResetFilters, hotelOptions, anneeOptions, hasActiveFilters };
 }
