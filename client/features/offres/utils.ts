@@ -1,26 +1,50 @@
-import type { DateOption, OfferStatut, ParsedHotelResponse } from "./types";
+import type { DateOption, ParsedHotelResponse } from "./types";
 
 // ---------------------------------------------------------------------------
 // Statut constants
 // ---------------------------------------------------------------------------
 
-export const OFFER_STATUTS: { value: OfferStatut; label: string }[] = [
-  { value: "brouillon", label: "Brouillon" },
-  { value: "envoye", label: "Envoy\u00e9" },
-  { value: "refuse", label: "Refus\u00e9" },
-  { value: "confirme", label: "Confirm\u00e9" },
-];
+/** Default statuts used as fallback when settings haven't loaded yet. */
+export const DEFAULT_STATUTS = ["Brouillon", "Envoyé", "Refusé", "Confirmé"];
 
-export const STATUT_BADGE_STYLES: Record<OfferStatut, string> = {
-  brouillon: "bg-slate-100 text-slate-700",
-  envoye: "bg-blue-100 text-blue-700",
-  refuse: "bg-rose-100 text-rose-700",
-  confirme: "bg-emerald-100 text-emerald-700",
+/**
+ * Legacy key → label mapping for migrating old data.
+ * Old offers may still have coded keys; this converts them to display labels.
+ */
+const LEGACY_STATUT_MAP: Record<string, string> = {
+  brouillon: "Brouillon",
+  envoye: "Envoyé",
+  refuse: "Refusé",
+  confirme: "Confirmé",
 };
 
-export function getStatutLabel(statut?: OfferStatut | string): string {
-  const found = OFFER_STATUTS.find((s) => s.value === statut);
-  return found?.label ?? "Brouillon";
+/**
+ * Normalizes a statut value — converts legacy keys to labels.
+ */
+export function normalizeStatut(statut?: string | null): string {
+  if (!statut) return DEFAULT_STATUTS[0];
+  return LEGACY_STATUT_MAP[statut] ?? statut;
+}
+
+/**
+ * Rotating palette of badge styles for statuts.
+ * The first statut gets slate (draft-like), then blue, rose, emerald, etc.
+ */
+const BADGE_PALETTE = [
+  "bg-slate-100 text-slate-700",
+  "bg-blue-100 text-blue-700",
+  "bg-rose-100 text-rose-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-amber-100 text-amber-700",
+  "bg-purple-100 text-purple-700",
+  "bg-cyan-100 text-cyan-700",
+  "bg-pink-100 text-pink-700",
+];
+
+export function getStatutBadgeStyle(statut: string, allStatuts: string[]): string {
+  const idx = allStatuts.indexOf(statut);
+  if (idx >= 0) return BADGE_PALETTE[idx % BADGE_PALETTE.length];
+  return BADGE_PALETTE[0];
 }
 
 /**
@@ -68,15 +92,6 @@ export function computeNights(du: string | null, au: string | null): number | nu
 
 /**
  * Parses a hotel response message that follows the template format from ShareOfferView.
- *
- * Expected format:
- *   Dates disponibles du 28 fév. 2026 au 2 mars 2026
- *   Chambres disponibles : 10 chambres simples / 15 doubles
- *   CHF 150 (€ 140) par nuit…
- *   Forfait séminaire : CHF 85 (€ 80)…
- *   Taxe de séjour : CHF 3.50 (€ 3.20)…
- *
- * Falls back gracefully: any field that cannot be parsed is left as null.
  */
 export function parseHotelResponseMessage(message: string): ParsedHotelResponse {
   const result: ParsedHotelResponse = {
@@ -98,17 +113,13 @@ export function parseHotelResponseMessage(message: string): ParsedHotelResponse 
   for (const line of lines) {
     const trimmed = line.trim();
 
-    // Dates disponibles du … au …
-    const dateMatch = trimmed.match(
-      /^Dates disponibles du (.+?) au (.+)$/i
-    );
+    const dateMatch = trimmed.match(/^Dates disponibles du (.+?) au (.+)$/i);
     if (dateMatch) {
       result.dateFrom = dateMatch[1].trim();
       result.dateTo = dateMatch[2].trim();
       continue;
     }
 
-    // Chambres disponibles : 10 chambres simples / 15 doubles
     const roomsMatch = trimmed.match(
       /^Chambres disponibles\s*:\s*(\S+)\s+chambres?\s+simples?\s*\/\s*(\S+)\s+doubles?/i
     );
@@ -118,17 +129,13 @@ export function parseHotelResponseMessage(message: string): ParsedHotelResponse 
       continue;
     }
 
-    // CHF 150 (€ 140) par nuit…
-    const priceMatch = trimmed.match(
-      /^CHF\s+([\d.,]+)\s*\(€\s*([\d.,]+)\)\s*par nuit/i
-    );
+    const priceMatch = trimmed.match(/^CHF\s+([\d.,]+)\s*\(€\s*([\d.,]+)\)\s*par nuit/i);
     if (priceMatch) {
       result.priceChf = priceMatch[1];
       result.priceEur = priceMatch[2];
       continue;
     }
 
-    // Forfait séminaire : CHF 85 (€ 80)…
     const forfaitMatch = trimmed.match(
       /^Forfait séminaire\s*:\s*CHF\s+([\d.,]+)\s*\(€\s*([\d.,]+)\)/i
     );
@@ -138,7 +145,6 @@ export function parseHotelResponseMessage(message: string): ParsedHotelResponse 
       continue;
     }
 
-    // Taxe de séjour : CHF 3.50 (€ 3.20)…
     const taxeMatch = trimmed.match(
       /^Taxe de séjour\s*:\s*CHF\s+([\d.,]+)\s*\(€\s*([\d.,]+)\)/i
     );

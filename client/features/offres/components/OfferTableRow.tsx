@@ -1,0 +1,214 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import type { Offer, OfferComment } from "../types";
+import { DEFAULT_STATUTS, getStatutBadgeStyle, normalizeStatut } from "../utils";
+
+type OfferTableRowProps = {
+  offer: Offer;
+  index: number;
+  globalIndex: number;
+  isSelected: boolean;
+  onToggleSelect: (id: string, e: React.MouseEvent) => void;
+  onNavigate: (id: string) => void;
+};
+
+export function OfferTableRow({
+  offer,
+  index,
+  globalIndex,
+  isSelected,
+  onToggleSelect,
+  onNavigate,
+}: OfferTableRowProps) {
+  return (
+    <tr
+      onClick={() => onNavigate(offer.id)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onNavigate(offer.id);
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      className={`cursor-pointer border-t border-slate-100 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 ${
+        index % 2 === 1 ? "bg-slate-50/60" : ""
+      } ${isSelected ? "bg-brand-50/60" : ""}`}
+    >
+      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => {}}
+          onClick={(e) => onToggleSelect(offer.id, e)}
+          className="h-3.5 w-3.5 rounded border-slate-300 text-brand-900 focus:ring-brand-500"
+        />
+      </td>
+      <td className="px-4 py-2.5 text-xs text-slate-400 tabular-nums">
+        {globalIndex}
+      </td>
+      <td className="px-4 py-2.5 text-sm text-slate-500">
+        {offer.numeroOffre ?? "—"}
+      </td>
+      <td className="px-4 py-2.5">
+        <p className="font-medium text-slate-900">
+          {offer.societeContact}
+        </p>
+        <p className="text-xs text-slate-500">
+          {offer.transmisPar
+            ? `Transmis par ${offer.transmisPar}`
+            : "\u00A0"}
+        </p>
+      </td>
+      <td className="hidden px-4 py-2.5 text-sm text-slate-700 md:table-cell">
+        {offer.prenomContact || offer.nomContact ? (
+          <span>
+            {offer.titreContact ? `${offer.titreContact} ` : ""}
+            {[offer.prenomContact, offer.nomContact]
+              .filter(Boolean)
+              .join(" ")}
+          </span>
+        ) : (
+          "—"
+        )}
+        <p className="text-xs text-slate-500">
+          {offer.emailContact || "Contact inconnu"}
+        </p>
+      </td>
+      <td className="hidden px-4 py-2.5 text-sm text-slate-600 sm:table-cell">
+        {offer.pays}
+      </td>
+      <td className="hidden px-4 py-2.5 text-sm text-slate-600 lg:table-cell">
+        {offer.typeSejour ?? "—"}
+      </td>
+      <td className="hidden px-4 py-2.5 sm:table-cell">
+        {(() => {
+          const s = normalizeStatut(offer.statut);
+          const classes = getStatutBadgeStyle(s, DEFAULT_STATUTS);
+          return (
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${classes}`}
+            >
+              {s}
+            </span>
+          );
+        })()}
+      </td>
+      <td className="hidden px-4 py-2.5 text-sm text-slate-500 lg:table-cell">
+        {offer.dateEnvoiOffre
+          ? new Date(offer.dateEnvoiOffre).toLocaleDateString("fr-CH")
+          : "—"}
+      </td>
+      <td className="hidden px-4 py-2.5 text-center lg:table-cell">
+        {offer.relanceEffectueeLe ? (
+          <Tip label={`Relancée le ${new Date(offer.relanceEffectueeLe).toLocaleDateString("fr-CH")}`}>
+            <span className="text-emerald-600">✓</span>
+          </Tip>
+        ) : (
+          <span className="text-xs text-slate-300">—</span>
+        )}
+      </td>
+      <td className="hidden px-4 py-2.5 text-sm lg:table-cell">
+        {(offer.hotelSendsCount ?? 0) > 0 ? (
+          <Tip label={offer.hotelSendsNames?.join(", ") ?? ""}>
+            <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+              {offer.hotelSendsCount}
+            </span>
+          </Tip>
+        ) : (
+          <span className="text-xs text-slate-300">—</span>
+        )}
+      </td>
+      <td className="hidden px-4 py-2.5 text-sm text-slate-700 lg:table-cell">
+        {(offer.hotelResponses?.length ?? 0) > 0 ? (
+          <Tip label={offer.hotelResponses!.map((r) => r.hotelName).join(", ")}>
+            <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+              {offer.hotelResponses!.length}
+            </span>
+          </Tip>
+        ) : (
+          <span className="text-xs text-slate-300">—</span>
+        )}
+      </td>
+      <td className="hidden px-4 py-2.5 text-sm lg:table-cell" onClick={(e) => e.stopPropagation()}>
+        {(() => {
+          const cmts = offer.comments ?? [];
+          if (cmts.length === 0) return <span className="text-xs text-slate-300">—</span>;
+          return (
+            <CommentsPopover comments={cmts} societe={offer.societeContact} />
+          );
+        })()}
+      </td>
+    </tr>
+  );
+}
+
+function CommentsPopover({ comments, societe }: { comments: OfferComment[]; societe: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+      >
+        {comments.length}
+      </button>
+      {open && (
+        <div className="fixed z-[9999] w-80 rounded-xl border border-slate-200 bg-white p-4 shadow-xl" style={{ bottom: "auto", right: "auto" }} ref={(el) => {
+          if (!el || !ref.current) return;
+          const btn = ref.current.querySelector("button");
+          if (!btn) return;
+          const rect = btn.getBoundingClientRect();
+          el.style.left = `${Math.max(8, rect.right - 320)}px`;
+          el.style.top = `${Math.max(8, rect.top - el.offsetHeight - 8)}px`;
+        }}>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Notes — {societe}
+          </p>
+          <div className="max-h-64 space-y-3 overflow-y-auto">
+            {comments.map((c) => (
+              <div key={c.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                <p className="mb-0.5 text-xs font-medium text-slate-500">
+                  {c.author || "—"}
+                  {c.date ? ` · ${new Date(c.date).toLocaleDateString("fr-CH")}` : ""}
+                </p>
+                <p className="whitespace-pre-line text-slate-700">{c.content}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Tip({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <span className="group relative inline-flex">
+      {children}
+      <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 whitespace-pre-line rounded-md bg-slate-800 px-2.5 py-1.5 text-xs leading-relaxed text-white opacity-0 shadow-lg transition-opacity duration-100 group-hover:opacity-100 max-w-sm max-h-32 overflow-hidden">
+        {label}
+      </span>
+    </span>
+  );
+}

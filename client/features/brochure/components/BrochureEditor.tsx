@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import type { BrochureSection, BrochureSectionType, ConferenceRoom, Activity, SkiPrice } from "../types";
-import { brochureImageUrl, destinationLabel } from "../utils";
+import type { BrochureSection } from "../types";
+import { destinationLabel } from "../utils";
+import { SECTION_TYPE_LABELS, ADD_SECTION_OPTIONS } from "./brochure-editor-constants";
+import { SectionEditor } from "./BrochureSectionEditor";
+import { useBrochureEditor } from "./useBrochureEditor";
 
 type Props = {
   sections: BrochureSection[];
@@ -15,28 +17,6 @@ type Props = {
   isSaving?: boolean;
 };
 
-const SECTION_TYPE_LABELS: Record<string, string> = {
-  welcome: "Accueil",
-  hotel: "Hôtel",
-  venue: "Lieu",
-  "activities-summer": "Activités été",
-  "activities-winter": "Activités hiver",
-  ski: "Domaine skiable",
-  contacts: "Contacts",
-  custom: "Section libre",
-};
-
-const ADD_SECTION_OPTIONS: { type: BrochureSectionType; label: string; icon: string }[] = [
-  { type: "custom", label: "Section libre (texte)", icon: "T" },
-  { type: "welcome", label: "Accueil / Hero", icon: "H" },
-  { type: "hotel", label: "Hôtel", icon: "🏨" },
-  { type: "venue", label: "Lieu / Salle", icon: "📍" },
-  { type: "activities-summer", label: "Activités été", icon: "☀" },
-  { type: "activities-winter", label: "Activités hiver", icon: "❄" },
-  { type: "ski", label: "Domaine skiable", icon: "⛷" },
-  { type: "contacts", label: "Contacts", icon: "📞" },
-];
-
 export function BrochureEditor({
   sections: initialSections,
   destination,
@@ -47,103 +27,29 @@ export function BrochureEditor({
   onReset,
   isSaving,
 }: Props) {
-  const [sections, setSections] = useState<BrochureSection[]>(initialSections);
-  const [selectedIdx, setSelectedIdx] = useState<number>(0);
-  const [linkCopied, setLinkCopied] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-
-  const updateSection = useCallback(
-    (idx: number, patch: Partial<BrochureSection>) => {
-      setSections((prev) => {
-        const next = [...prev];
-        next[idx] = { ...next[idx], ...patch };
-        return next;
-      });
-      setHasChanges(true);
-    },
-    []
-  );
-
-  const updateSectionMetadata = useCallback(
-    (idx: number, metaPatch: Record<string, unknown>) => {
-      setSections((prev) => {
-        const next = [...prev];
-        next[idx] = {
-          ...next[idx],
-          metadata: { ...next[idx].metadata, ...metaPatch },
-        };
-        return next;
-      });
-      setHasChanges(true);
-    },
-    []
-  );
-
-  const handleSave = async () => {
-    await onSave(sections);
-    setHasChanges(false);
-  };
-
-  const handleCopyLink = () => {
-    onCopyLink?.();
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 2000);
-  };
-
-  const handleReset = () => {
-    if (
-      window.confirm(
-        "Réinitialiser la brochure depuis le modèle de base ? Toutes les modifications seront perdues."
-      )
-    ) {
-      onReset?.();
-    }
-  };
-
-  const moveSection = (fromIdx: number, direction: "up" | "down") => {
-    const toIdx = direction === "up" ? fromIdx - 1 : fromIdx + 1;
-    if (toIdx < 0 || toIdx >= sections.length) return;
-    setSections((prev) => {
-      const next = [...prev];
-      [next[fromIdx], next[toIdx]] = [next[toIdx], next[fromIdx]];
-      return next;
-    });
-    setSelectedIdx(toIdx);
-    setHasChanges(true);
-  };
-
-  const addSection = (type: BrochureSectionType) => {
-    const id = `${type}-${Date.now()}`;
-    const newSection: BrochureSection = {
-      id,
-      type,
-      enabled: true,
-      title: SECTION_TYPE_LABELS[type] ?? "Nouvelle section",
-      content: "",
-      images: [],
-      metadata:
-        type === "hotel"
-          ? { conferenceRooms: [] }
-          : type === "activities-summer" || type === "activities-winter"
-            ? { activities: [] }
-            : type === "ski"
-              ? { skiPrices: [] }
-              : undefined,
-    };
-    setSections((prev) => [...prev, newSection]);
-    setSelectedIdx(sections.length); // select the newly added one
-    setHasChanges(true);
-  };
-
-  const deleteSection = (idx: number) => {
-    setSections((prev) => prev.filter((_, i) => i !== idx));
-    setSelectedIdx((prev) => (prev >= idx && prev > 0 ? prev - 1 : prev));
-    setHasChanges(true);
-  };
-
-  const [showAddMenu, setShowAddMenu] = useState(false);
-
-  const selected = sections[selectedIdx];
+  const {
+    sections,
+    selectedIdx,
+    setSelectedIdx,
+    linkCopied,
+    hasChanges,
+    showAddMenu,
+    setShowAddMenu,
+    selected,
+    updateSection,
+    updateSectionMetadata,
+    handleSave,
+    handleCopyLink,
+    handleReset,
+    moveSection,
+    addSection,
+    deleteSection,
+  } = useBrochureEditor({
+    initialSections,
+    onSave,
+    onCopyLink,
+    onReset,
+  });
 
   return (
     <div className="space-y-4">
@@ -362,317 +268,6 @@ export function BrochureEditor({
             </p>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Section editor (right panel)
-// ---------------------------------------------------------------------------
-
-function SectionEditor({
-  section,
-  onChange,
-  onMetadataChange,
-}: {
-  section: BrochureSection;
-  onChange: (patch: Partial<BrochureSection>) => void;
-  onMetadataChange: (patch: Record<string, unknown>) => void;
-}) {
-  return (
-    <div className="space-y-5">
-      {/* Type badge */}
-      <div className="flex items-center gap-2">
-        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          {SECTION_TYPE_LABELS[section.type] ?? section.type}
-        </span>
-        <span className="text-xs text-slate-400">ID: {section.id}</span>
-      </div>
-
-      {/* Title */}
-      <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">
-          Titre
-        </label>
-        <input
-          type="text"
-          value={section.title}
-          onChange={(e) => onChange({ title: e.target.value })}
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-brand-300 focus:outline-none focus:ring-1 focus:ring-brand-300"
-        />
-      </div>
-
-      {/* Content */}
-      <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">
-          Contenu
-        </label>
-        <textarea
-          value={section.content}
-          onChange={(e) => onChange({ content: e.target.value })}
-          rows={8}
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-brand-300 focus:outline-none focus:ring-1 focus:ring-brand-300"
-        />
-      </div>
-
-      {/* Images (read-only display) */}
-      {section.images && section.images.length > 0 && (
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-600">
-            Images ({section.images.length})
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            {section.images.map((img, i) => (
-              <div key={i} className="group relative">
-                <img
-                  src={brochureImageUrl(img)}
-                  alt={`Image ${i + 1}`}
-                  className="h-20 w-full rounded-lg border border-slate-200 object-cover"
-                />
-                <p className="mt-0.5 truncate text-[10px] text-slate-400">
-                  {img.split("/").pop()}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Hotel response data (read-only) */}
-      {section.type === "hotel" && section.metadata?.hotelResponseData && (
-        <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700">
-            Données dynamiques (réponse hôtel)
-          </h4>
-          <div className="grid gap-2 text-sm sm:grid-cols-2">
-            {Object.entries(section.metadata.hotelResponseData).map(
-              ([key, val]) =>
-                val ? (
-                  <div key={key}>
-                    <span className="text-blue-600">{key}: </span>
-                    <span className="font-medium text-slate-900">{val}</span>
-                  </div>
-                ) : null
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Conference rooms table editor */}
-      {section.metadata?.conferenceRooms && (
-        <ConferenceRoomsEditor
-          rooms={section.metadata.conferenceRooms}
-          onChange={(rooms) => onMetadataChange({ conferenceRooms: rooms })}
-        />
-      )}
-
-      {/* Activities editor */}
-      {section.metadata?.activities && (
-        <ActivitiesEditor
-          activities={section.metadata.activities}
-          onChange={(activities) => onMetadataChange({ activities })}
-        />
-      )}
-
-      {/* Ski prices editor */}
-      {section.metadata?.skiPrices && (
-        <SkiPricesEditor
-          prices={section.metadata.skiPrices}
-          onChange={(skiPrices) => onMetadataChange({ skiPrices })}
-        />
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Inline table editors
-// ---------------------------------------------------------------------------
-
-function ConferenceRoomsEditor({
-  rooms,
-  onChange,
-}: {
-  rooms: ConferenceRoom[];
-  onChange: (rooms: ConferenceRoom[]) => void;
-}) {
-  const update = (idx: number, field: keyof ConferenceRoom, value: string | number) => {
-    const next = [...rooms];
-    next[idx] = { ...next[idx], [field]: value };
-    onChange(next);
-  };
-
-  return (
-    <div>
-      <label className="mb-2 block text-xs font-medium text-slate-600">
-        Salles de conférence
-      </label>
-      <div className="overflow-x-auto text-xs">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-slate-200 text-left text-slate-500">
-              <th className="px-1 py-1">Salle</th>
-              <th className="px-1 py-1">m²</th>
-              <th className="px-1 py-1">Haut.</th>
-              <th className="px-1 py-1">Th.</th>
-              <th className="px-1 py-1">Sém.</th>
-              <th className="px-1 py-1">U</th>
-              <th className="px-1 py-1">Banq.</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rooms.map((room, i) => (
-              <tr key={i} className="border-b border-slate-100">
-                <td className="px-1 py-1">
-                  <input
-                    value={room.name}
-                    onChange={(e) => update(i, "name", e.target.value)}
-                    className="w-20 rounded border border-slate-200 px-1 py-0.5 text-xs"
-                  />
-                </td>
-                <td className="px-1 py-1">
-                  <input
-                    value={room.m2}
-                    onChange={(e) => update(i, "m2", e.target.value)}
-                    className="w-12 rounded border border-slate-200 px-1 py-0.5 text-xs"
-                  />
-                </td>
-                <td className="px-1 py-1">
-                  <input
-                    value={room.height}
-                    onChange={(e) => update(i, "height", e.target.value)}
-                    className="w-12 rounded border border-slate-200 px-1 py-0.5 text-xs"
-                  />
-                </td>
-                <td className="px-1 py-1">
-                  <input
-                    type="number"
-                    value={room.theatre}
-                    onChange={(e) => update(i, "theatre", parseInt(e.target.value) || 0)}
-                    className="w-12 rounded border border-slate-200 px-1 py-0.5 text-xs"
-                  />
-                </td>
-                <td className="px-1 py-1">
-                  <input
-                    type="number"
-                    value={room.seminar}
-                    onChange={(e) => update(i, "seminar", parseInt(e.target.value) || 0)}
-                    className="w-12 rounded border border-slate-200 px-1 py-0.5 text-xs"
-                  />
-                </td>
-                <td className="px-1 py-1">
-                  <input
-                    type="number"
-                    value={room.uShape}
-                    onChange={(e) => update(i, "uShape", parseInt(e.target.value) || 0)}
-                    className="w-12 rounded border border-slate-200 px-1 py-0.5 text-xs"
-                  />
-                </td>
-                <td className="px-1 py-1">
-                  <input
-                    type="number"
-                    value={room.banquet}
-                    onChange={(e) => update(i, "banquet", parseInt(e.target.value) || 0)}
-                    className="w-12 rounded border border-slate-200 px-1 py-0.5 text-xs"
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function ActivitiesEditor({
-  activities,
-  onChange,
-}: {
-  activities: Activity[];
-  onChange: (activities: Activity[]) => void;
-}) {
-  const update = (idx: number, field: keyof Activity, value: string) => {
-    const next = [...activities];
-    next[idx] = { ...next[idx], [field]: value };
-    onChange(next);
-  };
-
-  return (
-    <div>
-      <label className="mb-2 block text-xs font-medium text-slate-600">
-        Activités
-      </label>
-      <div className="space-y-2">
-        {activities.map((a, i) => (
-          <div key={i} className="grid grid-cols-3 gap-2">
-            <input
-              value={a.name}
-              onChange={(e) => update(i, "name", e.target.value)}
-              placeholder="Nom"
-              className="rounded border border-slate-200 px-2 py-1 text-xs"
-            />
-            <input
-              value={a.description}
-              onChange={(e) => update(i, "description", e.target.value)}
-              placeholder="Description"
-              className="rounded border border-slate-200 px-2 py-1 text-xs"
-            />
-            <input
-              value={a.price}
-              onChange={(e) => update(i, "price", e.target.value)}
-              placeholder="Prix"
-              className="rounded border border-slate-200 px-2 py-1 text-xs"
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SkiPricesEditor({
-  prices,
-  onChange,
-}: {
-  prices: SkiPrice[];
-  onChange: (prices: SkiPrice[]) => void;
-}) {
-  const update = (idx: number, field: keyof SkiPrice, value: string) => {
-    const next = [...prices];
-    next[idx] = { ...next[idx], [field]: value };
-    onChange(next);
-  };
-
-  return (
-    <div>
-      <label className="mb-2 block text-xs font-medium text-slate-600">
-        Tarifs ski
-      </label>
-      <div className="space-y-2">
-        {prices.map((p, i) => (
-          <div key={i} className="grid grid-cols-3 gap-2">
-            <input
-              value={p.period}
-              onChange={(e) => update(i, "period", e.target.value)}
-              placeholder="Période"
-              className="rounded border border-slate-200 px-2 py-1 text-xs"
-            />
-            <input
-              value={p.skipass}
-              onChange={(e) => update(i, "skipass", e.target.value)}
-              placeholder="Forfait"
-              className="rounded border border-slate-200 px-2 py-1 text-xs"
-            />
-            <input
-              value={p.rental}
-              onChange={(e) => update(i, "rental", e.target.value)}
-              placeholder="Location"
-              className="rounded border border-slate-200 px-2 py-1 text-xs"
-            />
-          </div>
-        ))}
       </div>
     </div>
   );

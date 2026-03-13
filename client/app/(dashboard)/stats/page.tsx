@@ -53,7 +53,7 @@ export default async function StatsPage() {
             createdAt: r.createdAt as string | undefined,
           }))
         : [],
-      statut: ((row.statut as string) || "brouillon") as import("@/features/offres/types").OfferStatut,
+      statut: (row.statut as string) || "Brouillon",
     }));
   } catch (err) {
     error =

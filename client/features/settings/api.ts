@@ -19,6 +19,7 @@ function normalizeSettingsMap(
     categorieHotel: [],
     stationDemandee: [],
     titreContact: [],
+    statut: [],
     emailNotification: [],
   };
 

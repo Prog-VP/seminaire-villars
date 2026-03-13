@@ -10,6 +10,7 @@ export const DEFAULT_SETTING_OPTIONS: Record<SettingType, string[]> = {
   categorieHotel: [],
   stationDemandee: [],
   titreContact: [],
+  statut: [],
   emailNotification: [],
 };
 
@@ -23,5 +24,6 @@ export const EMPTY_SETTINGS_MAP: SettingsMap = {
   categorieHotel: [],
   stationDemandee: [],
   titreContact: [],
+  statut: [],
   emailNotification: [],
 };

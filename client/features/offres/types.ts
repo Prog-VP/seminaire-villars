@@ -3,16 +3,11 @@ export type DateOption = {
   au: string;
 };
 
-export type OfferStatut =
-  | "brouillon"
-  | "envoye"
-  | "refuse"
-  | "confirme";
-
 export type Offer = {
   id: string;
   numeroOffre?: string;
   societeContact: string;
+  dateEnvoiOffre?: string | null;
   typeSociete: string;
   pays: string;
   emailContact?: string;
@@ -37,6 +32,7 @@ export type Offer = {
   stationDemandee?: string;
   relanceEffectueeLe?: string | null;
   reservationEffectuee?: boolean;
+  retourEffectueHotels?: boolean;
   contactEntreDansBrevo?: boolean;
   seminaire?: boolean;
   seminaireJournee?: boolean;
@@ -50,7 +46,7 @@ export type Offer = {
   hotelResponses?: HotelResponse[];
   comments?: OfferComment[];
   attachmentsCount?: number;
-  statut?: OfferStatut;
+  statut?: string;
   hotelSendsCount?: number;
   hotelSendsNames?: string[];
 };

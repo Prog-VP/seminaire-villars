@@ -8,6 +8,7 @@ export type SettingType =
   | "categorieHotel"
   | "stationDemandee"
   | "titreContact"
+  | "statut"
   | "emailNotification";
 
 export type SettingValue = {

@@ -13,17 +13,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, password, role, nom, prenom } = body as {
+    const { email, role, nom, prenom } = body as {
       email: string;
-      password: string;
       role: UserRole;
       nom?: string;
       prenom?: string;
     };
 
-    if (!email || !password) {
+    if (!email) {
       return NextResponse.json(
-        { error: "Email et mot de passe requis." },
+        { error: "Email requis." },
         { status: 400 }
       );
     }
@@ -31,12 +30,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Rôle invalide." }, { status: 400 });
     }
 
-    // Create user via admin client
+    // Invite user — they receive an email to set their password
     const admin = createAdminClient();
-    const { data, error } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin}/reset-password`;
+    const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo,
     });
 
     if (error) {

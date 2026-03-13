@@ -11,7 +11,7 @@ export default async function OffresPage() {
     const supabase = await createClient();
     const { data, error: dbError } = await supabase
       .from("offers")
-      .select("*, hotel_responses(*), offer_comments(count), offer_hotel_sends(id, hotels(nom))")
+      .select("*, hotel_responses(*), offer_comments(*), offer_hotel_sends(id, hotels(nom))")
       .order("createdAt", { ascending: false });
 
     if (dbError) throw new Error(dbError.message);

@@ -55,6 +55,11 @@ const SECTIONS: Array<{
     title: "Types de société",
     description: "Catégories d'interlocuteurs entrants.",
   },
+  {
+    type: "statut",
+    title: "Statuts d'offre",
+    description: "États possibles d'une offre (ex. Brouillon, Envoyé…).",
+  },
 ];
 
 const PLACEHOLDER_MAP: Record<SettingType, string> = {
@@ -67,6 +72,7 @@ const PLACEHOLDER_MAP: Record<SettingType, string> = {
   categorieHotel: "Ajouter une catégorie",
   stationDemandee: "Ajouter une station",
   titreContact: "Ajouter un titre/civilité",
+  statut: "Ajouter un statut",
   emailNotification: "Ajouter un email",
 };
 

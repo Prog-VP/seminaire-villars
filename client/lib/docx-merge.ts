@@ -416,3 +416,71 @@ export async function replaceOfferText(
 
   return Buffer.from(result);
 }
+
+// ---------------------------------------------------------------------------
+// Generic placeholder replacement (cover page fields, etc.)
+// ---------------------------------------------------------------------------
+
+/**
+ * Replace `{{KEY}}` placeholders inside a DOCX buffer with plain-text values.
+ * Handles Word splitting placeholders across multiple XML runs.
+ * Values are escaped for XML; line breaks become `<w:br/>`.
+ */
+export async function replacePlaceholders(
+  buffer: Buffer,
+  replacements: Record<string, string>
+): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(buffer);
+  let docXml =
+    (await zip.file("word/document.xml")?.async("string")) ?? "";
+
+  const textOnly = docXml.replace(/<[^>]*>/g, "");
+
+  for (const [key, rawValue] of Object.entries(replacements)) {
+    const placeholder = `{{${key}}}`;
+    if (!textOnly.includes(placeholder)) continue;
+
+    const clean = rawValue
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+
+    const escaped = clean
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    const replacement = escaped
+      .split("\n")
+      .join('</w:t><w:br/><w:t xml:space="preserve">');
+
+    if (docXml.includes(placeholder)) {
+      docXml = docXml.replaceAll(placeholder, replacement);
+    } else {
+      const runBoundary =
+        "(?:" +
+          "\\s*</w:t>\\s*" +
+          "(?:</w:r>\\s*" +
+            "(?:<w:proofErr[^/]*/?>\\s*)*" +
+            "<w:r>\\s*(?:<w:rPr>[\\s\\S]*?</w:rPr>\\s*)?" +
+          ")?" +
+          "<w:t[^>]*>\\s*" +
+        ")?";
+      const pattern = placeholder
+        .split("")
+        .map((c) => escapeRegex(c))
+        .join(runBoundary);
+      docXml = docXml.replace(new RegExp(pattern, "g"), replacement);
+    }
+  }
+
+  zip.file("word/document.xml", docXml);
+
+  const resultBuf = await zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
+
+  return Buffer.from(resultBuf);
+}

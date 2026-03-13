@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
-import { createOffer } from "./api";
-import type { Offer, OfferStatut } from "./types";
+import { createOffer, updateOffer, addOfferComment } from "./api";
+import { normalizeStatut } from "./utils";
+import type { Offer } from "./types";
 
 // ---------------------------------------------------------------------------
 // Column mapping: Excel header → Offer field
@@ -20,7 +21,6 @@ const COLUMN_MAP: Record<string, keyof Offer> = {
   "Date option au": "dateOptions",
   "Date confirmée du": "dateConfirmeeDu",
   "Date confirmée au": "dateConfirmeeAu",
-  "Nombre de nuits": "nombreDeNuits",
   "Nombre de participants": "nombrePax",
   "Chambres simples": "chambresSimple",
   "Chambres doubles": "chambresDouble",
@@ -37,26 +37,15 @@ const COLUMN_MAP: Record<string, keyof Offer> = {
   "Séminaire journée": "seminaireJournee",
   "Séminaire demi-journée": "seminaireDemiJournee",
   "Détails séminaire": "seminaireDetails",
+  "Date d'envoi": "dateEnvoiOffre",
   "Relance effectuée le": "relanceEffectueeLe",
   "Réservation effectuée": "reservationEffectuee",
+  "Retour effectué aux hôtels": "retourEffectueHotels",
   "Contact dans Brevo": "contactEntreDansBrevo",
+  "N° offre": "numeroOffre",
   "Autres / Notes": "autres",
 };
 
-const VALID_STATUTS = new Set<OfferStatut>(["brouillon", "envoye", "refuse", "confirme"]);
-
-const STATUT_ALIASES: Record<string, OfferStatut> = {
-  "brouillon": "brouillon",
-  "envoyé": "envoye",
-  "envoye": "envoye",
-  "envoyée": "envoye",
-  "refusé": "refuse",
-  "refuse": "refuse",
-  "refusée": "refuse",
-  "confirmé": "confirme",
-  "confirme": "confirme",
-  "confirmée": "confirme",
-};
 
 // ---------------------------------------------------------------------------
 // Parse helpers
@@ -109,11 +98,15 @@ function parseDate(value: unknown): string | undefined {
   return undefined;
 }
 
-function parseStatut(value: unknown): OfferStatut | undefined {
+function isoToDMY(value?: string | null): string {
+  if (!value) return "";
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : value;
+}
+
+function parseStatut(value: unknown): string | undefined {
   if (value === undefined || value === null || value === "") return undefined;
-  const s = String(value).toLowerCase().trim();
-  if (VALID_STATUTS.has(s as OfferStatut)) return s as OfferStatut;
-  return STATUT_ALIASES[s] ?? undefined;
+  return normalizeStatut(String(value).trim());
 }
 
 // ---------------------------------------------------------------------------
@@ -136,35 +129,43 @@ function parseRow(row: Record<string, unknown>): Partial<Offer> | null {
   payload.nomContact = parseString(row["Nom"]);
   payload.prenomContact = parseString(row["Prénom"]);
 
-  // Date options
-  const dateDu = parseDate(row["Date option du"]);
-  const dateAu = parseDate(row["Date option au"]);
-  if (dateDu || dateAu) {
-    payload.dateOptions = [{ du: dateDu ?? "", au: dateAu ?? "" }];
+  // Date options (multiple ranges separated by " | ")
+  const rawDu = String(row["Date option du"] ?? "");
+  const rawAu = String(row["Date option au"] ?? "");
+  const duParts = rawDu.split("|").map((s) => s.trim());
+  const auParts = rawAu.split("|").map((s) => s.trim());
+  const optCount = Math.max(duParts.filter(Boolean).length, auParts.filter(Boolean).length);
+  if (optCount > 0) {
+    payload.dateOptions = Array.from({ length: optCount }, (_, i) => ({
+      du: parseDate(duParts[i]) ?? "",
+      au: parseDate(auParts[i]) ?? "",
+    }));
   }
 
   payload.dateConfirmeeDu = parseDate(row["Date confirmée du"]) ?? null;
   payload.dateConfirmeeAu = parseDate(row["Date confirmée au"]) ?? null;
-  payload.nombreDeNuits = parseString(row["Nombre de nuits"]);
   payload.nombrePax = parseInteger(row["Nombre de participants"]);
   payload.chambresSimple = parseInteger(row["Chambres simples"]);
   payload.chambresDouble = parseInteger(row["Chambres doubles"]);
   payload.chambresAutre = parseInteger(row["Chambres autres"]);
   payload.typeSejour = parseString(row["Type de séjour"]);
-  payload.categorieHotel = parseString(row["Catégorie hôtel"]);
+  payload.categorieHotel = parseString(row["Catégorie hôtel"])?.split(",").map((s) => s.trim()).filter(Boolean).join(",");
   payload.categorieHotelAutre = parseString(row["Catégorie hôtel autre"]);
-  payload.stationDemandee = parseString(row["Station demandée"]);
+  payload.stationDemandee = parseString(row["Station demandée"])?.split(",").map((s) => s.trim()).filter(Boolean).join(",");
   payload.transmisPar = parseString(row["Transmis par"]);
   payload.traitePar = parseString(row["Traité par"]);
-  payload.statut = parseStatut(row["Statut"]) ?? "brouillon";
+  payload.statut = parseStatut(row["Statut"]) ?? "Brouillon";
   payload.activiteUniquement = parseBool(row["Activité uniquement"]);
   payload.seminaire = parseBool(row["Séminaire"]);
   payload.seminaireJournee = parseBool(row["Séminaire journée"]);
   payload.seminaireDemiJournee = parseBool(row["Séminaire demi-journée"]);
   payload.seminaireDetails = parseString(row["Détails séminaire"]);
+  payload.dateEnvoiOffre = parseDate(row["Date d'envoi"]) ?? null;
   payload.relanceEffectueeLe = parseDate(row["Relance effectuée le"]) ?? null;
   payload.reservationEffectuee = parseBool(row["Réservation effectuée"]);
+  payload.retourEffectueHotels = parseBool(row["Retour effectué aux hôtels"]);
   payload.contactEntreDansBrevo = parseBool(row["Contact dans Brevo"]);
+  payload.numeroOffre = parseString(row["N° offre"]);
   payload.autres = parseString(row["Autres / Notes"]);
 
   // Clean undefined values
@@ -181,7 +182,8 @@ function parseRow(row: Record<string, unknown>): Partial<Offer> | null {
 
 export type ImportResult = {
   total: number;
-  imported: number;
+  created: number;
+  updated: number;
   skipped: number;
   errors: { row: number; message: string }[];
 };
@@ -198,7 +200,8 @@ export async function importOffersFromFile(file: File): Promise<ImportResult> {
 
   const result: ImportResult = {
     total: rows.length,
-    imported: 0,
+    created: 0,
+    updated: 0,
     skipped: 0,
     errors: [],
   };
@@ -210,15 +213,32 @@ export async function importOffersFromFile(file: File): Promise<ImportResult> {
     if (!payload) {
       result.skipped += 1;
       result.errors.push({
-        row: i + 2, // +2: 1-indexed + header row
+        row: i + 2,
         message: "Colonne « Société » manquante ou vide.",
       });
       continue;
     }
 
+    const existingId = parseString(row["ID"]);
+
+    // Extract 'autres' to save as comment separately
+    const autresNote = payload.autres ? String(payload.autres) : null;
+    delete payload.autres;
+
     try {
-      await createOffer(payload);
-      result.imported += 1;
+      if (existingId) {
+        await updateOffer(existingId, payload);
+        if (autresNote) {
+          await addOfferComment(existingId, { author: "Import", content: autresNote });
+        }
+        result.updated += 1;
+      } else {
+        const created = await createOffer(payload);
+        if (autresNote && created?.id) {
+          await addOfferComment(created.id, { author: "Import", content: autresNote });
+        }
+        result.created += 1;
+      }
     } catch (err) {
       result.errors.push({
         row: i + 2,
@@ -228,6 +248,78 @@ export async function importOffersFromFile(file: File): Promise<ImportResult> {
   }
 
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Generate template file
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Export offers to Excel (for bulk edit)
+// ---------------------------------------------------------------------------
+
+export function exportOffersXLSX(offers: Offer[]) {
+  const rows = offers.map((o) => ({
+    "ID": o.id,
+    "N°": o.numeroOffre ?? "",
+    "Société": o.societeContact,
+    "Type de société": o.typeSociete ?? "",
+    "Pays": o.pays ?? "",
+    "Email": o.emailContact ?? "",
+    "Téléphone": o.telephoneContact ?? "",
+    "Langue": o.langue ?? "",
+    "Titre": o.titreContact ?? "",
+    "Nom": o.nomContact ?? "",
+    "Prénom": o.prenomContact ?? "",
+    "Date option du": (o.dateOptions ?? []).map((d) => isoToDMY(d.du)).join(" | "),
+    "Date option au": (o.dateOptions ?? []).map((d) => isoToDMY(d.au)).join(" | "),
+    "Date confirmée du": isoToDMY(o.dateConfirmeeDu),
+    "Date confirmée au": isoToDMY(o.dateConfirmeeAu),
+    "Date d'envoi": isoToDMY(o.dateEnvoiOffre),
+    "Nombre de nuits": o.nombreDeNuits ?? "",
+    "Nombre de participants": o.nombrePax ?? "",
+    "Chambres simples": o.chambresSimple ?? "",
+    "Chambres doubles": o.chambresDouble ?? "",
+    "Chambres autres": o.chambresAutre ?? "",
+    "Type de séjour": o.typeSejour ?? "",
+    "Catégorie hôtel": (o.categorieHotel ?? "").split(",").filter(Boolean).join(", "),
+    "Catégorie hôtel autre": o.categorieHotelAutre ?? "",
+    "Station demandée": (o.stationDemandee ?? "").split(",").filter(Boolean).join(", "),
+    "Transmis par": o.transmisPar ?? "",
+    "Traité par": o.traitePar ?? "",
+    "Statut": normalizeStatut(o.statut),
+    "Activité uniquement": o.activiteUniquement ? "Oui" : "Non",
+    "Séminaire": o.seminaire ? "Oui" : "Non",
+    "Séminaire journée": o.seminaireJournee ? "Oui" : "Non",
+    "Séminaire demi-journée": o.seminaireDemiJournee ? "Oui" : "Non",
+    "Détails séminaire": o.seminaireDetails ?? "",
+    "Relance effectuée le": isoToDMY(o.relanceEffectueeLe),
+    "Réservation effectuée": o.reservationEffectuee ? "Oui" : "Non",
+    "Retour effectué aux hôtels": o.retourEffectueHotels ? "Oui" : "Non",
+    "Contact dans Brevo": o.contactEntreDansBrevo ? "Oui" : "Non",
+    "Notes / Commentaires": (o.comments ?? []).map((c) => `[${c.author}] ${c.content}`).join(" | "),
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const headers = Object.keys(rows[0] ?? {});
+  ws["!cols"] = headers.map((h) => ({ wch: Math.max(h.length + 2, 14) }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Offres");
+
+  const wbOut = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([wbOut], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `offres_export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ---------------------------------------------------------------------------
@@ -250,7 +342,6 @@ export function downloadImportTemplate() {
     "Date option au": "2026-06-18",
     "Date confirmée du": "",
     "Date confirmée au": "",
-    "Nombre de nuits": "3",
     "Nombre de participants": "25",
     "Chambres simples": "5",
     "Chambres doubles": "10",
@@ -267,10 +358,13 @@ export function downloadImportTemplate() {
     "Séminaire journée": "Oui",
     "Séminaire demi-journée": "Non",
     "Détails séminaire": "Salle plénière + 2 breakout rooms",
+    "Date d'envoi": "2026-01-15",
     "Relance effectuée le": "",
     "Réservation effectuée": "Non",
+    "Retour effectué aux hôtels": "Non",
     "Contact dans Brevo": "Non",
-    "Autres / Notes": "",
+    "N° offre": "",
+    "Notes / Commentaires": "",
   };
 
   const ws = XLSX.utils.json_to_sheet([exampleRow], { header: headers });

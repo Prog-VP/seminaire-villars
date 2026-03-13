@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { deleteUser } from "../api";
+import { deleteUser, resetUserPassword } from "../api";
 import type { UserProfile } from "../types";
 import { useUserRole } from "../context";
 import { EditUserModal } from "./EditUserModal";
@@ -16,6 +16,20 @@ export function UserTable({ users, currentUserId, onRefresh }: Props) {
   const { isAdmin } = useUserRole();
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
+
+  async function handleResetPassword(user: UserProfile) {
+    if (!confirm(`Envoyer un email de réinitialisation de mot de passe à ${user.email} ?`)) return;
+    setResettingId(user.id);
+    try {
+      await resetUserPassword(user.id);
+      alert(`Email de réinitialisation envoyé à ${user.email}.`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur lors de l'envoi.");
+    } finally {
+      setResettingId(null);
+    }
+  }
 
   async function handleDelete(user: UserProfile) {
     if (user.id === currentUserId) return;
@@ -96,6 +110,14 @@ export function UserTable({ users, currentUserId, onRefresh }: Props) {
                         className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
                       >
                         Modifier
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleResetPassword(user)}
+                        disabled={resettingId === user.id}
+                        className="rounded-lg border border-amber-200 px-3 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-50 disabled:opacity-50"
+                      >
+                        {resettingId === user.id ? "..." : "Reset mdp"}
                       </button>
                       {user.id !== currentUserId && (
                         <button

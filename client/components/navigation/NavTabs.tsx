@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useNotifications } from "@/features/notifications/context";
+import { NotificationNavLink } from "@/features/notifications/components/NotificationPanel";
 
 const tabs = [
   {
@@ -22,7 +22,7 @@ const reglagesChildren = [
   { href: "/reglages/donnees-de-base", label: "Données de base" },
   { href: "/reglages/utilisateurs", label: "Utilisateurs" },
   { href: "/reglages/hotels", label: "Hôtels" },
-  { href: "/reglages/notifications", label: "Notifications" },
+  { href: "/reglages/notifications", label: "Emails sortants" },
   { href: "/reglages/documents", label: "Documents" },
 ];
 
@@ -34,7 +34,6 @@ type NavTabsProps = {
 export function NavTabs({ isCollapsed = false, onNavigate }: NavTabsProps) {
   const pathname = usePathname();
   const isReglagesActive = pathname.startsWith("/reglages");
-  const { newResponseCount } = useNotifications();
   const [isReglagesOpen, setIsReglagesOpen] = useState(isReglagesActive);
 
   return (
@@ -72,14 +71,12 @@ export function NavTabs({ isCollapsed = false, onNavigate }: NavTabsProps) {
                 {tab.label}
               </span>
             )}
-            {tab.href === "/offres" && newResponseCount > 0 && (
-              <span className="ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold leading-none text-white">
-                {newResponseCount}
-              </span>
-            )}
           </Link>
         );
       })}
+
+      {/* Dernières nouvelles */}
+      <NotificationNavLink isCollapsed={isCollapsed} />
 
       {/* Réglages section — collapsible */}
       {isCollapsed ? (

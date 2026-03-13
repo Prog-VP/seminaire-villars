@@ -5,7 +5,12 @@ function supabase() {
   return createClient();
 }
 
-export type MyProfile = { role: UserRole; nom: string; prenom: string };
+export type MyProfile = {
+  role: UserRole;
+  nom: string;
+  prenom: string;
+  favoriteFilters: string[];
+};
 
 export async function fetchMyProfile(): Promise<MyProfile> {
   const { data, error } = await supabase().rpc("get_my_profile");
@@ -15,7 +20,18 @@ export async function fetchMyProfile(): Promise<MyProfile> {
     role: (row?.role as UserRole) ?? "standard",
     nom: (row?.nom as string) ?? "",
     prenom: (row?.prenom as string) ?? "",
+    favoriteFilters: (row?.favorite_filters as string[]) ?? [],
   };
+}
+
+export async function saveFavoriteFilters(filters: string[]): Promise<void> {
+  const { data: userData } = await supabase().auth.getUser();
+  if (!userData.user) throw new Error("Non authentifié");
+  const { error } = await supabase()
+    .from("profiles")
+    .update({ favorite_filters: filters })
+    .eq("id", userData.user.id);
+  if (error) throw new Error(error.message);
 }
 
 export async function fetchMyRole(): Promise<UserRole> {
@@ -31,7 +47,6 @@ export async function fetchUsersWithRoles(): Promise<UserProfile[]> {
 
 export async function createUser(
   email: string,
-  password: string,
   role: UserRole,
   nom?: string,
   prenom?: string
@@ -39,7 +54,7 @@ export async function createUser(
   const res = await fetch("/api/users", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, role, nom, prenom }),
+    body: JSON.stringify({ email, role, nom, prenom }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -53,6 +68,14 @@ export async function deleteUser(id: string): Promise<void> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? "Impossible de supprimer l'utilisateur.");
+  }
+}
+
+export async function resetUserPassword(id: string): Promise<void> {
+  const res = await fetch(`/api/users/${id}/reset-password`, { method: "POST" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Impossible d'envoyer l'email de réinitialisation.");
   }
 }
 

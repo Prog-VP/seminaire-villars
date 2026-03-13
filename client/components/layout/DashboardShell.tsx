@@ -87,7 +87,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
             isCollapsed ? "text-center" : ""
           }`}
         >
-          {isCollapsed ? "DV" : "Destination Villars"}
+          {isCollapsed ? "VLT" : "Villars Loisirs et Tourisme SA"}
         </div>
       </aside>
 
@@ -188,7 +188,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
         </header>
 
         <main className="flex-1 overflow-y-auto px-4 py-8 sm:px-8">
-          <div className="mx-auto w-full max-w-5xl space-y-8">{children}</div>
+          <div className="mx-auto w-full max-w-7xl space-y-8">{children}</div>
         </main>
       </div>
     </div>

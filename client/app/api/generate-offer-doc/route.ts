@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { mergeDocx, replaceOfferText } from "@/lib/docx-merge";
+import { mergeDocx, replaceOfferText, replacePlaceholders } from "@/lib/docx-merge";
 
 type DocItem =
   | { type: "block"; filePath: string }
@@ -8,12 +8,13 @@ type DocItem =
 
 type GenerateBody = {
   items: DocItem[];
+  placeholders?: Record<string, string>;
 };
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as GenerateBody;
-    const { items } = body;
+    const { items, placeholders } = body;
 
     if (!items || items.length === 0) {
       return NextResponse.json(
@@ -47,7 +48,15 @@ export async function POST(request: Request) {
           buf = await replaceOfferText(buf, item.offerText);
         } catch (err) {
           console.warn("[generate-offer-doc] replaceOfferText failed, using original:", err);
-          // Fall back to original document without text replacement
+        }
+      }
+
+      // Replace cover page / offer placeholders in all documents
+      if (placeholders && Object.keys(placeholders).length > 0) {
+        try {
+          buf = await replacePlaceholders(buf, placeholders);
+        } catch (err) {
+          console.warn("[generate-offer-doc] replacePlaceholders failed, using original:", err);
         }
       }
 

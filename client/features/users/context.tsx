@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import type { UserRole } from "./types";
-import { fetchMyProfile } from "./api";
+import { fetchMyProfile, saveFavoriteFilters } from "./api";
 
 type UserRoleContextValue = {
   role: UserRole | null;
@@ -18,6 +18,8 @@ type UserRoleContextValue = {
   isLoading: boolean;
   nom: string;
   prenom: string;
+  favoriteFilters: string[];
+  toggleFavoriteFilter: (filterKey: string) => void;
 };
 
 const UserRoleContext = createContext<UserRoleContextValue | undefined>(
@@ -28,6 +30,7 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<UserRole | null>(null);
   const [nom, setNom] = useState("");
   const [prenom, setPrenom] = useState("");
+  const [favoriteFilters, setFavoriteFilters] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -37,6 +40,7 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
       setRole(profile.role);
       setNom(profile.nom);
       setPrenom(profile.prenom);
+      setFavoriteFilters(profile.favoriteFilters);
     } catch {
       setRole("standard");
     } finally {
@@ -44,13 +48,26 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const toggleFavoriteFilter = useCallback(
+    (filterKey: string) => {
+      setFavoriteFilters((prev) => {
+        const next = prev.includes(filterKey)
+          ? prev.filter((k) => k !== filterKey)
+          : [...prev, filterKey];
+        saveFavoriteFilters(next).catch(() => {});
+        return next;
+      });
+    },
+    []
+  );
+
   useEffect(() => {
     void load();
   }, [load]);
 
   const value = useMemo(
-    () => ({ role, isAdmin: role === "admin", isLoading, nom, prenom }),
-    [role, isLoading, nom, prenom]
+    () => ({ role, isAdmin: role === "admin", isLoading, nom, prenom, favoriteFilters, toggleFavoriteFilter }),
+    [role, isLoading, nom, prenom, favoriteFilters, toggleFavoriteFilter]
   );
 
   return (

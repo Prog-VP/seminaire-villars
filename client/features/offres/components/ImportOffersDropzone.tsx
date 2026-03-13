@@ -33,7 +33,7 @@ export function ImportOffersDropzone({ onImportDone }: Props) {
       try {
         const res = await importOffersFromFile(file);
         setResult(res);
-        if (res.imported > 0) {
+        if (res.created > 0 || res.updated > 0) {
           onImportDone();
         }
       } catch (err) {
@@ -152,9 +152,14 @@ export function ImportOffersDropzone({ onImportDone }: Props) {
           }`}
         >
           <p className="font-semibold text-slate-900">
-            {result.imported} offre{result.imported > 1 ? "s" : ""} importée
-            {result.imported > 1 ? "s" : ""} sur {result.total} ligne
-            {result.total > 1 ? "s" : ""}.
+            {result.created > 0 && (
+              <>{result.created} offre{result.created > 1 ? "s" : ""} créée{result.created > 1 ? "s" : ""}. </>
+            )}
+            {result.updated > 0 && (
+              <>{result.updated} offre{result.updated > 1 ? "s" : ""} mise{result.updated > 1 ? "s" : ""} à jour. </>
+            )}
+            {result.created === 0 && result.updated === 0 && "Aucune offre importée. "}
+            ({result.total} ligne{result.total > 1 ? "s" : ""} traitée{result.total > 1 ? "s" : ""})
           </p>
           {result.skipped > 0 && (
             <p className="mt-1 text-slate-600">

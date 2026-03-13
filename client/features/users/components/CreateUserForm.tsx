@@ -10,22 +10,23 @@ type Props = {
 
 export function CreateUserForm({ onCreated }: Props) {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("standard");
   const [nom, setNom] = useState("");
   const [prenom, setPrenom] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     setIsSubmitting(true);
 
     try {
-      await createUser(email, password, role, nom, prenom);
+      await createUser(email, role, nom, prenom);
+      setSuccess(`Invitation envoyée à ${email}.`);
       setEmail("");
-      setPassword("");
       setRole("standard");
       setNom("");
       setPrenom("");
@@ -46,7 +47,7 @@ export function CreateUserForm({ onCreated }: Props) {
       className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
     >
       <h2 className="text-sm font-medium uppercase tracking-wide text-slate-500">
-        Créer un utilisateur
+        Inviter un utilisateur
       </h2>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -94,22 +95,6 @@ export function CreateUserForm({ onCreated }: Props) {
         </div>
 
         <div>
-          <label htmlFor="new-password" className="block text-xs font-medium text-slate-600">
-            Mot de passe
-          </label>
-          <input
-            id="new-password"
-            type="password"
-            required
-            minLength={6}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Min. 6 caractères"
-            className={inputClass}
-          />
-        </div>
-
-        <div>
           <label htmlFor="new-role" className="block text-xs font-medium text-slate-600">
             Rôle
           </label>
@@ -130,7 +115,7 @@ export function CreateUserForm({ onCreated }: Props) {
             disabled={isSubmitting}
             className="w-full rounded-lg bg-brand-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800 disabled:opacity-50"
           >
-            {isSubmitting ? "Création..." : "Créer"}
+            {isSubmitting ? "Envoi..." : "Inviter"}
           </button>
         </div>
       </div>
@@ -138,6 +123,11 @@ export function CreateUserForm({ onCreated }: Props) {
       {error && (
         <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
+        </div>
+      )}
+      {success && (
+        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          {success}
         </div>
       )}
     </form>

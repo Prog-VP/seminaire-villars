@@ -3,7 +3,7 @@
 import { useCallback, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Offer } from "../types";
-import { formatStars, getEffectiveDates, computeNights, getStatutLabel } from "../utils";
+import { formatStars, getEffectiveDates, computeNights, normalizeStatut } from "../utils";
 import { formatDate } from "@/lib/format";
 
 type OfferMetaGridProps = {
@@ -48,7 +48,7 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
   const computedNights = computeNights(effectiveDates.du, effectiveDates.au);
 
   const visibleGroups = offer.activiteUniquement
-    ? SUB_GROUPS.filter((g) => g.key !== "sejour" && g.key !== "seminaire")
+    ? SUB_GROUPS.filter((g) => g.key !== "seminaire")
     : SUB_GROUPS;
 
   const setActiveGroup = useCallback(
@@ -94,6 +94,9 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
             <InfoItem label="Type de société" value={offer.typeSociete} />
             <InfoItem label="Pays" value={offer.pays} />
             <InfoItem label="Langue" value={offer.langue} />
+            {offer.activiteUniquement && (
+              <InfoItem label="Nombre de participants" value={offer.nombrePax} />
+            )}
             <InfoItem label="Transmis par" value={offer.transmisPar} />
             <InfoItem label="Traité par" value={offer.traitePar} />
           </dl>
@@ -116,19 +119,25 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
         <MetaSection title="Séjour">
           <dl className="mt-4 grid gap-5 sm:grid-cols-2">
             <InfoItem label="Type de séjour" value={offer.typeSejour} />
-            <InfoItem
-              label="Catégorie d'hôtel"
-              value={offer.categorieHotel?.split(",").filter(Boolean).map(formatStars).join(", ") || undefined}
-            />
-            {offer.categorieHotelAutre && (
+            {!offer.activiteUniquement && (
+              <InfoItem
+                label="Catégorie d'hôtel"
+                value={offer.categorieHotel?.split(",").filter(Boolean).map(formatStars).join(", ") || undefined}
+              />
+            )}
+            {!offer.activiteUniquement && offer.categorieHotelAutre && (
               <InfoItem label="Catégorie autre" value={offer.categorieHotelAutre} />
             )}
             <InfoItem label="Station demandée" value={offer.stationDemandee} />
-            <InfoItem label="Nombre de nuits" value={computedNights ?? offer.nombreDeNuits} />
-            <InfoItem label="Nombre de participants" value={offer.nombrePax} />
-            <InfoItem label="Chambres simple" value={offer.chambresSimple} />
-            <InfoItem label="Chambres double" value={offer.chambresDouble} />
-            <InfoItem label="Chambres autre" value={offer.chambresAutre} />
+            {!offer.activiteUniquement && (
+              <>
+                <InfoItem label="Nombre de nuits" value={computedNights ?? offer.nombreDeNuits} />
+                <InfoItem label="Nombre de participants" value={offer.nombrePax} />
+                <InfoItem label="Chambres simple" value={offer.chambresSimple} />
+                <InfoItem label="Chambres double" value={offer.chambresDouble} />
+                <InfoItem label="Chambres autre" value={offer.chambresAutre} />
+              </>
+            )}
             {offer.dateOptions && offer.dateOptions.length > 0 ? (
               <div className="sm:col-span-2">
                 <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -182,9 +191,11 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
         <div className="space-y-6">
           <MetaSection title="Suivi de l'offre">
             <dl className="mt-4 grid gap-5 sm:grid-cols-2">
-              <InfoItem label="Statut" value={getStatutLabel(offer.statut)} />
+              <InfoItem label="Statut" value={normalizeStatut(offer.statut)} />
+              <InfoItem label="Date d'envoi de l'offre" value={formatDate(offer.dateEnvoiOffre)} />
               <InfoItem label="Relance effectuée le" value={formatDate(offer.relanceEffectueeLe)} />
               <InfoItem label="Réservation effectuée" value={formatBoolean(offer.reservationEffectuee)} />
+              <InfoItem label="Retour effectué aux hôtels" value={formatBoolean(offer.retourEffectueHotels)} />
               <InfoItem label="Annexes" value={formatAttachments(attachmentsCount)} />
             </dl>
           </MetaSection>
@@ -195,11 +206,6 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
             </dl>
           </MetaSection>
 
-          {offer.autres && (
-            <MetaSection title="Autres informations">
-              <p className="mt-4 text-sm text-slate-700">{offer.autres}</p>
-            </MetaSection>
-          )}
         </div>
       )}
     </section>

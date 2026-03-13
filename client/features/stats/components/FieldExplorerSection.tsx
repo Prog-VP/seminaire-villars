@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   PieChart,
   Pie,
@@ -22,38 +22,24 @@ import {
   getAllLabelsForField,
   filterOffersByYear,
 } from "../utils";
-
-const COLORS = [
-  "#1e3a5f",
-  "#f59e0b",
-  "#10b981",
-  "#ef4444",
-  "#8b5cf6",
-  "#06b6d4",
-  "#f97316",
-  "#ec4899",
-  "#84cc16",
-  "#6366f1",
-  "#14b8a6",
-  "#f43f5e",
-  "#a855f7",
-  "#eab308",
-  "#0ea5e9",
-];
-
-const numberFormatter = new Intl.NumberFormat("fr-FR", {
-  maximumFractionDigits: 1,
-});
+import { COLORS, numberFormatter, normalizeLabel } from "./explorer-helpers";
+import { PieTooltip, BarTooltip, OffersDropdown } from "./ExplorerWidgets";
 
 type Props = {
   offers: Offer[];
   selectedYear: number | null;
 };
 
+type Selection = {
+  label: string;
+  year?: number;
+} | null;
+
 export function FieldExplorerSection({ offers, selectedYear }: Props) {
   const [selectedFieldKey, setSelectedFieldKey] = useState(
     ANALYZABLE_FIELDS[0].key,
   );
+  const [selection, setSelection] = useState<Selection>(null);
 
   const field = ANALYZABLE_FIELDS.find((f) => f.key === selectedFieldKey)!;
 
@@ -77,7 +63,7 @@ export function FieldExplorerSection({ offers, selectedYear }: Props) {
     [yearDistributions],
   );
 
-  // Build recharts data: each entry = { year: "2024", "Villars": 5, "Diablerets": 3, ... }
+  // Build recharts data
   const barData = useMemo(() => {
     return yearDistributions.map((dist) => {
       const entry: Record<string, string | number> = {
@@ -91,7 +77,7 @@ export function FieldExplorerSection({ offers, selectedYear }: Props) {
     });
   }, [yearDistributions, allLabels]);
 
-  // Color map for consistent colors across pie + bars
+  // Color map
   const colorMap = useMemo(() => {
     const map = new Map<string, string>();
     allLabels.forEach((label, idx) => {
@@ -100,6 +86,52 @@ export function FieldExplorerSection({ offers, selectedYear }: Props) {
     return map;
   }, [allLabels]);
 
+  // Matching offers for selection
+  const matchingOffers = useMemo(() => {
+    if (!selection) return [];
+    let base = selection.year
+      ? filterOffersByYear(offers, selection.year)
+      : filteredOffers;
+    return base.filter(
+      (o) => normalizeLabel(field.accessor(o)) === selection.label,
+    );
+  }, [selection, offers, filteredOffers, field]);
+
+  const toggleSelection = useCallback(
+    (label: string, year?: number) => {
+      setSelection((prev) => {
+        if (prev?.label === label && prev?.year === year) return null;
+        return { label, year };
+      });
+    },
+    [],
+  );
+
+  // Reset selection when field changes
+  const handleFieldChange = useCallback((key: string) => {
+    setSelectedFieldKey(key);
+    setSelection(null);
+  }, []);
+
+  // Handle pie click
+  const handlePieClick = useCallback(
+    (_: unknown, index: number) => {
+      const item = pieData[index];
+      if (item) toggleSelection(item.label);
+    },
+    [pieData, toggleSelection],
+  );
+
+  // Handle bar click
+  const handleBarClick = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (label: string) => (data: any) => {
+      const year = Number(data?.year);
+      if (year) toggleSelection(label, year);
+    },
+    [toggleSelection],
+  );
+
   return (
     <section className="space-y-6">
       <div className="space-y-1.5">
@@ -107,8 +139,8 @@ export function FieldExplorerSection({ offers, selectedYear }: Props) {
           Exploration par champ
         </p>
         <p className="text-sm text-slate-500">
-          Sélectionnez un champ pour voir sa répartition et son évolution par
-          année.
+          Sélectionnez un champ pour voir sa répartition. Cliquez sur un segment
+          ou une valeur pour voir les offres associées.
         </p>
       </div>
 
@@ -116,7 +148,7 @@ export function FieldExplorerSection({ offers, selectedYear }: Props) {
       <div>
         <select
           value={selectedFieldKey}
-          onChange={(e) => setSelectedFieldKey(e.target.value)}
+          onChange={(e) => handleFieldChange(e.target.value)}
           className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
         >
           {ANALYZABLE_FIELDS.map((f) => (
@@ -127,7 +159,7 @@ export function FieldExplorerSection({ offers, selectedYear }: Props) {
         </select>
       </div>
 
-      {/* Pie chart for current year / all */}
+      {/* Pie chart */}
       <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-lg font-semibold text-slate-900">
           {field.label}
@@ -135,7 +167,7 @@ export function FieldExplorerSection({ offers, selectedYear }: Props) {
         </p>
         <p className="mt-1 text-sm text-slate-500">
           Répartition sur {filteredOffers.length} offre
-          {filteredOffers.length > 1 ? "s" : ""}.
+          {filteredOffers.length > 1 ? "s" : ""}. Cliquez pour détailler.
         </p>
 
         {pieData.length > 0 ? (
@@ -151,11 +183,23 @@ export function FieldExplorerSection({ offers, selectedYear }: Props) {
                     cy="50%"
                     outerRadius={90}
                     innerRadius={40}
+                    className="cursor-pointer"
+                    onClick={handlePieClick}
                   >
                     {pieData.map((d) => (
                       <Cell
                         key={d.label}
                         fill={colorMap.get(d.label) ?? COLORS[0]}
+                        stroke={
+                          selection?.label === d.label && !selection?.year
+                            ? "#1e293b"
+                            : "transparent"
+                        }
+                        strokeWidth={
+                          selection?.label === d.label && !selection?.year
+                            ? 3
+                            : 0
+                        }
                       />
                     ))}
                   </Pie>
@@ -163,28 +207,39 @@ export function FieldExplorerSection({ offers, selectedYear }: Props) {
                 </PieChart>
               </ResponsiveContainer>
             </div>
+            {/* Legend — clickable */}
             <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
-              {pieData.map((item) => (
-                <span
-                  key={item.label}
-                  className="inline-flex items-center gap-2 text-xs text-slate-700"
-                >
-                  <span
-                    className="inline-block h-2.5 w-2.5 rounded-full"
-                    style={{
-                      backgroundColor: colorMap.get(item.label) ?? COLORS[0],
-                    }}
-                  />
-                  <span>
-                    {item.label}{" "}
-                    <span className="font-semibold">
-                      ({item.count} &middot;{" "}
-                      {numberFormatter.format(item.percentage)}
-                      %)
+              {pieData.map((item) => {
+                const isActive =
+                  selection?.label === item.label && !selection?.year;
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => toggleSelection(item.label)}
+                    className={`inline-flex items-center gap-2 rounded-md px-2 py-1 text-xs transition ${
+                      isActive
+                        ? "bg-slate-100 font-bold text-slate-900 ring-1 ring-slate-300"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{
+                        backgroundColor:
+                          colorMap.get(item.label) ?? COLORS[0],
+                      }}
+                    />
+                    <span>
+                      {item.label}{" "}
+                      <span className="font-semibold">
+                        ({item.count} &middot;{" "}
+                        {numberFormatter.format(item.percentage)}%)
+                      </span>
                     </span>
-                  </span>
-                </span>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </>
         ) : (
@@ -192,17 +247,21 @@ export function FieldExplorerSection({ offers, selectedYear }: Props) {
         )}
       </article>
 
-      {/* Stacked bar chart — evolution by year */}
+      {/* Stacked bar chart */}
       {barData.length > 0 && (
         <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-lg font-semibold text-slate-900">
             Évolution — {field.label}
           </p>
           <p className="mt-1 text-sm text-slate-500">
-            Histogramme empilé par année. Chaque barre représente une année.
+            Histogramme empilé par année. Cliquez sur un segment pour voir les
+            offres.
           </p>
 
-          <div className="mt-4" style={{ height: Math.max(300, barData.length * 60 + 80) }}>
+          <div
+            className="mt-4"
+            style={{ height: Math.max(300, barData.length * 60 + 80) }}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={barData}
@@ -229,6 +288,8 @@ export function FieldExplorerSection({ offers, selectedYear }: Props) {
                     dataKey={label}
                     stackId="a"
                     fill={colorMap.get(label) ?? COLORS[0]}
+                    className="cursor-pointer"
+                    onClick={handleBarClick(label)}
                   />
                 ))}
               </BarChart>
@@ -236,66 +297,17 @@ export function FieldExplorerSection({ offers, selectedYear }: Props) {
           </div>
         </article>
       )}
+
+      {/* Offers dropdown */}
+      {selection && (
+        <OffersDropdown
+          label={selection.label}
+          year={selection.year}
+          offers={matchingOffers}
+          color={colorMap.get(selection.label) ?? COLORS[0]}
+          onClose={() => setSelection(null)}
+        />
+      )}
     </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tooltips
-// ---------------------------------------------------------------------------
-
-function PieTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: {
-    payload: { label: string; count: number; percentage: number };
-  }[];
-}) {
-  if (!active || !payload?.length) return null;
-  const d = payload[0].payload;
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-md">
-      <p className="font-semibold text-slate-900">{d.label}</p>
-      <p className="text-slate-600">
-        {d.count} offre{d.count > 1 ? "s" : ""} &middot;{" "}
-        {numberFormatter.format(d.percentage)} %
-      </p>
-    </div>
-  );
-}
-
-function BarTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: { name: string; value: number; fill: string }[];
-  label?: string;
-}) {
-  if (!active || !payload?.length) return null;
-  const total = payload.reduce((sum, p) => sum + (p.value || 0), 0);
-  return (
-    <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-md">
-      <p className="mb-1 font-semibold text-slate-900">{label}</p>
-      {payload
-        .filter((p) => p.value > 0)
-        .sort((a, b) => b.value - a.value)
-        .map((p) => (
-          <p key={p.name} className="flex items-center gap-2 text-slate-600">
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ backgroundColor: p.fill }}
-            />
-            {p.name}: {p.value} ({numberFormatter.format((p.value / total) * 100)}
-            %)
-          </p>
-        ))}
-      <p className="mt-1 border-t border-slate-100 pt-1 font-medium text-slate-900">
-        Total: {total}
-      </p>
-    </div>
   );
 }
