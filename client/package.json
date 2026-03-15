@@ -23,7 +23,7 @@
     "xlsx": "^0.18.5"
   },
   "overrides": {
-    "minimatch": ">=9.0.7"
+    "minimatch": "10.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
