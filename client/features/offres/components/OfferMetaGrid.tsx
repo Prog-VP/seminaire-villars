@@ -68,25 +68,27 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
 
   return (
     <section className="space-y-4">
-      <nav className="inline-flex rounded-lg bg-slate-100 p-1">
-        {visibleGroups.map((group) => {
-          const isActive = activeGroup === group.key;
-          return (
-            <button
-              key={group.key}
-              type="button"
-              onClick={() => setActiveGroup(group.key)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
-                isActive
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {group.label}
-            </button>
-          );
-        })}
-      </nav>
+      <div className="overflow-x-auto -mx-1">
+        <nav className="inline-flex min-w-max rounded-lg bg-slate-100 p-1">
+          {visibleGroups.map((group) => {
+            const isActive = activeGroup === group.key;
+            return (
+              <button
+                key={group.key}
+                type="button"
+                onClick={() => setActiveGroup(group.key)}
+                className={`rounded-md px-2.5 py-1.5 text-xs sm:text-sm sm:px-3 font-medium transition-all whitespace-nowrap ${
+                  isActive
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {group.label}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
 
       {activeGroup === "societe" && (
         <MetaSection title="Informations société">
@@ -224,7 +226,7 @@ function MetaSection({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-white/70 bg-white/90 p-5 shadow-sm ring-1 ring-white/60">
+    <div className="rounded-lg border border-white/70 bg-white/90 p-4 sm:p-5 shadow-sm ring-1 ring-white/60">
       <div className="flex gap-3">
         <span className="h-9 w-1 rounded-full bg-gradient-to-b from-brand-900 to-brand-500" />
         <div>

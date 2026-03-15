@@ -15,7 +15,7 @@ export function FinalisationSection({ showFollowUpFields }: { showFollowUpFields
       {showFollowUpFields && (
         <>
           <FormSection title="Suivi de l'offre">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Statut">
                 <select name="statut" value={formState.statut} onChange={handleChange} className={inputClass}>
                   {statutChoices.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -30,7 +30,7 @@ export function FinalisationSection({ showFollowUpFields }: { showFollowUpFields
             </div>
           </FormSection>
           <FormSection title="Date confirmée" description="Remplir une fois les dates définitives connues.">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Date confirmée du">
                 <input type="date" name="dateConfirmeeDu" value={formState.dateConfirmeeDu} onChange={handleChange} className={inputClass} />
               </Field>

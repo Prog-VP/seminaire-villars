@@ -182,7 +182,7 @@ useEffect(() => {
         message={message}
       />
 
-      <nav className="relative flex border-b border-slate-200">
+      <nav className="relative flex overflow-x-auto border-b border-slate-200 -mx-4 px-4 sm:mx-0 sm:px-0">
         {(currentOffer.activiteUniquement
           ? ["details", "attachments", "comments"]
           : ["details", "responses", "document", "attachments", "comments"]
@@ -207,7 +207,7 @@ useEffect(() => {
                 if (isEditing) return;
                 setActiveTab(tabKey as typeof activeTab);
               }}
-              className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
+              className={`relative shrink-0 px-3 py-2.5 text-sm font-medium transition-colors sm:px-4 ${
                 isEditing && tabKey !== "details"
                   ? "cursor-not-allowed text-slate-300"
                   : isActive

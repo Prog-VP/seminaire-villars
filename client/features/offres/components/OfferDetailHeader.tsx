@@ -25,7 +25,7 @@ export function OfferDetailHeader({
   message,
 }: OfferDetailHeaderProps) {
   return (
-    <section className="rounded-xl border border-white/70 bg-white/90 p-6 shadow-sm ring-1 ring-white/60">
+    <section className="rounded-xl border border-white/70 bg-white/90 p-4 sm:p-6 shadow-sm ring-1 ring-white/60">
       <div className="flex flex-wrap items-start gap-4 border-b border-slate-100 pb-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -37,7 +37,7 @@ export function OfferDetailHeader({
               onChange={onStatusChange}
             />
           </div>
-          <h2 className="text-2xl font-semibold text-slate-900">
+          <h2 className="text-xl sm:text-2xl font-semibold text-slate-900">
             {offer.societeContact}
           </h2>
           {offer.numeroOffre && (
@@ -73,8 +73,8 @@ export function OfferDetailHeader({
           )}
         </div>
       </div>
-      <div className="mt-4 grid gap-4 text-sm text-slate-700 md:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2 md:grid-cols-3">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 sm:p-4">
           <p className="text-xs uppercase tracking-wide text-slate-400">
             Contact principal
           </p>
@@ -87,7 +87,7 @@ export function OfferDetailHeader({
             {offer.emailContact || "Email inconnu"}
           </p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 sm:p-4">
           <p className="text-xs uppercase tracking-wide text-slate-400">
             Type de séjour
           </p>
@@ -100,7 +100,7 @@ export function OfferDetailHeader({
               : "Participants inconnus"}
           </p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 sm:p-4">
           <p className="text-xs uppercase tracking-wide text-slate-400">
             Dates
             {(offer.dateOptions?.length ?? 0) > 1 && (
@@ -151,7 +151,7 @@ export function OfferDetailHeader({
               </svg>
               {comments.length} commentaire{comments.length > 1 ? "s" : ""}
             </button>
-            <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-2 hidden w-80 rounded-xl border border-slate-200 bg-white p-4 shadow-xl group-hover:block">
+            <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-2 hidden w-64 sm:w-80 rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-xl group-hover:block">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Notes — {offer.societeContact}
               </p>

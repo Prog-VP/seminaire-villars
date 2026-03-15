@@ -38,6 +38,7 @@ export function OfferForm({
 }: OfferFormProps) {
   const [formState, setFormState] = useState<OfferFormValues>({ ...defaultOfferFormValues, ...initialValues });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [categorieSuggestions, setCategorieSuggestions] = useState<string[]>([]);
@@ -58,15 +59,28 @@ export function OfferForm({
     fetchCategorieHotelAutreSuggestions().then(setCategorieSuggestions).catch(() => {});
   }, []);
 
+  // Warn on page leave with unsaved changes
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setIsDirty(true);
     setFormState((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleCheckbox = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsDirty(true);
     setFormState((prev) => ({ ...prev, [e.target.name]: e.target.checked }));
   };
 
   const handleCategorieToggle = (value: string) => {
+    setIsDirty(true);
     setFormState((prev) => {
       const current = prev.categorieHotel ? prev.categorieHotel.split(",").filter(Boolean) : [];
       const updated = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
@@ -85,7 +99,7 @@ export function OfferForm({
       if (hasData && !window.confirm("Les informations Séjour et Séminaire remplies seront supprimées. Continuer ?")) return;
 
       setFormState((prev) => ({
-        ...prev, activiteUniquement: true,
+        ...prev, activiteUniquement: true, activitesDemandees: true,
         typeSejour: "", categorieHotel: "", categorieHotelAutre: "", stationDemandee: "",
         chambresSimple: "", chambresDouble: "", chambresAutre: "",
         dateOptions: [{ du: "", au: "" }],
@@ -171,6 +185,11 @@ export function OfferForm({
     setCurrentStep((prev) => prev + 1);
   };
 
+  const handleCancel = () => {
+    if (isDirty && !window.confirm("Vous avez des modifications non enregistrées. Quitter sans sauvegarder ?")) return;
+    onCancel?.();
+  };
+
   const stepVisible = (key: string) => (stepper ? activeKey === key : activeSection === key);
 
   const ctxValue = useMemo(() => ({
@@ -180,7 +199,7 @@ export function OfferForm({
 
   return (
     <OfferFormProvider value={ctxValue}>
-      <form ref={formRef} onSubmit={handleSubmit} onKeyDown={handleKeyDown} noValidate={!stepper} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <form ref={formRef} onSubmit={handleSubmit} onKeyDown={handleKeyDown} noValidate={!stepper} className="rounded-xl border border-slate-200 bg-white p-3 sm:p-6 shadow-sm">
         {(heading || subheading) && (
           <header className="mb-6">
             {heading && <h2 className="text-2xl font-semibold text-slate-900">{heading}</h2>}
@@ -191,8 +210,8 @@ export function OfferForm({
         {stepper && <StepIndicator steps={steps} currentStep={currentStep} onStepClick={setCurrentStep} />}
 
         {!stepper && (
-          <div className="mb-6">
-            <nav className="inline-flex rounded-lg bg-slate-100 p-1">
+          <div className="mb-6 -mx-3 sm:mx-0 overflow-x-auto">
+            <nav className="inline-flex min-w-max rounded-lg bg-slate-100 p-1">
               {steps.map((step) => {
                 const isActive = activeSection === step.key;
                 const hasError = tabErrors.has(step.key);
@@ -204,7 +223,7 @@ export function OfferForm({
                       setActiveSection(step.key);
                       setTabErrors((prev) => { const next = new Set(prev); next.delete(step.key); return next; });
                     }}
-                    className={`relative rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+                    className={`relative rounded-md px-2.5 py-1.5 text-xs sm:text-sm sm:px-3 font-medium transition-all whitespace-nowrap ${
                       isActive ? "bg-white text-slate-900 shadow-sm" : hasError ? "text-red-600 hover:text-red-700" : "text-slate-500 hover:text-slate-700"
                     }`}
                   >
@@ -231,18 +250,16 @@ export function OfferForm({
             <ContactSection titreChoices={choices.titre} transmisParChoices={choices.transmisPar} />
           </div>
 
-          {!formState.activiteUniquement && (
-            <div data-step="sejour" className={stepVisible("sejour") ? "" : "hidden"}>
-              <SejourSection
-                typeSejourChoices={choices.typeSejour}
-                stationChoices={choices.station}
-                categorieChoices={choices.categorie}
-                handleCategorieToggle={handleCategorieToggle}
-                traiteParChoices={choices.traitePar}
-                categorieSuggestions={categorieSuggestions}
-              />
-            </div>
-          )}
+          <div data-step="sejour" className={stepVisible("sejour") ? "" : "hidden"}>
+            <SejourSection
+              typeSejourChoices={choices.typeSejour}
+              stationChoices={choices.station}
+              categorieChoices={choices.categorie}
+              handleCategorieToggle={handleCategorieToggle}
+              traiteParChoices={choices.traitePar}
+              categorieSuggestions={categorieSuggestions}
+            />
+          </div>
 
           {!formState.activiteUniquement && (
             <div data-step="seminaire" className={stepVisible("seminaire") ? "" : "hidden"}>
@@ -269,7 +286,7 @@ export function OfferForm({
           />
         ) : (
           <ActionButtons
-            onCancel={onCancel}
+            onCancel={onCancel ? handleCancel : undefined}
             cancelLabel={cancelLabel}
             onDelete={onDelete}
             deleteLabel={deleteLabel}

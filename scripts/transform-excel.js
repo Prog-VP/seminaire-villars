@@ -413,13 +413,43 @@ function parseHotelSends(row) {
 function parseCategorieHotel(val) {
   if (!val) return { std: null, autre: null };
   const s = String(val).trim();
-  const starMatch = s.match(/(\d\*)/g);
-  if (starMatch) {
-    const std = starMatch.join(',');
-    const remainder = s.replace(/\d\*/g, '').replace(/[,\s]*ou\s*/gi, '').replace(/[,\s]*év\.\s*/gi, '').trim();
-    return { std, autre: remainder || null };
+
+  // Collect all explicit star values (e.g. "5*", "3*")
+  const starMatch = s.match(/(\d)\*/g);
+  const stars = new Set(starMatch ? starMatch.map(m => m) : []);
+
+  // After removing star patterns, check remainder for implicit values
+  let remainder = s.replace(/\d\*/g, '').replace(/[,\s]*ou\s*/gi, ' ').replace(/[,\s]*év\.\s*/gi, ' ').trim();
+
+  // "3-4" → means 3* and 4*; "4-" → means 4*; bare "4" → means 4*
+  const rangeMatch = remainder.match(/(\d)\s*[-–]\s*(\d)/);
+  if (rangeMatch) {
+    const lo = parseInt(rangeMatch[1]);
+    const hi = parseInt(rangeMatch[2]);
+    for (let n = lo; n <= hi; n++) stars.add(`${n}*`);
+    remainder = remainder.replace(/\d\s*[-–]\s*\d/, '').trim();
   }
-  return { std: null, autre: s };
+  // "4-" trailing dash → just that star level
+  const trailingDash = remainder.match(/^(\d)\s*[-–]?\s*$/);
+  if (trailingDash) {
+    stars.add(`${trailingDash[1]}*`);
+    remainder = '';
+  }
+  // Bare digit "4" or "5"
+  const bareDigit = remainder.match(/^(\d)$/);
+  if (bareDigit) {
+    stars.add(`${bareDigit[1]}*`);
+    remainder = '';
+  }
+
+  // Clean up remainder
+  remainder = remainder.replace(/^[-–,\s]+|[-–,\s]+$/g, '').trim();
+
+  const std = stars.size > 0
+    ? [...stars].sort((a, b) => parseInt(a) - parseInt(b)).join(',')
+    : null;
+
+  return { std, autre: remainder || null };
 }
 
 // --- Summary labels to skip ---
@@ -449,10 +479,22 @@ for (let i = 0; i < dataRows.length; i++) {
   const nom = row[9] ? String(row[9]).trim() : null;
   const prenom = row[10] ? String(row[10]).trim() : null;
   const dateOptions = buildDateOptions(row[11], row[12], row[13]);
-  let activiteUniquement = parseOuiNon(row[14]);
+  const activitesDemandees = parseOuiNon(row[14]);
   const nuits = row[15] !== null && row[15] !== undefined ? String(row[15]) : null;
+
+  // Fix: if du == au and we have nuits > 1, compute au = du + nuits
+  const nuitsNum = nuits ? parseInt(nuits) : 0;
+  if (nuitsNum > 1) {
+    for (const opt of dateOptions) {
+      if (opt.du && opt.au && opt.du === opt.au && !opt.approximatif) {
+        const d = new Date(opt.du);
+        d.setDate(d.getDate() + nuitsNum);
+        opt.au = d.toISOString().slice(0, 10);
+      }
+    }
+  }
   // Activités demandées + 0 nuit → activiteUniquement
-  if (parseOuiNon(row[14]) && (nuits === '0' || nuits === null)) activiteUniquement = true;
+  const activiteUniquement = activitesDemandees && (nuits === '0' || nuits === null);
   const pax = parsePax(row[16]);
   const paxStr = row[16] !== null ? String(row[16]) : null;
   const transmisPar = row[17] ? String(row[17]).trim() : null;
@@ -518,6 +560,7 @@ for (let i = 0; i < dataRows.length; i++) {
       contactEntreDansBrevo: contactBrevo,
       retourEffectueHotels: retourHotels,
       activiteUniquement,
+      activitesDemandees,
       seminaire,
       relanceEffectueeLe: relanceDate,
     },

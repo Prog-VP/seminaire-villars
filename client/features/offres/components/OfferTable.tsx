@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Offer } from "../types";
+import type { SortKey } from "../hooks/useOfferFiltering";
 import { deleteOffer, duplicateOffer } from "../api";
 import { exportOffersXLSX } from "../import";
-import { useOfferFiltering, sortableColumns } from "../hooks/useOfferFiltering";
+import { useOfferFiltering } from "../hooks/useOfferFiltering";
 import { useOfferPagination } from "../hooks/useOfferPagination";
 import { useOfferSelection } from "../hooks/useOfferSelection";
+import { useColumnConfig } from "../hooks/useColumnConfig";
 import { OfferFilters } from "./OfferFilters";
 import { ImportOffersDropzone } from "./ImportOffersDropzone";
 import { saveOfferListIds } from "./OfferNavArrows";
@@ -27,20 +29,6 @@ type ModalState =
   | { type: "none" }
   | { type: "delete"; ids: string[] }
   | { type: "duplicate"; ids: string[] };
-
-const COL_WIDTHS: Record<string, string> = {
-  numeroOffre: "w-[60px]",
-  societeContact: "w-[18%]",
-  contact: "w-[14%]",
-  pays: "w-[50px]",
-  typeSejour: "w-[10%]",
-  statut: "w-[90px]",
-  createdAt: "w-[80px]",
-  relance: "w-[55px]",
-  hotelSendsCount: "w-[55px]",
-  hotelResponsesCount: "w-[55px]",
-  commentsCount: "w-[50px]",
-};
 
 function SortIndicator({
   active,
@@ -64,6 +52,125 @@ function SortIndicator({
   );
 }
 
+// ─── Add Column Popover ───
+
+function AddColumnPopover({
+  hiddenColumns,
+  onAdd,
+  onReset,
+}: {
+  hiddenColumns: { key: string; label: string }[];
+  onAdd: (key: string) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
+        title="Ajouter une colonne"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="h-4 w-4"
+        >
+          <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
+          <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+            Ajouter une colonne
+          </p>
+          <div className="max-h-64 overflow-y-auto">
+            {hiddenColumns.length === 0 ? (
+              <p className="px-3 py-2 text-xs text-slate-400">
+                Toutes les colonnes sont affichées
+              </p>
+            ) : (
+              hiddenColumns.map((col) => (
+                <button
+                  key={col.key}
+                  type="button"
+                  onClick={() => {
+                    onAdd(col.key);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                >
+                  <span className="text-slate-400">+</span>
+                  {col.label}
+                </button>
+              ))
+            )}
+          </div>
+          <div className="border-t border-slate-100 px-3 py-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                onReset();
+                setOpen(false);
+              }}
+              className="text-xs text-slate-500 transition hover:text-slate-700"
+            >
+              Réinitialiser les colonnes
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Column remove button (shown on hover) ───
+
+function RemoveColumnButton({ onRemove }: { onRemove: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onRemove();
+      }}
+      className="ml-0.5 hidden text-slate-300 transition hover:text-red-500 group-hover/th:inline-flex"
+      title="Masquer cette colonne"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 16 16"
+        fill="currentColor"
+        className="h-3 w-3"
+      >
+        <path d="M5.28 4.22a.75.75 0 00-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 101.06 1.06L8 9.06l2.72 2.72a.75.75 0 101.06-1.06L9.06 8l2.72-2.72a.75.75 0 00-1.06-1.06L8 6.94 5.28 4.22z" />
+      </svg>
+    </button>
+  );
+}
+
+// ─── Main OfferTable ───
+
 export function OfferTable({ data, errorMessage }: OfferTableProps) {
   const router = useRouter();
   const [showImport, setShowImport] = useState(false);
@@ -71,9 +178,14 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
   const [actionLoading, setActionLoading] = useState(false);
   const { settings } = useSettings();
   const statutColorMap = useMemo(
-    () => Object.fromEntries(settings.statut.map((s) => [s.label, s.color ?? null])),
+    () =>
+      Object.fromEntries(
+        settings.statut.map((s) => [s.label, s.color ?? null])
+      ),
     [settings.statut]
   );
+
+  const cellExtra = useMemo(() => ({ statutColorMap }), [statutColorMap]);
 
   const {
     filters,
@@ -108,7 +220,18 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
     clearSelection,
   } = useOfferSelection(paginatedOffers);
 
-  const handleFilterChange = (nextFilters: Parameters<typeof rawHandleFilterChange>[0]) => {
+  const {
+    visibleColumns,
+    hiddenColumns,
+    addColumn,
+    removeColumn,
+    reorderColumns,
+    resetToDefault,
+  } = useColumnConfig();
+
+  const handleFilterChange = (
+    nextFilters: Parameters<typeof rawHandleFilterChange>[0]
+  ) => {
     rawHandleFilterChange(nextFilters);
     setCurrentPage(1);
   };
@@ -126,7 +249,26 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
     saveOfferListIds(sortedOffers.map((o) => o.id));
   }, [sortedOffers]);
 
+  // ─── Drag & drop state ───
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
   const noResults = totalFiltered === 0;
+
+  // Known sortable keys (from useOfferFiltering getSortValue)
+  const SORTABLE_KEYS = new Set([
+    "numeroOffre",
+    "societeContact",
+    "contact",
+    "pays",
+    "typeSejour",
+    "statut",
+    "createdAt",
+    "relance",
+    "hotelSendsCount",
+    "hotelResponsesCount",
+    "commentsCount",
+  ]);
 
   return (
     <section>
@@ -157,7 +299,9 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
             href="/offres/nouvelle"
             className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-brand-900 to-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:from-brand-800 hover:to-brand-600"
           >
-            <span aria-hidden className="text-base leading-none">+</span>
+            <span aria-hidden className="text-base leading-none">
+              +
+            </span>
             Créer une offre
           </Link>
         </div>
@@ -183,8 +327,12 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
       {someSelected && (
         <SelectionActionBar
           count={selectedIds.size}
-          onDuplicate={() => setModal({ type: "duplicate", ids: [...selectedIds] })}
-          onDelete={() => setModal({ type: "delete", ids: [...selectedIds] })}
+          onDuplicate={() =>
+            setModal({ type: "duplicate", ids: [...selectedIds] })
+          }
+          onDelete={() =>
+            setModal({ type: "delete", ids: [...selectedIds] })
+          }
           onDeselect={clearSelection}
         />
       )}
@@ -192,28 +340,24 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
       {hasActiveFilters && (
         <div className="mb-4 flex items-center gap-3">
           <p className="text-sm text-slate-500">
-            {totalFiltered} résultat{totalFiltered > 1 ? "s" : ""} sur {data.length}
+            {totalFiltered} résultat{totalFiltered > 1 ? "s" : ""} sur{" "}
+            {data.length}
           </p>
           <button
             type="button"
             onClick={handleResetFilters}
             className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
           >
-            <span aria-hidden className="text-xs">✕</span>
+            <span aria-hidden className="text-xs">
+              ✕
+            </span>
             Effacer les filtres
           </button>
         </div>
       )}
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full table-fixed text-left text-sm">
-          <colgroup>
-            <col className="w-8" />
-            <col className="w-8" />
-            {sortableColumns.map((col) => (
-              <col key={col.key} className={COL_WIDTHS[col.key] ?? ""} />
-            ))}
-          </colgroup>
+        <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-2 py-1.5">
@@ -225,7 +369,8 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
                 />
               </th>
               <th className="px-2 py-1.5 font-medium text-slate-400">#</th>
-              {sortableColumns.map((column) => {
+              {visibleColumns.map((column, colIndex) => {
+                const isSortable = SORTABLE_KEYS.has(column.key);
                 const isActive = sortConfig.key === column.key;
                 const ariaSort = isActive
                   ? sortConfig.direction === "asc"
@@ -233,26 +378,87 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
                     : "descending"
                   : "none";
 
+                const isDragOver = dragOverIndex === colIndex;
+
                 return (
                   <th
                     key={column.key}
-                    className={`px-2 py-1.5 font-medium ${column.className ?? ""}`}
-                    aria-sort={ariaSort}
+                    className={`group/th px-2 py-1.5 font-medium ${column.cellClass} ${
+                      isDragOver
+                        ? "border-l-2 border-brand-500"
+                        : "border-l-2 border-transparent"
+                    }`}
+                    aria-sort={isSortable ? ariaSort : undefined}
+                    draggable
+                    onDragStart={(e) => {
+                      dragIndexRef.current = colIndex;
+                      e.dataTransfer.effectAllowed = "move";
+                      // Make the drag image slightly transparent
+                      if (e.currentTarget instanceof HTMLElement) {
+                        e.currentTarget.style.opacity = "0.5";
+                      }
+                    }}
+                    onDragEnd={(e) => {
+                      dragIndexRef.current = null;
+                      setDragOverIndex(null);
+                      if (e.currentTarget instanceof HTMLElement) {
+                        e.currentTarget.style.opacity = "";
+                      }
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      setDragOverIndex(colIndex);
+                    }}
+                    onDragLeave={() => {
+                      setDragOverIndex((prev) =>
+                        prev === colIndex ? null : prev
+                      );
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const from = dragIndexRef.current;
+                      if (from !== null && from !== colIndex) {
+                        reorderColumns(from, colIndex);
+                      }
+                      dragIndexRef.current = null;
+                      setDragOverIndex(null);
+                    }}
                   >
-                    <button
-                      type="button"
-                      onClick={() => handleSort(column.key)}
-                      className="flex items-center gap-1 text-slate-600 transition hover:text-slate-900"
-                      >
-                        <span>{column.label}</span>
-                        <SortIndicator
-                          active={isActive}
-                          direction={sortConfig.direction}
+                    <span className="flex cursor-grab items-center gap-1">
+                      {isSortable ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSort(column.key as SortKey)
+                          }
+                          className="flex items-center gap-1 text-slate-600 transition hover:text-slate-900"
+                        >
+                          <span>{column.label}</span>
+                          <SortIndicator
+                            active={isActive}
+                            direction={sortConfig.direction}
+                          />
+                        </button>
+                      ) : (
+                        <span className="text-slate-600">
+                          {column.label}
+                        </span>
+                      )}
+                      <RemoveColumnButton
+                        onRemove={() => removeColumn(column.key)}
                       />
-                    </button>
+                    </span>
                   </th>
                 );
               })}
+              <th className="px-2 py-1.5">
+                <AddColumnPopover
+                  hiddenColumns={hiddenColumns}
+                  onAdd={addColumn}
+                  onReset={resetToDefault}
+                />
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -261,17 +467,22 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
                 key={offer.id}
                 offer={offer}
                 index={index}
-                globalIndex={pageSize === "all" ? index + 1 : (safePage - 1) * (pageSize as number) + index + 1}
+                globalIndex={
+                  pageSize === "all"
+                    ? index + 1
+                    : (safePage - 1) * (pageSize as number) + index + 1
+                }
                 isSelected={selectedIds.has(offer.id)}
                 onToggleSelect={toggleSelect}
                 onNavigate={handleNavigate}
-                statutColorMap={statutColorMap}
+                columns={visibleColumns}
+                cellExtra={cellExtra}
               />
             ))}
             {noResults && (
               <tr>
                 <td
-                  colSpan={12}
+                  colSpan={visibleColumns.length + 3}
                   className="px-6 py-8 text-center text-sm text-slate-500"
                 >
                   {errorMessage && data.length === 0
@@ -319,7 +530,11 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
               setModal({ type: "none" });
               router.refresh();
             } catch (err) {
-              alert(err instanceof Error ? err.message : "Erreur lors de la suppression.");
+              alert(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la suppression."
+              );
             } finally {
               setActionLoading(false);
             }
@@ -342,7 +557,11 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
               setModal({ type: "none" });
               router.refresh();
             } catch (err) {
-              alert(err instanceof Error ? err.message : "Erreur lors de la duplication.");
+              alert(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la duplication."
+              );
             } finally {
               setActionLoading(false);
             }

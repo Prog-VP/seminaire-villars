@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
-import { createOffer, updateOffer, addOfferComment } from "./api";
+import { createOffer, updateOffer, addOfferComment, recordHotelSend } from "./api";
+import { supabase } from "./api/client";
 import { normalizeStatut } from "./utils";
 import type { Offer } from "./types";
 
@@ -107,6 +108,34 @@ function isoToDMY(value?: string | null): string {
 function parseStatut(value: unknown): string | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   return normalizeStatut(String(value).trim());
+}
+
+// ---------------------------------------------------------------------------
+// Hotel name → id resolution
+// ---------------------------------------------------------------------------
+
+let _hotelCache: { nom: string; id: string }[] | null = null;
+
+async function fetchHotelList(): Promise<{ nom: string; id: string }[]> {
+  if (_hotelCache) return _hotelCache;
+  const { data } = await supabase().from("hotels").select("id, nom");
+  _hotelCache = (data ?? []).map((h) => ({ id: h.id as string, nom: h.nom as string }));
+  return _hotelCache;
+}
+
+function resolveHotelIds(
+  names: string[],
+  hotels: { nom: string; id: string }[]
+): { found: { id: string; nom: string }[]; notFound: string[] } {
+  const found: { id: string; nom: string }[] = [];
+  const notFound: string[] = [];
+  for (const name of names) {
+    const lower = name.toLowerCase();
+    const match = hotels.find((h) => h.nom.toLowerCase() === lower);
+    if (match) found.push(match);
+    else notFound.push(name);
+  }
+  return { found, notFound };
 }
 
 // ---------------------------------------------------------------------------
@@ -261,12 +290,17 @@ export async function importOffersFromFile(file: File, allowed?: AllowedValues):
     errors: [],
   };
 
+  // ── Phase 1 : validation de TOUTES les lignes ──
+  // Load hotel list for "Hôtels envoyés" resolution
+  const hotelList = await fetchHotelList();
+
+  const parsed: { payload: Partial<Offer>; row: Record<string, unknown>; existingId: string | undefined; note: string | null; hotelIds: { id: string; nom: string }[] }[] = [];
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const payload = parseRow(row);
 
     if (!payload) {
-      result.skipped += 1;
       result.errors.push({
         row: i + 2,
         message: "Colonne « Société » manquante ou vide.",
@@ -274,11 +308,9 @@ export async function importOffersFromFile(file: File, allowed?: AllowedValues):
       continue;
     }
 
-    // Validate against allowed values
     if (allowed) {
       const valErrors = validateRow(row, allowed);
       if (valErrors.length > 0) {
-        result.skipped += 1;
         for (const ve of valErrors) {
           result.errors.push({
             row: i + 2,
@@ -289,28 +321,72 @@ export async function importOffersFromFile(file: File, allowed?: AllowedValues):
       }
     }
 
-    const existingId = parseString(row["ID"]);
+    // Resolve "Hôtels envoyés" column
+    const rawHotels = parseString(row["Hôtels envoyés"]);
+    const hotelNames = rawHotels ? rawHotels.split(",").map((s) => s.trim()).filter(Boolean) : [];
+    let hotelIds: { id: string; nom: string }[] = [];
+    if (hotelNames.length > 0) {
+      const { found, notFound } = resolveHotelIds(hotelNames, hotelList);
+      if (notFound.length > 0) {
+        result.errors.push({
+          row: i + 2,
+          message: `« Hôtels envoyés » : hôtel(s) inconnu(s) : ${notFound.join(", ")}. Hôtels disponibles : ${hotelList.map((h) => h.nom).join(", ")}`,
+        });
+        continue;
+      }
+      hotelIds = found;
+    }
 
-    // Extract "Notes / Commentaires" to save as comment
-    const autresNote = parseString(row["Notes / Commentaires"]) ?? null;
+    parsed.push({
+      payload,
+      row,
+      existingId: parseString(row["ID"]),
+      note: parseString(row["Notes / Commentaires"]) ?? null,
+      hotelIds,
+    });
+  }
 
+  // ── Si des erreurs existent, on n'importe rien ──
+  if (result.errors.length > 0) {
+    result.skipped = rows.length;
+    return result;
+  }
+
+  // ── Phase 2 : import effectif (aucune erreur de validation) ──
+  for (const { payload, existingId, note, hotelIds } of parsed) {
     try {
+      let offerId: string | undefined;
       if (existingId) {
         await updateOffer(existingId, payload);
-        if (autresNote) {
-          await addOfferComment(existingId, { author: "Import", content: autresNote });
+        offerId = existingId;
+        if (note) {
+          await addOfferComment(existingId, { author: "Import", content: note });
         }
         result.updated += 1;
       } else {
         const created = await createOffer(payload);
-        if (autresNote && created?.id) {
-          await addOfferComment(created.id, { author: "Import", content: autresNote });
+        offerId = created?.id;
+        if (note && offerId) {
+          await addOfferComment(offerId, { author: "Import", content: note });
         }
         result.created += 1;
       }
+
+      // Insert hotel sends with sent_at = dateEnvoiOffre (or now)
+      if (offerId && hotelIds.length > 0) {
+        const sentAt = (payload.dateEnvoiOffre as string) ?? new Date().toISOString().slice(0, 10);
+        for (const hotel of hotelIds) {
+          await supabase()
+            .from("offer_hotel_sends")
+            .upsert(
+              { offer_id: offerId, hotel_id: hotel.id, sent_at: sentAt },
+              { onConflict: "offer_id,hotel_id" }
+            );
+        }
+      }
     } catch (err) {
       result.errors.push({
-        row: i + 2,
+        row: 0,
         message: err instanceof Error ? err.message : "Erreur inconnue",
       });
     }
@@ -398,7 +474,7 @@ export function exportOffersXLSX(offers: Offer[]) {
 // ---------------------------------------------------------------------------
 
 export function downloadImportTemplate(opts?: AllowedValues) {
-  const headers = [...Object.keys(COLUMN_MAP), "Notes / Commentaires"];
+  const headers = [...Object.keys(COLUMN_MAP), "Hôtels envoyés", "Notes / Commentaires"];
 
   // Helpers pour les valeurs dynamiques — utilise les options DB si dispo, sinon "—"
   const v = (key: keyof AllowedValues) => (opts?.[key] ?? []).join(", ") || "—";
@@ -441,6 +517,7 @@ export function downloadImportTemplate(opts?: AllowedValues) {
     "Réservation effectuée": "Non",
     "Retour effectué aux hôtels": "Non",
     "Contact dans Brevo": "Non",
+    "Hôtels envoyés": "Alpe Fleurie, Ecureuil",
     "N° offre": "",
     "Notes / Commentaires": "",
   };
@@ -474,6 +551,7 @@ export function downloadImportTemplate(opts?: AllowedValues) {
     ["Statut", "Texte (choix)", v("statut"), ""],
     ["Booléens", "Oui / Non", "", "Activité uniquement, Activités demandées, Séminaire, Séminaire journée/demi-journée, Réservation, Retour hôtels, Brevo"],
     ["", "", "", "Valeurs acceptées : Oui/Non, Yes/No, Vrai/Faux, True/False, 1/0"],
+    ["Hôtels envoyés", "Noms séparés par \",\"", "", "Noms exacts des hôtels (ex : Alpe Fleurie, Ecureuil). Utilise la date d'envoi comme date d'envoi hôtel."],
     ["Notes / Commentaires", "Texte libre", "", "Importé comme commentaire (auteur « Import »)"],
     ["N° offre", "Texte", "", "Numéro de référence interne"],
     [],

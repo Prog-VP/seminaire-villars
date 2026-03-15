@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Offer, OfferComment } from "../types";
-import { DEFAULT_STATUTS, getStatutBadgeStyle, normalizeStatut } from "../utils";
+import type { ColumnDef, CellExtra } from "../column-config";
 
 type OfferTableRowProps = {
   offer: Offer;
@@ -11,8 +11,11 @@ type OfferTableRowProps = {
   isSelected: boolean;
   onToggleSelect: (id: string, e: React.MouseEvent) => void;
   onNavigate: (id: string) => void;
-  statutColorMap?: Record<string, string | null>;
+  columns: ColumnDef[];
+  cellExtra: CellExtra;
 };
+
+const STOP_PROPAGATION_COLS = new Set(["commentsCount"]);
 
 export function OfferTableRow({
   offer,
@@ -21,7 +24,8 @@ export function OfferTableRow({
   isSelected,
   onToggleSelect,
   onNavigate,
-  statutColorMap,
+  columns,
+  cellExtra,
 }: OfferTableRowProps) {
   return (
     <tr
@@ -50,105 +54,24 @@ export function OfferTableRow({
       <td className="px-2 py-2 text-xs text-slate-400 tabular-nums">
         {globalIndex}
       </td>
-      <td className="px-2 py-2 text-xs text-slate-500 truncate">
-        {offer.numeroOffre ?? "—"}
-      </td>
-      <td className="px-2 py-2">
-        <p className="font-medium text-slate-900 truncate text-sm">
-          {offer.societeContact}
-        </p>
-        <p className="text-[11px] text-slate-500 truncate">
-          {offer.transmisPar
-            ? `via ${offer.transmisPar}`
-            : "\u00A0"}
-        </p>
-      </td>
-      <td className="hidden px-2 py-2 text-sm text-slate-700 md:table-cell">
-        <p className="truncate">
-        {offer.prenomContact || offer.nomContact ? (
-          <span>
-            {offer.titreContact ? `${offer.titreContact} ` : ""}
-            {[offer.prenomContact, offer.nomContact]
-              .filter(Boolean)
-              .join(" ")}
-          </span>
-        ) : (
-          "—"
-        )}
-        </p>
-        <p className="text-[11px] text-slate-500 truncate">
-          {offer.emailContact || "—"}
-        </p>
-      </td>
-      <td className="hidden px-2 py-2 text-xs text-slate-600 sm:table-cell">
-        {offer.pays}
-      </td>
-      <td className="hidden px-2 py-2 text-xs text-slate-600 lg:table-cell truncate">
-        {offer.typeSejour ?? "—"}
-      </td>
-      <td className="hidden px-2 py-2 sm:table-cell">
-        {(() => {
-          const s = normalizeStatut(offer.statut);
-          const classes = getStatutBadgeStyle(s, DEFAULT_STATUTS, statutColorMap);
-          return (
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${classes}`}
-            >
-              {s}
-            </span>
-          );
-        })()}
-      </td>
-      <td className="hidden px-2 py-2 text-xs text-slate-500 lg:table-cell">
-        {offer.dateEnvoiOffre
-          ? new Date(offer.dateEnvoiOffre).toLocaleDateString("fr-CH")
-          : "—"}
-      </td>
-      <td className="hidden px-2 py-2 text-center lg:table-cell">
-        {offer.relanceEffectueeLe ? (
-          <Tip label={`Relancée le ${new Date(offer.relanceEffectueeLe).toLocaleDateString("fr-CH")}`}>
-            <span className="text-emerald-600 text-xs">✓</span>
-          </Tip>
-        ) : (
-          <span className="text-xs text-slate-300">—</span>
-        )}
-      </td>
-      <td className="hidden px-2 py-2 text-center lg:table-cell">
-        {(offer.hotelSendsCount ?? 0) > 0 ? (
-          <Tip label={offer.hotelSendsNames?.join(", ") ?? ""}>
-            <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
-              {offer.hotelSendsCount}
-            </span>
-          </Tip>
-        ) : (
-          <span className="text-xs text-slate-300">—</span>
-        )}
-      </td>
-      <td className="hidden px-2 py-2 text-center lg:table-cell">
-        {(offer.hotelResponses?.length ?? 0) > 0 ? (
-          <Tip label={offer.hotelResponses!.map((r) => r.hotelName).join(", ")}>
-            <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
-              {offer.hotelResponses!.length}
-            </span>
-          </Tip>
-        ) : (
-          <span className="text-xs text-slate-300">—</span>
-        )}
-      </td>
-      <td className="hidden px-2 py-2 text-center lg:table-cell" onClick={(e) => e.stopPropagation()}>
-        {(() => {
-          const cmts = offer.comments ?? [];
-          if (cmts.length === 0) return <span className="text-xs text-slate-300">—</span>;
-          return (
-            <CommentsPopover comments={cmts} societe={offer.societeContact} />
-          );
-        })()}
-      </td>
+      {columns.map((col) => (
+        <td
+          key={col.key}
+          className={`px-2 py-2 ${col.cellClass}`}
+          onClick={
+            STOP_PROPAGATION_COLS.has(col.key)
+              ? (e) => e.stopPropagation()
+              : undefined
+          }
+        >
+          {col.renderCell(offer, cellExtra)}
+        </td>
+      ))}
     </tr>
   );
 }
 
-function CommentsPopover({ comments, societe }: { comments: OfferComment[]; societe: string }) {
+export function CommentsPopover({ comments, societe }: { comments: OfferComment[]; societe: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 

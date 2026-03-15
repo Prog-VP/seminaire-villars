@@ -32,7 +32,7 @@ export function FormSection({
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-5">
+    <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-3 sm:p-5">
       <div className="flex gap-3">
         <span className="h-9 w-1 rounded-full bg-gradient-to-b from-brand-900 to-brand-500" />
         <div className="space-y-1">

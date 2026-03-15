@@ -3,7 +3,7 @@ import type { Offer } from "../types";
 import { normalizeStatut } from "../utils";
 
 const STORAGE_KEY = "offer-filters";
-const SORT_STORAGE_KEY = "offer-sort";
+const SORT_STORAGE_KEY = "offer-sort-v2";
 
 export type BooleanFilterValue = "all" | "true" | "false";
 
@@ -258,7 +258,7 @@ function loadSort(): SortConfig {
     const raw = sessionStorage.getItem(SORT_STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { key: "societeContact", direction: "asc" };
+  return { key: "createdAt", direction: "desc" };
 }
 
 export function useOfferFiltering(data: Offer[]) {

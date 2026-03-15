@@ -137,7 +137,7 @@ CREATE TABLE public.offers (
    statut text DEFAULT 'brouillon'::text,
    dateEnvoiOffre date,
    retourEffectueHotels boolean DEFAULT false,
-   activitesdemandees boolean DEFAULT false,
+   activitesDemandees boolean DEFAULT false,
    CONSTRAINT offers_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.profiles (

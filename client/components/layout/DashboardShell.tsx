@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { NavTabs } from "@/components/navigation/NavTabs";
+import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import { useUserRole } from "@/features/users/context";
 
 type DashboardShellProps = {
@@ -146,6 +147,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
               </h1>
             </div>
           </div>
+          <div className="hidden flex-1 justify-center px-4 md:flex">
+            <GlobalSearch />
+          </div>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-slate-700 sm:block">
               <span className={prenom ? "font-medium" : "italic text-slate-400"}>
@@ -187,7 +191,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-4 py-8 sm:px-8">
+        <main className="flex-1 overflow-y-auto px-3 py-4 sm:px-6 sm:py-8 md:px-8">
           <div className="mx-auto w-full max-w-7xl space-y-8">{children}</div>
         </main>
       </div>

@@ -59,7 +59,7 @@ export function ImportOffersDropzone({ onImportDone }: Props) {
         setIsImporting(false);
       }
     },
-    [onImportDone],
+    [onImportDone, options],
   );
 
   const handleDrop = useCallback(
@@ -173,40 +173,43 @@ export function ImportOffersDropzone({ onImportDone }: Props) {
         <div
           className={`rounded-lg border p-4 text-sm ${
             result.errors.length > 0
-              ? "border-amber-200 bg-amber-50"
+              ? "border-red-200 bg-red-50"
               : "border-emerald-200 bg-emerald-50"
           }`}
         >
-          <p className="font-semibold text-slate-900">
-            {result.created > 0 && (
-              <>{result.created} offre{result.created > 1 ? "s" : ""} créée{result.created > 1 ? "s" : ""}. </>
-            )}
-            {result.updated > 0 && (
-              <>{result.updated} offre{result.updated > 1 ? "s" : ""} mise{result.updated > 1 ? "s" : ""} à jour. </>
-            )}
-            {result.created === 0 && result.updated === 0 && "Aucune offre importée. "}
-            ({result.total} ligne{result.total > 1 ? "s" : ""} traitée{result.total > 1 ? "s" : ""})
-          </p>
-          {result.skipped > 0 && (
-            <p className="mt-1 text-slate-600">
-              {result.skipped} ligne{result.skipped > 1 ? "s" : ""} ignorée
-              {result.skipped > 1 ? "s" : ""}.
+          {result.errors.length > 0 ? (
+            <>
+              <p className="font-semibold text-red-800">
+                Import bloqué — {result.errors.length} erreur{result.errors.length > 1 ? "s" : ""} détectée{result.errors.length > 1 ? "s" : ""}.
+                Aucune offre n&apos;a été importée.
+              </p>
+              <p className="mt-1 text-xs text-red-700">
+                Corrigez toutes les erreurs dans le fichier puis réessayez.
+              </p>
+              <details className="mt-2" open>
+                <summary className="cursor-pointer text-xs font-medium text-red-700">
+                  Détail des erreurs
+                </summary>
+                <ul className="mt-1 max-h-48 space-y-1 overflow-y-auto text-xs text-slate-700">
+                  {result.errors.map((err, i) => (
+                    <li key={i}>
+                      {err.row > 0 ? `Ligne ${err.row} : ` : ""}{err.message}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </>
+          ) : (
+            <p className="font-semibold text-slate-900">
+              {result.created > 0 && (
+                <>{result.created} offre{result.created > 1 ? "s" : ""} créée{result.created > 1 ? "s" : ""}. </>
+              )}
+              {result.updated > 0 && (
+                <>{result.updated} offre{result.updated > 1 ? "s" : ""} mise{result.updated > 1 ? "s" : ""} à jour. </>
+              )}
+              {result.created === 0 && result.updated === 0 && "Aucune offre importée. "}
+              ({result.total} ligne{result.total > 1 ? "s" : ""} traitée{result.total > 1 ? "s" : ""})
             </p>
-          )}
-          {result.errors.length > 0 && (
-            <details className="mt-2">
-              <summary className="cursor-pointer text-xs font-medium text-amber-700">
-                {result.errors.length} erreur
-                {result.errors.length > 1 ? "s" : ""}
-              </summary>
-              <ul className="mt-1 max-h-32 space-y-1 overflow-y-auto text-xs text-slate-600">
-                {result.errors.map((err, i) => (
-                  <li key={i}>
-                    Ligne {err.row} : {err.message}
-                  </li>
-                ))}
-              </ul>
-            </details>
           )}
         </div>
       )}

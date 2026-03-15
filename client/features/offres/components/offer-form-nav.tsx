@@ -10,7 +10,7 @@ export function StepIndicator({
   onStepClick: (step: number) => void;
 }) {
   return (
-    <nav className="mb-8 flex items-center">
+    <nav className="mb-6 sm:mb-8 flex items-center overflow-x-auto">
       {steps.map((step, index) => {
         const isCompleted = index < currentStep;
         const isCurrent = index === currentStep;
@@ -94,12 +94,12 @@ export function StepNavigation({
 }) {
   const isLast = currentStep === totalSteps - 1;
   return (
-    <div className="mt-6 flex items-center justify-between">
+    <div className="mt-6 flex items-center justify-between gap-3">
       <button
         type="button"
         onClick={onPrev}
         disabled={currentStep === 0}
-        className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex-1 sm:flex-none rounded-lg border border-slate-200 px-4 py-2.5 sm:py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
       >
         Précédent
       </button>
@@ -107,7 +107,7 @@ export function StepNavigation({
         type="button"
         disabled={isSubmitting}
         onClick={isLast ? onSubmit : onNext}
-        className="rounded-lg bg-brand-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex-1 sm:flex-none rounded-lg bg-brand-900 px-4 py-2.5 sm:py-2 text-sm font-medium text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isLast ? (isSubmitting ? "Enregistrement..." : submitLabel) : "Suivant"}
       </button>
@@ -143,7 +143,7 @@ export function ActionButtons({
           type="button"
           onClick={onDelete}
           disabled={isDeleteLoading || isSubmitting}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg px-4 py-2.5 sm:py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isDeleteLoading ? "Suppression..." : deleteLabel}
         </button>
@@ -151,7 +151,7 @@ export function ActionButtons({
       {onCancel && (
         <button
           type="button"
-          className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+          className="rounded-lg border border-slate-200 px-4 py-2.5 sm:py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
           onClick={onCancel}
         >
           {cancelLabel}
@@ -160,7 +160,7 @@ export function ActionButtons({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="rounded-lg bg-brand-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-lg bg-brand-900 px-4 py-2.5 sm:py-2 text-sm font-medium text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isSubmitting ? "Enregistrement..." : submitLabel}
       </button>

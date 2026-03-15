@@ -37,7 +37,7 @@ export function SocieteSection({
         />
         Activités demandées
       </label>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Société de contact" required>
           <input name="societeContact" value={formState.societeContact} onChange={handleChange} className={inputClass} required />
         </Field>

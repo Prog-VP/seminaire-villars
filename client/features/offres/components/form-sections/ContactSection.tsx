@@ -14,7 +14,7 @@ export function ContactSection({
 
   return (
     <FormSection title="Contact principal" description="Coordonnées directes de votre interlocuteur.">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         <Field label="Titre">
           <select name="titreContact" value={formState.titreContact} onChange={handleChange} className={inputClass}>
             <option value="">Non renseigné</option>
@@ -28,7 +28,7 @@ export function ContactSection({
           <input name="nomContact" value={formState.nomContact} onChange={handleChange} className={inputClass} required />
         </Field>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         <Field label="Email du contact">
           <input name="emailContact" type="email" value={formState.emailContact} onChange={handleChange} className={inputClass} />
         </Field>

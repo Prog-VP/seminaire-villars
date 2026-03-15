@@ -101,7 +101,7 @@ export function SejourSection({
             </datalist>
           </Field>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
             <Field label="Nombre de participants">
               <input name="nombrePax" value={formState.nombrePax} onChange={handleChange} className={inputClass} type="number" min={0} />
             </Field>
@@ -113,7 +113,7 @@ export function SejourSection({
             </Field>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
             <Field label="Chambres simple">
               <input name="chambresSimple" value={formState.chambresSimple} onChange={handleChange} className={inputClass} type="number" min={0} />
             </Field>
@@ -127,52 +127,67 @@ export function SejourSection({
         </>
       )}
 
+      {formState.activiteUniquement && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Traité par">
+            <select name="traitePar" value={formState.traitePar} onChange={handleChange} className={inputClass}>
+              <option value="">Non défini</option>
+              {traiteParChoices.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </Field>
+        </div>
+      )}
+
       <div className="space-y-3">
         <p className="text-sm font-medium text-slate-700">Options de dates</p>
         {formState.dateOptions.map((opt, i) => (
-          <div key={i} className="flex items-end gap-3">
-            <span className="shrink-0 pb-2 text-xs font-semibold text-slate-400">Option {i + 1}</span>
-            <Field label="Du">
-              <input
-                type="date"
-                value={opt.du}
-                onChange={(e) => {
-                  const updated = [...formState.dateOptions];
-                  updated[i] = { ...updated[i], du: e.target.value };
-                  setFormState((prev) => ({ ...prev, dateOptions: updated }));
-                }}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Au">
-              <input
-                type="date"
-                value={opt.au}
-                onChange={(e) => {
-                  const updated = [...formState.dateOptions];
-                  updated[i] = { ...updated[i], au: e.target.value };
-                  setFormState((prev) => ({ ...prev, dateOptions: updated }));
-                }}
-                className={inputClass}
-              />
-            </Field>
-            {(() => {
-              const n = computeNights(opt.du || null, opt.au || null, opt.approximatif);
-              return n !== null ? (
-                <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                  {n} nuit{n > 1 ? "s" : ""}
-                </span>
-              ) : null;
-            })()}
-            {formState.dateOptions.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setFormState((prev) => ({ ...prev, dateOptions: prev.dateOptions.filter((_, j) => j !== i) }))}
-                className="shrink-0 rounded-lg border border-slate-200 px-2 py-2 text-sm text-slate-400 transition hover:border-red-300 hover:text-red-500"
-              >
-                Supprimer
-              </button>
-            )}
+          <div key={i} className="flex flex-col gap-2 rounded-lg border border-slate-100 bg-slate-50/50 p-3 sm:flex-row sm:items-end sm:gap-3 sm:border-0 sm:bg-transparent sm:p-0">
+            <span className="shrink-0 text-xs font-semibold text-slate-400 sm:pb-2">Option {i + 1}</span>
+            <div className="grid grid-cols-2 gap-2 sm:contents">
+              <Field label="Du">
+                <input
+                  type="date"
+                  value={opt.du}
+                  onChange={(e) => {
+                    const updated = [...formState.dateOptions];
+                    updated[i] = { ...updated[i], du: e.target.value };
+                    setFormState((prev) => ({ ...prev, dateOptions: updated }));
+                  }}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Au">
+                <input
+                  type="date"
+                  value={opt.au}
+                  onChange={(e) => {
+                    const updated = [...formState.dateOptions];
+                    updated[i] = { ...updated[i], au: e.target.value };
+                    setFormState((prev) => ({ ...prev, dateOptions: updated }));
+                  }}
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+            <div className="flex items-center gap-2 sm:pb-2">
+              {(() => {
+                const n = computeNights(opt.du || null, opt.au || null, opt.approximatif);
+                return n !== null ? (
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                    {n} nuit{n > 1 ? "s" : ""}
+                  </span>
+                ) : null;
+              })()}
+              {formState.dateOptions.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setFormState((prev) => ({ ...prev, dateOptions: prev.dateOptions.filter((_, j) => j !== i) }))}
+                  className="shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-400 transition hover:border-red-300 hover:text-red-500"
+                >
+                  Supprimer
+                </button>
+              )}
+            </div>
           </div>
         ))}
         <button
@@ -182,6 +197,16 @@ export function SejourSection({
         >
           + Ajouter une option
         </button>
+
+        <Field label="Nombre de nuits (si différent du calcul automatique)">
+          <input
+            name="nombreDeNuits"
+            value={formState.nombreDeNuits}
+            onChange={handleChange}
+            className={inputClass}
+            placeholder="Ex : 4"
+          />
+        </Field>
       </div>
     </FormSection>
   );

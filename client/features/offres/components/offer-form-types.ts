@@ -14,6 +14,7 @@ export type OfferFormValues = {
   categorieHotel: string;
   categorieHotelAutre: string;
   stationDemandee: string;
+  nombreDeNuits: string;
   nombrePax: string;
   chambresSimple: string;
   chambresDouble: string;
@@ -51,6 +52,7 @@ export const defaultOfferFormValues: OfferFormValues = {
   categorieHotel: "",
   categorieHotelAutre: "",
   stationDemandee: "",
+  nombreDeNuits: "",
   nombrePax: "",
   chambresSimple: "",
   chambresDouble: "",
