@@ -53,13 +53,22 @@ export async function createDocumentBlock(
   file: File
 ): Promise<DocumentBlock> {
   const ext = file.name.split(".").pop() ?? "docx";
-  const filePath = `${destination}/${season}/${lang}/${Date.now()}_${name.replace(/\s+/g, "_")}.${ext}`;
+  const safeName = name
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]/g, "_")
+    .replace(/_+/g, "_");
+  const filePath = `${destination}/${season}/${lang}/${Date.now()}_${safeName}.${ext}`;
 
   // Upload to storage
   const { error: uploadError } = await supabase()
     .storage.from("document-blocks")
     .upload(filePath, file);
-  if (uploadError) throw new Error(uploadError.message);
+  if (uploadError) {
+    if (uploadError.message.includes("Invalid key")) {
+      throw new Error(`Nom de fichier invalide : évitez les accents (é, è, à, ü…) et caractères spéciaux dans le nom du bloc.`);
+    }
+    throw new Error(uploadError.message);
+  }
 
   // Insert row
   const data = throwOnError(
@@ -70,6 +79,25 @@ export async function createDocumentBlock(
       .single()
   );
   if (!data) throw new Error("Création échouée.");
+  return mapBlock(data);
+}
+
+export async function updateDocumentBlock(
+  id: string,
+  fields: { name?: string; season?: string }
+): Promise<DocumentBlock> {
+  const update: Record<string, unknown> = {};
+  if (fields.name !== undefined) update.name = fields.name;
+  if (fields.season !== undefined) update.season = fields.season;
+  const data = throwOnError(
+    await supabase()
+      .from("document_blocks")
+      .update(update)
+      .eq("id", id)
+      .select("*")
+      .single()
+  );
+  if (!data) throw new Error("Mise à jour échouée.");
   return mapBlock(data);
 }
 
@@ -126,7 +154,12 @@ export async function uploadHotelDocument(
   const { error: uploadError } = await supabase()
     .storage.from("hotel-documents")
     .upload(filePath, file);
-  if (uploadError) throw new Error(uploadError.message);
+  if (uploadError) {
+    if (uploadError.message.includes("Invalid key")) {
+      throw new Error(`Nom de fichier invalide : évitez les accents (é, è, à, ü…) et caractères spéciaux dans le nom.`);
+    }
+    throw new Error(uploadError.message);
+  }
 
   // Upsert row (unique on hotel_id + lang)
   const data = throwOnError(

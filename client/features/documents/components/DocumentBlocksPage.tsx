@@ -5,6 +5,7 @@ import type { DocumentBlock } from "../types";
 import {
   fetchDocumentBlocks,
   createDocumentBlock,
+  updateDocumentBlock,
   deleteDocumentBlock,
   downloadDocumentBlock,
 } from "../api";
@@ -35,6 +36,13 @@ const SEASON_LABELS: Record<string, string> = {
   ete: "Été",
   hiver: "Hiver",
 };
+
+function seasonDisplay(season: string): string {
+  return season
+    .split(",")
+    .map((s) => SEASON_LABELS[s.trim()] ?? s.trim())
+    .join(", ");
+}
 
 export function DocumentBlocksPage() {
   const [blocks, setBlocks] = useState<DocumentBlock[]>([]);
@@ -69,6 +77,16 @@ export function DocumentBlocksPage() {
   ) => {
     const created = await createDocumentBlock(destination, season, lang, name, file);
     setBlocks((prev) => [...prev, created]);
+  };
+
+  const handleRename = async (block: DocumentBlock, newName: string) => {
+    const updated = await updateDocumentBlock(block.id, { name: newName });
+    setBlocks((prev) => prev.map((b) => (b.id === block.id ? updated : b)));
+  };
+
+  const handleSeasonChange = async (block: DocumentBlock, newSeason: string) => {
+    const updated = await updateDocumentBlock(block.id, { season: newSeason });
+    setBlocks((prev) => prev.map((b) => (b.id === block.id ? updated : b)));
   };
 
   const handleDelete = async (block: DocumentBlock) => {
@@ -135,47 +153,14 @@ export function DocumentBlocksPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {destBlocks.map((block) => (
-                    <tr key={block.id} className="group">
-                      <td className="px-5 py-3.5 font-medium text-slate-900">
-                        {block.name}
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-500">
-                        {SEASON_LABELS[block.season] ?? block.season}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                          {block.lang}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleDownload(block)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
-                            title="Télécharger"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
-                              <path d="M12 3v12m0 0l-4-4m4 4l4-4" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(block)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 transition hover:bg-red-50"
-                            title="Supprimer"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
-                              <path d="M6 7h12" strokeLinecap="round" />
-                              <path d="M10 11v6M14 11v6" strokeLinecap="round" />
-                              <path d="M8 7V5h8v2" />
-                              <path d="M7 7h10v11a2 2 0 01-2 2H9a2 2 0 01-2-2z" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                    <BlockRow
+                      key={block.id}
+                      block={block}
+                      onRename={handleRename}
+                      onSeasonChange={handleSeasonChange}
+                      onDownload={handleDownload}
+                      onDelete={handleDelete}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -184,6 +169,157 @@ export function DocumentBlocksPage() {
         ))
       )}
     </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Block row with inline rename + season edit                          */
+/* ------------------------------------------------------------------ */
+
+function BlockRow({
+  block,
+  onRename,
+  onSeasonChange,
+  onDownload,
+  onDelete,
+}: {
+  block: DocumentBlock;
+  onRename: (block: DocumentBlock, name: string) => Promise<void>;
+  onSeasonChange: (block: DocumentBlock, season: string) => Promise<void>;
+  onDownload: (block: DocumentBlock) => Promise<void>;
+  onDelete: (block: DocumentBlock) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(block.name);
+  const [saving, setSaving] = useState(false);
+
+  const currentSeasons = new Set(block.season.split(",").map((s) => s.trim()).filter(Boolean));
+
+  const handleSaveName = async () => {
+    const trimmed = editName.trim();
+    if (!trimmed || trimmed === block.name) {
+      setEditing(false);
+      setEditName(block.name);
+      return;
+    }
+    setSaving(true);
+    try {
+      await onRename(block, trimmed);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleSeason = async (value: string) => {
+    const next = new Set(currentSeasons);
+    if (next.has(value)) {
+      if (next.size <= 1) return; // au moins une saison
+      next.delete(value);
+    } else {
+      next.add(value);
+    }
+    await onSeasonChange(block, Array.from(next).join(","));
+  };
+
+  return (
+    <tr className="group">
+      <td className="px-5 py-3.5">
+        {editing ? (
+          <div className="flex items-center gap-1">
+            <input
+              className="rounded border border-slate-300 px-2 py-1 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void handleSaveName();
+                if (e.key === "Escape") { setEditing(false); setEditName(block.name); }
+              }}
+              autoFocus
+              disabled={saving}
+            />
+            <button
+              type="button"
+              onClick={() => void handleSaveName()}
+              disabled={saving}
+              className="rounded bg-brand-900 px-2 py-1 text-xs text-white hover:bg-brand-800 disabled:opacity-50"
+            >
+              OK
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEditing(false); setEditName(block.name); }}
+              className="rounded px-2 py-1 text-xs text-slate-500 hover:text-slate-700"
+            >
+              Annuler
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="font-medium text-slate-900 hover:text-brand-700 hover:underline"
+            title="Cliquer pour renommer"
+          >
+            {block.name}
+          </button>
+        )}
+      </td>
+      <td className="px-5 py-3.5">
+        <div className="flex gap-1">
+          {SEASONS.map((s) => {
+            const isOn = currentSeasons.has(s.value);
+            return (
+              <button
+                key={s.value}
+                type="button"
+                onClick={() => void toggleSeason(s.value)}
+                className={`rounded-full border px-2 py-0.5 text-[11px] font-medium transition ${
+                  isOn
+                    ? "border-brand-300 bg-brand-50 text-brand-700"
+                    : "border-slate-200 bg-white text-slate-400 hover:border-slate-300"
+                }`}
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+      </td>
+      <td className="px-5 py-3.5">
+        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          {block.lang}
+        </span>
+      </td>
+      <td className="px-5 py-3.5">
+        <div className="flex items-center justify-end gap-1">
+          <button
+            type="button"
+            onClick={() => void onDownload(block)}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+            title="Télécharger"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+              <path d="M12 3v12m0 0l-4-4m4 4l4-4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => void onDelete(block)}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 transition hover:bg-red-50"
+            title="Supprimer"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+              <path d="M6 7h12" strokeLinecap="round" />
+              <path d="M10 11v6M14 11v6" strokeLinecap="round" />
+              <path d="M8 7V5h8v2" />
+              <path d="M7 7h10v11a2 2 0 01-2 2H9a2 2 0 01-2-2z" />
+            </svg>
+          </button>
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -203,12 +339,25 @@ function CreateBlockForm({
   ) => Promise<void>;
 }) {
   const [destination, setDestination] = useState("villars");
-  const [season, setSeason] = useState("hiver");
+  const [selectedSeasons, setSelectedSeasons] = useState<Set<string>>(new Set(["hiver"]));
   const [lang, setLang] = useState("fr");
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+
+  const toggleSeason = (value: string) => {
+    setSelectedSeasons((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) {
+        if (next.size <= 1) return prev; // au moins une
+        next.delete(value);
+      } else {
+        next.add(value);
+      }
+      return next;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -220,13 +369,17 @@ function CreateBlockForm({
       setError("Veuillez sélectionner un fichier Word.");
       return;
     }
+    if (selectedSeasons.size === 0) {
+      setError("Veuillez sélectionner au moins une saison.");
+      return;
+    }
     try {
       setIsCreating(true);
       setError(null);
+      const season = Array.from(selectedSeasons).join(",");
       await onCreate(destination, season, lang, name.trim(), file);
       setName("");
       setFile(null);
-      // Reset file input
       const input = document.getElementById("block-file-input") as HTMLInputElement;
       if (input) input.value = "";
     } catch (err) {
@@ -246,7 +399,7 @@ function CreateBlockForm({
         </p>
       </header>
       <form className="space-y-3" onSubmit={handleSubmit}>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <select
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
             value={destination}
@@ -259,18 +412,26 @@ function CreateBlockForm({
               </option>
             ))}
           </select>
-          <select
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-            value={season}
-            onChange={(e) => setSeason(e.target.value)}
-            disabled={isCreating}
-          >
-            {SEASONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex gap-1">
+            {SEASONS.map((s) => {
+              const isOn = selectedSeasons.has(s.value);
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => toggleSeason(s.value)}
+                  disabled={isCreating}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                    isOn
+                      ? "border-brand-300 bg-brand-50 text-brand-700"
+                      : "border-slate-200 bg-white text-slate-400 hover:border-slate-300"
+                  } disabled:opacity-50`}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
           <select
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
             value={lang}

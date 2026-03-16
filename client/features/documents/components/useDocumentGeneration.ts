@@ -213,14 +213,23 @@ export function useDocumentGeneration({
 
   // Unique values for filters
   const destinations = useMemo(() => [...new Set(blocks.map((b) => b.destination))], [blocks]);
-  const seasons = useMemo(() => [...new Set(blocks.map((b) => b.season))], [blocks]);
+  const seasons = useMemo(() => {
+    const set = new Set<string>();
+    for (const b of blocks) {
+      for (const s of b.season.split(",")) {
+        const trimmed = s.trim();
+        if (trimmed) set.add(trimmed);
+      }
+    }
+    return [...set];
+  }, [blocks]);
   const langs = useMemo(() => [...new Set(blocks.map((b) => b.lang))], [blocks]);
 
   // Filtered blocks
   const filteredBlocks = useMemo(() => {
     return blocks.filter((b) => {
       if (filterDest && b.destination !== filterDest) return false;
-      if (filterSeason && b.season !== filterSeason) return false;
+      if (filterSeason && !b.season.split(",").map((s) => s.trim()).includes(filterSeason)) return false;
       if (filterLang && b.lang !== filterLang) return false;
       return true;
     });
