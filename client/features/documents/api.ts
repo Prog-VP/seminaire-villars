@@ -89,12 +89,11 @@ export async function updateDocumentBlock(
   const update: Record<string, unknown> = {};
   if (fields.name !== undefined) update.name = fields.name;
   if (fields.season !== undefined) update.season = fields.season;
-  const { error, count } = await supabase()
+  const { error } = await supabase()
     .from("document_blocks")
     .update(update)
     .eq("id", id);
   if (error) throw new Error(error.message);
-  // Re-fetch the updated row
   const { data, error: fetchError } = await supabase()
     .from("document_blocks")
     .select("*")
@@ -102,15 +101,7 @@ export async function updateDocumentBlock(
     .single();
   if (fetchError) throw new Error(fetchError.message);
   if (!data) throw new Error("Mise à jour échouée.");
-  // Verify the update actually applied
-  const result = mapBlock(data);
-  if (update.season && result.season !== update.season) {
-    throw new Error(`La saison n'a pas été mise à jour (RLS ?). Attendu: ${update.season}, obtenu: ${result.season}`);
-  }
-  if (update.name && result.name !== update.name) {
-    throw new Error(`Le nom n'a pas été mis à jour (RLS ?). Attendu: ${update.name}, obtenu: ${result.name}`);
-  }
-  return result;
+  return mapBlock(data);
 }
 
 export async function deleteDocumentBlock(id: string, filePath: string): Promise<void> {
