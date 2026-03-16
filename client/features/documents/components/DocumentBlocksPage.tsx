@@ -101,8 +101,20 @@ export function DocumentBlocksPage() {
     downloadBlob(blob, block.filePath.split("/").pop() ?? "document.docx");
   };
 
-  // Group blocks by destination
-  const grouped = blocks.reduce<Record<string, DocumentBlock[]>>((acc, block) => {
+  // Filters
+  const [filterDest, setFilterDest] = useState<string>("");
+  const [filterSeason, setFilterSeason] = useState<string>("");
+  const [filterLang, setFilterLang] = useState<string>("");
+
+  const filtered = blocks.filter((b) => {
+    if (filterDest && b.destination !== filterDest) return false;
+    if (filterSeason && !b.season.split(",").map((s) => s.trim()).includes(filterSeason)) return false;
+    if (filterLang && b.lang !== filterLang) return false;
+    return true;
+  });
+
+  // Group filtered blocks by destination
+  const grouped = filtered.reduce<Record<string, DocumentBlock[]>>((acc, block) => {
     const key = block.destination;
     if (!acc[key]) acc[key] = [];
     acc[key].push(block);
@@ -119,6 +131,53 @@ export function DocumentBlocksPage() {
 
       <CreateBlockForm onCreate={handleCreate} />
 
+      {/* Filters */}
+      {blocks.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-slate-400">Filtrer :</span>
+          <select
+            value={filterDest}
+            onChange={(e) => setFilterDest(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700"
+          >
+            <option value="">Toutes destinations</option>
+            {DESTINATIONS.map((d) => (
+              <option key={d.value} value={d.value}>{d.label}</option>
+            ))}
+          </select>
+          <select
+            value={filterSeason}
+            onChange={(e) => setFilterSeason(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700"
+          >
+            <option value="">Toutes saisons</option>
+            {SEASONS.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+          <select
+            value={filterLang}
+            onChange={(e) => setFilterLang(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700"
+          >
+            <option value="">Toutes langues</option>
+            {LANGS.map((l) => (
+              <option key={l.value} value={l.value}>{l.label}</option>
+            ))}
+          </select>
+          {(filterDest || filterSeason || filterLang) && (
+            <button
+              type="button"
+              onClick={() => { setFilterDest(""); setFilterSeason(""); setFilterLang(""); }}
+              className="text-xs text-slate-500 underline hover:text-slate-700"
+            >
+              Effacer
+            </button>
+          )}
+          <span className="text-xs text-slate-400">{filtered.length} / {blocks.length}</span>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
           Chargement…
@@ -126,6 +185,10 @@ export function DocumentBlocksPage() {
       ) : blocks.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
           Aucun bloc document pour l&apos;instant.
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
+          Aucun bloc ne correspond aux filtres.
         </div>
       ) : (
         Object.entries(grouped).map(([dest, destBlocks]) => (
