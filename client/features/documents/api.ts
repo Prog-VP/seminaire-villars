@@ -89,14 +89,20 @@ export async function updateDocumentBlock(
   const update: Record<string, unknown> = {};
   if (fields.name !== undefined) update.name = fields.name;
   if (fields.season !== undefined) update.season = fields.season;
-  const { data, error } = await supabase()
+  const { error } = await supabase()
     .from("document_blocks")
     .update(update)
-    .eq("id", id)
-    .select("*");
+    .eq("id", id);
   if (error) throw new Error(error.message);
-  if (!data || data.length === 0) throw new Error("Mise à jour échouée.");
-  return mapBlock(data[0]);
+  // Re-fetch the updated row
+  const { data, error: fetchError } = await supabase()
+    .from("document_blocks")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (fetchError) throw new Error(fetchError.message);
+  if (!data) throw new Error("Mise à jour échouée.");
+  return mapBlock(data);
 }
 
 export async function deleteDocumentBlock(id: string, filePath: string): Promise<void> {
