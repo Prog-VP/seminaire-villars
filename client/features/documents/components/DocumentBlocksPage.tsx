@@ -274,18 +274,26 @@ function BlockRow({
     }
   };
 
+  const [seasonError, setSeasonError] = useState<string | null>(null);
+
   const toggleSeason = async (value: string) => {
     const next = new Set(currentSeasons);
     if (next.has(value)) {
-      if (next.size <= 1) return; // au moins une saison
+      if (next.size <= 1) return;
       next.delete(value);
     } else {
       next.add(value);
     }
-    await onSeasonChange(block, Array.from(next).join(","));
+    try {
+      setSeasonError(null);
+      await onSeasonChange(block, Array.from(next).join(","));
+    } catch (err) {
+      setSeasonError(err instanceof Error ? err.message : "Erreur");
+    }
   };
 
   return (
+    <>
     <tr className="group">
       <td className="px-5 py-3.5">
         {editing ? (
@@ -383,6 +391,10 @@ function BlockRow({
         </div>
       </td>
     </tr>
+    {seasonError && (
+      <tr><td colSpan={4} className="px-5 py-1 text-xs text-red-600">{seasonError}</td></tr>
+    )}
+    </>
   );
 }
 
