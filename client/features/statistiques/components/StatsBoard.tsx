@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import type { Offer } from "@/features/offres/types";
 import type { Dimension, EvoDimData } from "../types";
 import { DIM_LABELS, DIM_CONFIG } from "../types";
@@ -136,21 +136,30 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
     [offers, applyFilters],
   );
 
-  /* ── Graph visibility (local state) ── */
+  /* ── Graph visibility (URL param "hide") ── */
 
-  const [hiddenDims, setHiddenDims] = useState<Set<Dimension>>(new Set());
+  const hiddenDims = useMemo(() => {
+    const v = searchParams.get("hide");
+    if (!v) return new Set<Dimension>();
+    return new Set(v.split(",").filter(Boolean) as Dimension[]);
+  }, [searchParams]);
 
   const toggleDimVisibility = useCallback((dim: Dimension) => {
-    setHiddenDims((prev) => {
-      const next = new Set(prev);
-      if (next.has(dim)) {
-        next.delete(dim);
+    pushParams((p) => {
+      const current = p.get("hide");
+      const set = new Set((current ?? "").split(",").filter(Boolean));
+      if (set.has(dim)) {
+        set.delete(dim);
       } else {
-        next.add(dim);
+        set.add(dim);
       }
-      return next;
+      if (set.size > 0) {
+        p.set("hide", Array.from(set).join(","));
+      } else {
+        p.delete("hide");
+      }
     });
-  }, []);
+  }, [pushParams]);
 
   /* ── Render ── */
 
@@ -223,6 +232,24 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
       {/* Graph visibility selector */}
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs font-medium text-slate-400 mr-1">Afficher :</span>
+        {["mEnvoi", "mSejour"].map((key) => {
+          const label = key === "mEnvoi" ? "Mois envoi" : "Mois séjour";
+          const isOn = !hiddenDims.has(key as Dimension);
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => toggleDimVisibility(key as Dimension)}
+              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                isOn
+                  ? "border-brand-300 bg-brand-50 text-brand-700"
+                  : "border-slate-200 bg-white text-slate-400"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
         {DIM_CONFIG.map(({ dim }) => {
           const isOn = !hiddenDims.has(dim);
           return (
@@ -244,34 +271,38 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
 
       {/* Monthly evolution (stacked) */}
       <div className="grid gap-5">
-        <Section
-          title="Évolution mensuelle — Dates d'envoi"
-          filterActive={monthFilters.envoi != null}
-          onClear={() => clearMonthFilter("envoi")}
-        >
-          <MonthlyGroupedChart
-            data={envoiMonthlyData}
-            activeMonth={monthFilters.envoi}
-            activeYears={yearFilters}
-            allYears={allYears}
-            onClickMonth={(m) => toggleMonthFilter("envoi", m)}
-            onClickYear={toggleYearFilter}
-          />
-        </Section>
-        <Section
-          title="Évolution mensuelle — Dates de séjour"
-          filterActive={monthFilters.sejour != null}
-          onClear={() => clearMonthFilter("sejour")}
-        >
-          <MonthlyGroupedChart
-            data={sejourMonthlyData}
-            activeMonth={monthFilters.sejour}
-            activeYears={yearFilters}
-            allYears={allYears}
-            onClickMonth={(m) => toggleMonthFilter("sejour", m)}
-            onClickYear={toggleYearFilter}
-          />
-        </Section>
+        {!hiddenDims.has("mEnvoi" as Dimension) && (
+          <Section
+            title="Évolution mensuelle — Dates d'envoi"
+            filterActive={monthFilters.envoi != null}
+            onClear={() => clearMonthFilter("envoi")}
+          >
+            <MonthlyGroupedChart
+              data={envoiMonthlyData}
+              activeMonth={monthFilters.envoi}
+              activeYears={yearFilters}
+              allYears={allYears}
+              onClickMonth={(m) => toggleMonthFilter("envoi", m)}
+              onClickYear={toggleYearFilter}
+            />
+          </Section>
+        )}
+        {!hiddenDims.has("mSejour" as Dimension) && (
+          <Section
+            title="Évolution mensuelle — Dates de séjour"
+            filterActive={monthFilters.sejour != null}
+            onClear={() => clearMonthFilter("sejour")}
+          >
+            <MonthlyGroupedChart
+              data={sejourMonthlyData}
+              activeMonth={monthFilters.sejour}
+              activeYears={yearFilters}
+              allYears={allYears}
+              onClickMonth={(m) => toggleMonthFilter("sejour", m)}
+              onClickYear={toggleYearFilter}
+            />
+          </Section>
+        )}
       </div>
 
       {/* Dimension charts + tables */}
