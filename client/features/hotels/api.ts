@@ -58,6 +58,21 @@ export async function countOffersUsingHotel(hotelId: string): Promise<number> {
   return count ?? 0;
 }
 
+/** Count offers per hotel (batch). Returns a map hotelId → count. */
+export async function countOffersPerHotel(): Promise<Record<string, number>> {
+  const { data, error } = await supabase()
+    .from("offer_hotel_sends")
+    .select("hotel_id");
+  if (error) throw error;
+  const counts: Record<string, number> = {};
+  // Count unique offer_ids per hotel would be better, but offer_hotel_sends
+  // already represents one send per hotel per offer, so counting rows is fine.
+  for (const row of data ?? []) {
+    counts[row.hotel_id] = (counts[row.hotel_id] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export async function deleteHotel(id: string): Promise<void> {
   throwOnError(await supabase().from("hotels").delete().eq("id", id));
 }

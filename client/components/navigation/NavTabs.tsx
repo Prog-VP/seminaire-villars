@@ -11,6 +11,11 @@ const tabs = [
     label: "Offres",
     shortLabel: "OF",
   },
+  {
+    href: "/statistiques",
+    label: "Statistiques",
+    shortLabel: "ST",
+  },
 ];
 
 const reglagesChildren = [

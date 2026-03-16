@@ -13,6 +13,7 @@ type EditableSettingsListProps = {
   title: string;
   description: string;
   placeholder?: string;
+  emptyMessage?: string;
 };
 
 export function EditableSettingsList({
@@ -20,6 +21,7 @@ export function EditableSettingsList({
   title,
   description,
   placeholder,
+  emptyMessage = "Aucun libellé enregistré pour l\u0027instant.",
 }: EditableSettingsListProps) {
   const { settings, addValue, editValue, removeValue } = useSettings();
   const [newValue, setNewValue] = useState("");
@@ -82,7 +84,7 @@ export function EditableSettingsList({
       <ul className="mt-4 divide-y divide-slate-100">
         {items.length === 0 ? (
           <li className="py-5 text-center text-sm text-slate-500">
-            Aucun libellé enregistré pour l&apos;instant.
+            {emptyMessage}
           </li>
         ) : (
           items.map((item) => (

@@ -7,6 +7,7 @@ import {
   createHotel,
   updateHotel,
   deleteHotel,
+  countOffersPerHotel,
 } from "../api";
 import {
   fetchAllHotelDocuments,
@@ -15,27 +16,32 @@ import {
   downloadHotelDocument,
 } from "@/features/documents/api";
 import { downloadBlob } from "@/lib/download";
+import { useSettings } from "@/features/settings/context";
 import { CreateHotelForm } from "./CreateHotelForm";
 import { HotelRow } from "./HotelRow";
 
 export function HotelsPage() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [hotelDocs, setHotelDocs] = useState<HotelDocument[]>([]);
+  const [offerCounts, setOfferCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nameFilter, setNameFilter] = useState("");
   const [destinationFilter, setDestinationFilter] = useState<string | null>(null);
+  const { options: settingsOptions } = useSettings();
 
   const load = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const [hotelsData, docsData] = await Promise.all([
+      const [hotelsData, docsData, counts] = await Promise.all([
         fetchHotels(),
         fetchAllHotelDocuments(),
+        countOffersPerHotel(),
       ]);
       setHotels(hotelsData);
       setHotelDocs(docsData);
+      setOfferCounts(counts);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Impossible de charger les hôtels."
@@ -61,13 +67,7 @@ export function HotelsPage() {
     return result;
   }, [hotels, nameFilter, destinationFilter]);
 
-  const destinations = useMemo(() => {
-    const set = new Set<string>();
-    for (const h of hotels) {
-      if (h.destination) set.add(h.destination);
-    }
-    return Array.from(set).sort();
-  }, [hotels]);
+  const destinations = settingsOptions.stationDemandee;
 
   const handleCreate = async (nom: string, email: string, destination: string) => {
     const created = await createHotel(nom, email || null, destination || null);
@@ -221,6 +221,7 @@ export function HotelsPage() {
                   hotel={hotel}
                   docs={hotelDocs.filter((d) => d.hotelId === hotel.id)}
                   destinations={destinations}
+                  offerCount={offerCounts[hotel.id] ?? 0}
                   onSave={(fields) => handleUpdate(hotel.id, fields)}
                   onDelete={() => handleDelete(hotel.id)}
                   onUploadDoc={(lang, file) =>

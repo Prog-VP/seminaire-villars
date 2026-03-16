@@ -5,11 +5,10 @@ import { fetchAppConfig, saveAppConfig } from "../api";
 import { EditableSettingsList } from "@/features/settings/components/EditableSettingsList";
 
 const SMTP_KEYS = [
-  { key: "smtp_host", label: "Hôte SMTP", placeholder: "smtp.example.com" },
-  { key: "smtp_port", label: "Port", placeholder: "587" },
-  { key: "smtp_user", label: "Utilisateur", placeholder: "user@example.com" },
-  { key: "smtp_pass", label: "Mot de passe", placeholder: "", type: "password" as const },
-  { key: "smtp_from", label: "Adresse expéditeur", placeholder: "noreply@example.com" },
+  { key: "smtp_host", label: "Hôte SMTP", placeholder: "smtp.office365.com", hint: "Outlook : smtp.office365.com / Gmail : smtp.gmail.com" },
+  { key: "smtp_port", label: "Port", placeholder: "587", defaultValue: "587", hint: "587 (TLS) est le port standard" },
+  { key: "smtp_user", label: "Adresse email", placeholder: "info@entreprise.ch", hint: "Utilisée pour l'authentification et comme adresse d'expédition" },
+  { key: "smtp_pass", label: "Mot de passe", placeholder: "", type: "password" as const, hint: "Mot de passe ou mot de passe d'application si 2FA activé" },
 ];
 
 export function NotificationsSettingsPage() {
@@ -21,7 +20,14 @@ export function NotificationsSettingsPage() {
 
   useEffect(() => {
     fetchAppConfig()
-      .then(setConfig)
+      .then((cfg) => {
+        // Pré-remplir les valeurs par défaut si non définies
+        const defaults: Record<string, string> = {};
+        for (const { key, defaultValue } of SMTP_KEYS) {
+          if (defaultValue && !cfg[key]) defaults[key] = defaultValue;
+        }
+        setConfig({ ...defaults, ...cfg });
+      })
       .catch(() => setMessage({ type: "error", text: "Impossible de charger la configuration." }))
       .finally(() => setIsLoading(false));
   }, []);
@@ -82,6 +88,30 @@ export function NotificationsSettingsPage() {
         </p>
       </div>
 
+      {/* Guide */}
+      <details className="rounded-xl border border-blue-100 bg-blue-50/60 px-5 py-4 text-sm text-slate-700">
+        <summary className="cursor-pointer font-medium text-blue-800 select-none">
+          Comment trouver ces informations ?
+        </summary>
+        <div className="mt-3 space-y-2 text-slate-600">
+          <p className="font-medium text-slate-700">Pour Outlook / Microsoft 365 :</p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li><strong>Hôte&nbsp;:</strong> smtp.office365.com</li>
+            <li><strong>Port&nbsp;:</strong> 587</li>
+            <li><strong>Adresse email&nbsp;:</strong> votre boîte mail (ex: info@entreprise.ch)</li>
+            <li><strong>Mot de passe&nbsp;:</strong> votre mot de passe Outlook, ou un <em>mot de passe d&apos;application</em> si l&apos;authentification à deux facteurs (2FA) est activée</li>
+          </ul>
+          <p className="pt-1 text-xs text-slate-500">
+            Pour créer un mot de passe d&apos;application : connectez-vous sur{" "}
+            <a href="https://myaccount.microsoft.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-700">
+              myaccount.microsoft.com
+            </a>{" "}
+            → Sécurité → Mots de passe d&apos;application.
+            Si l&apos;envoi échoue, vérifiez que «&nbsp;SMTP authentifié&nbsp;» est activé dans le centre d&apos;administration Microsoft 365.
+          </p>
+        </div>
+      </details>
+
       {/* SMTP Config */}
       <section className="rounded-xl border border-white/70 bg-white/90 p-6 shadow-sm ring-1 ring-white/60">
         <header className="mb-4 space-y-1">
@@ -96,7 +126,7 @@ export function NotificationsSettingsPage() {
         ) : (
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              {SMTP_KEYS.map(({ key, label, placeholder, type }) => (
+              {SMTP_KEYS.map(({ key, label, placeholder, type, hint }) => (
                 <label key={key} className="block text-sm">
                   <span className="font-medium text-slate-700">{label}</span>
                   <input
@@ -106,6 +136,9 @@ export function NotificationsSettingsPage() {
                     value={config[key] ?? ""}
                     onChange={(e) => handleChange(key, e.target.value)}
                   />
+                  {hint && (
+                    <span className="mt-1 block text-xs text-slate-400">{hint}</span>
+                  )}
                 </label>
               ))}
             </div>
@@ -148,6 +181,7 @@ export function NotificationsSettingsPage() {
         title="Destinataires des notifications"
         description="Adresses email qui recevront un email lorsqu'un hôtel répond à une offre."
         placeholder="email@exemple.com"
+        emptyMessage="Aucun destinataire enregistré pour l'instant."
       />
     </div>
   );

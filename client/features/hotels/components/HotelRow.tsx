@@ -13,6 +13,7 @@ export function HotelRow({
   hotel,
   docs,
   destinations,
+  offerCount,
   onSave,
   onDelete,
   onUploadDoc,
@@ -22,6 +23,7 @@ export function HotelRow({
   hotel: Hotel;
   docs: HotelDocument[];
   destinations: string[];
+  offerCount: number;
   onSave: (fields: { nom: string; email: string | null; destination: string | null }) => Promise<void>;
   onDelete: () => Promise<void>;
   onUploadDoc: (lang: string, file: File) => Promise<void>;
@@ -195,7 +197,23 @@ export function HotelRow({
         ) : (
           <>
             <td className="px-5 py-3.5 font-medium text-slate-900">
-              {hotel.nom}
+              <span className="flex items-center gap-2">
+                {hotel.nom}
+                {offerCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const filters = { ...INITIAL_FILTERS, hotelContacte: hotel.nom };
+                      sessionStorage.setItem("offer-filters", JSON.stringify(filters));
+                      window.open("/offres", "_blank");
+                    }}
+                    title={`Voir ${offerCount} offre${offerCount > 1 ? "s" : ""} liée${offerCount > 1 ? "s" : ""}`}
+                    className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600 transition hover:bg-blue-100"
+                  >
+                    {offerCount} offre{offerCount > 1 ? "s" : ""}
+                  </button>
+                )}
+              </span>
             </td>
             <td className="px-5 py-3.5">
               {hotel.destination ? (
