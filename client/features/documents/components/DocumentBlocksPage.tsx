@@ -105,11 +105,13 @@ export function DocumentBlocksPage() {
   const [filterDest, setFilterDest] = useState<string>("");
   const [filterSeason, setFilterSeason] = useState<string>("");
   const [filterLang, setFilterLang] = useState<string>("");
+  const [filterName, setFilterName] = useState<string>("");
 
   const filtered = blocks.filter((b) => {
     if (filterDest && b.destination !== filterDest) return false;
     if (filterSeason && !b.season.split(",").map((s) => s.trim()).includes(filterSeason)) return false;
     if (filterLang && b.lang !== filterLang) return false;
+    if (filterName && !b.name.toLowerCase().includes(filterName.toLowerCase())) return false;
     return true;
   });
 
@@ -134,7 +136,13 @@ export function DocumentBlocksPage() {
       {/* Filters */}
       {blocks.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-slate-400">Filtrer :</span>
+          <input
+            type="text"
+            placeholder="Rechercher par nom…"
+            value={filterName}
+            onChange={(e) => setFilterName(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          />
           <select
             value={filterDest}
             onChange={(e) => setFilterDest(e.target.value)}
@@ -165,10 +173,10 @@ export function DocumentBlocksPage() {
               <option key={l.value} value={l.value}>{l.label}</option>
             ))}
           </select>
-          {(filterDest || filterSeason || filterLang) && (
+          {(filterDest || filterSeason || filterLang || filterName) && (
             <button
               type="button"
-              onClick={() => { setFilterDest(""); setFilterSeason(""); setFilterLang(""); }}
+              onClick={() => { setFilterDest(""); setFilterSeason(""); setFilterLang(""); setFilterName(""); }}
               className="text-xs text-slate-500 underline hover:text-slate-700"
             >
               Effacer
@@ -193,9 +201,13 @@ export function DocumentBlocksPage() {
       ) : (
         Object.entries(grouped).map(([dest, destBlocks]) => (
           <div key={dest} className="space-y-2">
-            <h3 className="text-sm font-semibold text-slate-700">
+            <button
+              type="button"
+              onClick={() => setFilterDest(filterDest === dest ? "" : dest)}
+              className="text-sm font-semibold text-slate-700 hover:text-brand-700 hover:underline"
+            >
               {DEST_LABELS[dest] ?? dest}
-            </h3>
+            </button>
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <table className="w-full text-left text-sm">
                 <thead>
@@ -203,11 +215,27 @@ export function DocumentBlocksPage() {
                     <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Nom
                     </th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Saison
+                    <th
+                      className="cursor-pointer px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-brand-700"
+                      onClick={() => {
+                        const vals = SEASONS.map((s) => s.value);
+                        const idx = vals.indexOf(filterSeason);
+                        setFilterSeason(idx >= 0 && idx < vals.length - 1 ? vals[idx + 1] : idx === vals.length - 1 ? "" : vals[0]);
+                      }}
+                      title="Cliquer pour filtrer par saison"
+                    >
+                      Saison {filterSeason ? `(${SEASON_LABELS[filterSeason]})` : ""}
                     </th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Langue
+                    <th
+                      className="cursor-pointer px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-brand-700"
+                      onClick={() => {
+                        const vals = LANGS.map((l) => l.value);
+                        const idx = vals.indexOf(filterLang);
+                        setFilterLang(idx >= 0 && idx < vals.length - 1 ? vals[idx + 1] : idx === vals.length - 1 ? "" : vals[0]);
+                      }}
+                      title="Cliquer pour filtrer par langue"
+                    >
+                      Langue {filterLang ? `(${filterLang.toUpperCase()})` : ""}
                     </th>
                     <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Actions
@@ -223,6 +251,8 @@ export function DocumentBlocksPage() {
                       onSeasonChange={handleSeasonChange}
                       onDownload={handleDownload}
                       onDelete={handleDelete}
+                      onFilterSeason={setFilterSeason}
+                      onFilterLang={setFilterLang}
                     />
                   ))}
                 </tbody>
@@ -245,12 +275,16 @@ function BlockRow({
   onSeasonChange,
   onDownload,
   onDelete,
+  onFilterSeason,
+  onFilterLang,
 }: {
   block: DocumentBlock;
   onRename: (block: DocumentBlock, name: string) => Promise<void>;
   onSeasonChange: (block: DocumentBlock, season: string) => Promise<void>;
   onDownload: (block: DocumentBlock) => Promise<void>;
   onDelete: (block: DocumentBlock) => Promise<void>;
+  onFilterSeason: (season: string) => void;
+  onFilterLang: (lang: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(block.name);
@@ -358,9 +392,14 @@ function BlockRow({
         </div>
       </td>
       <td className="px-5 py-3.5">
-        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        <button
+          type="button"
+          onClick={() => onFilterLang(block.lang)}
+          title={`Filtrer par ${block.lang.toUpperCase()}`}
+          className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 transition hover:bg-brand-100 hover:text-brand-700"
+        >
           {block.lang}
-        </span>
+        </button>
       </td>
       <td className="px-5 py-3.5">
         <div className="flex items-center justify-end gap-1">
