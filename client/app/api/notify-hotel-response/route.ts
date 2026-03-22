@@ -11,15 +11,6 @@ type NotifyBody =
       message: string;
     };
 
-async function getSmtpConfig(supabase: ReturnType<typeof createAdminClient>) {
-  const { data } = await supabase.from("app_config").select("key, value");
-  const map: Record<string, string> = {};
-  for (const row of data ?? []) {
-    map[row.key] = row.value;
-  }
-  return map;
-}
-
 async function getRecipients(supabase: ReturnType<typeof createAdminClient>) {
   const { data } = await supabase
     .from("settings")
@@ -28,11 +19,11 @@ async function getRecipients(supabase: ReturnType<typeof createAdminClient>) {
   return (data ?? []).map((row) => row.label);
 }
 
-function buildTransporter(config: Record<string, string>) {
-  const host = config.smtp_host;
-  const port = Number(config.smtp_port) || 587;
-  const user = config.smtp_user;
-  const pass = config.smtp_pass;
+function buildTransporter() {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
 
   if (!host || !user || !pass) return null;
 
@@ -49,11 +40,10 @@ export async function POST(request: Request) {
     const body = (await request.json()) as NotifyBody;
     const supabase = createAdminClient();
 
-    const config = await getSmtpConfig(supabase);
     const recipients = await getRecipients(supabase);
-    const from = config.smtp_from || config.smtp_user;
+    const from = process.env.SMTP_FROM || process.env.SMTP_USER || "";
 
-    const transporter = buildTransporter(config);
+    const transporter = buildTransporter();
     if (!transporter || recipients.length === 0) {
       return NextResponse.json({
         ok: true,

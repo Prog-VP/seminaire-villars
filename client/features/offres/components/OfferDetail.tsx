@@ -44,7 +44,7 @@ export function OfferDetail({ offer }: OfferDetailProps) {
   useEffect(() => {
     if (!currentOffer) return;
     for (const n of notifications) {
-      if (n.offerId === currentOffer.id) markAsRead(n.id);
+      if (!n.isRead && n.offerId === currentOffer.id) markAsRead(n.id);
     }
   }, [currentOffer, notifications, markAsRead]);
   const [isEditing, setIsEditing] = useState(false);

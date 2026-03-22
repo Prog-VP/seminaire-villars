@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -20,6 +21,7 @@ export type NotificationItem = {
   offerLabel?: string;
   message: string;
   createdAt: string;
+  isRead: boolean;
 };
 
 type NotificationContextValue = {
@@ -52,24 +54,16 @@ function mapRows(data: Record<string, unknown>[]): NotificationItem[] {
         : undefined,
       message: r.message as string,
       createdAt: r.createdAt as string,
+      isRead: (r.is_read as boolean) ?? false,
     };
   });
 }
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const offsetRef = useRef(0);
-
-  // Load read IDs from sessionStorage on mount
-  useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem("notifications-read");
-      if (stored) setReadIds(new Set(JSON.parse(stored)));
-    } catch {}
-  }, []);
 
   // Fetch initial batch + realtime
   useEffect(() => {
@@ -78,7 +72,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     (async () => {
       const { data } = await supabase
         .from("hotel_responses")
-        .select("id, hotelName, respondentName, message, createdAt, offer_id, offers(societeContact, numeroOffre)")
+        .select("id, hotelName, respondentName, message, createdAt, offer_id, is_read, offers(societeContact, numeroOffre)")
         .order("createdAt", { ascending: false })
         .range(0, PAGE_SIZE - 1);
 
@@ -120,6 +114,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             offerLabel,
             message: row.message as string,
             createdAt: row.createdAt as string,
+            isRead: false,
           };
 
           setNotifications((prev) => [item, ...prev]);
@@ -143,7 +138,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
       const { data } = await supabase
         .from("hotel_responses")
-        .select("id, hotelName, respondentName, message, createdAt, offer_id, offers(societeContact, numeroOffre)")
+        .select("id, hotelName, respondentName, message, createdAt, offer_id, is_read, offers(societeContact, numeroOffre)")
         .order("createdAt", { ascending: false })
         .range(from, to);
 
@@ -164,30 +159,41 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, [loadingMore, hasMore]);
 
-  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const clearNotifications = useCallback(() => {
-    setReadIds((prev) => {
-      const next = new Set(prev);
-      for (const n of notifications) next.add(n.id);
-      sessionStorage.setItem("notifications-read", JSON.stringify([...next]));
-      return next;
-    });
-  }, [notifications]);
-
-  const markAsRead = useCallback((id: string) => {
-    setReadIds((prev) => {
-      const next = new Set(prev);
-      next.add(id);
-      sessionStorage.setItem("notifications-read", JSON.stringify([...next]));
-      return next;
+    setNotifications((prev) => {
+      const unreadIds = prev.filter((n) => !n.isRead).map((n) => n.id);
+      if (unreadIds.length === 0) return prev;
+      const supabase = createClient();
+      void supabase
+        .from("hotel_responses")
+        .update({ is_read: true })
+        .in("id", unreadIds)
+        .then();
+      return prev.map((n) => (n.isRead ? n : { ...n, isRead: true }));
     });
   }, []);
 
+  const markAsRead = useCallback((id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+    );
+    const supabase = createClient();
+    void supabase
+      .from("hotel_responses")
+      .update({ is_read: true })
+      .eq("id", id)
+      .then();
+  }, []);
+
+  const value = useMemo<NotificationContextValue>(
+    () => ({ notifications, unreadCount, clearNotifications, markAsRead, loadMore, loadingMore, hasMore }),
+    [notifications, unreadCount, clearNotifications, markAsRead, loadMore, loadingMore, hasMore]
+  );
+
   return (
-    <NotificationContext.Provider
-      value={{ notifications, unreadCount, clearNotifications, markAsRead, loadMore, loadingMore, hasMore }}
-    >
+    <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
   );
