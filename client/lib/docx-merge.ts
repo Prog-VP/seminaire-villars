@@ -26,7 +26,7 @@ export async function mergeDocx(buffers: Buffer[]): Promise<Buffer> {
   const masterDocXml =
     (await masterZip.file("word/document.xml")?.async("string")) ?? "";
   let masterBody = extractBodyContent(masterDocXml);
-  const masterWrapper = extractBodyWrapper(masterDocXml);
+  let masterWrapper = extractBodyWrapper(masterDocXml);
 
   // Collect media files already in master
   const existingMedia = new Set<string>();
@@ -42,6 +42,18 @@ export async function mergeDocx(buffers: Buffer[]): Promise<Buffer> {
       (await slaveZip.file("word/document.xml")?.async("string")) ?? "";
     let slaveBody = extractBodyContent(slaveDocXml);
 
+    // Merge namespace declarations from slave root into master wrapper
+    const slaveRoot = slaveDocXml.match(/<w:document[^>]*>/)?.[0] ?? "";
+    for (const m of slaveRoot.matchAll(/xmlns:([a-z0-9]+)="([^"]+)"/g)) {
+      const decl = `xmlns:${m[1]}="${m[2]}"`;
+      if (!masterWrapper.before.includes(`xmlns:${m[1]}="`)) {
+        masterWrapper = {
+          before: masterWrapper.before.replace(/<w:document /, `<w:document ${decl} `),
+          after: masterWrapper.after,
+        };
+      }
+    }
+
     // Parse slave relationships
     const slaveRelsXml =
       (await slaveZip.file("word/_rels/document.xml.rels")?.async("string")) ??
@@ -51,21 +63,17 @@ export async function mergeDocx(buffers: Buffer[]): Promise<Buffer> {
     // Map of old relationship IDs to new ones
     const relIdMap = new Map<string, string>();
 
-    // Copy media and remap relationships
+    // Copy media, headers/footers, and hyperlinks from slave
     for (const rel of slaveRels) {
       if (rel.type.includes("/image") || rel.type.includes("/media")) {
-        const oldTarget = rel.target; // e.g. "media/image1.png"
+        const oldTarget = rel.target;
         const mediaFile = slaveZip.file(`word/${oldTarget}`);
         if (mediaFile) {
-          // Generate unique filename
           const ext = oldTarget.split(".").pop() ?? "png";
           const newFileName = `media/merged_${i}_${nextRelId}.${ext}`;
-
-          // Copy media file to master
           const content = await mediaFile.async("uint8array");
           masterZip.file(`word/${newFileName}`, content);
 
-          // Add content type if not present
           const contentTypeEntry = `Extension="${ext}"`;
           if (!contentTypesXml.includes(contentTypeEntry)) {
             const mimeMap: Record<string, string> = {
@@ -86,146 +94,47 @@ export async function mergeDocx(buffers: Buffer[]): Promise<Buffer> {
             );
           }
 
-          // Create new relationship
           const newRelId = `rId${nextRelId++}`;
           relIdMap.set(rel.id, newRelId);
-          masterRels.push({
-            id: newRelId,
-            type: rel.type,
-            target: newFileName,
-          });
+          masterRels.push({ id: newRelId, type: rel.type, target: newFileName });
         }
+      } else if (rel.type.includes("/hyperlink")) {
+        // Add hyperlink relationships (external targets)
+        const newRelId = `rId${nextRelId++}`;
+        relIdMap.set(rel.id, newRelId);
+        masterRels.push({ id: newRelId, type: rel.type, target: rel.target, external: true });
       }
     }
 
-    // Remap relationship IDs in slave body
-    for (const [oldId, newId] of relIdMap) {
-      // Replace r:embed="rIdX" and r:link="rIdX" and r:id="rIdX"
-      const pattern = new RegExp(
-        `(r:embed="|r:link="|r:id="|Id=")${escapeRegex(oldId)}"`,
+    // Remap relationship IDs in slave body (single-pass to avoid aliasing:
+    // e.g. rId14→rId67 then rId67→rId71 would corrupt the first replacement)
+    if (relIdMap.size > 0) {
+      const idPattern = new RegExp(
+        `(r:embed="|r:link="|r:id="|Id=")(${[...relIdMap.keys()].map(escapeRegex).join("|")})"`,
         "g"
       );
-      slaveBody = slaveBody.replace(pattern, `$1${newId}"`);
+      slaveBody = slaveBody.replace(idPattern, (_, prefix, oldId) => {
+        return `${prefix}${relIdMap.get(oldId) ?? oldId}"`;
+      });
     }
 
-    // ---- Merge footnotes & endnotes ----
-    for (const noteType of ["footnotes", "endnotes"] as const) {
-      const tagName = noteType === "footnotes" ? "footnote" : "endnote";
-      const refTagName =
-        noteType === "footnotes" ? "footnoteReference" : "endnoteReference";
-      const relTypeUrl =
-        noteType === "footnotes"
-          ? "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
-          : "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes";
-      const partContentType =
-        noteType === "footnotes"
-          ? "application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"
-          : "application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml";
+    // Strip footnote/endnote references from slave body
+    // (avoids ID conflicts and corrupt footnotes.xml in merged output)
+    slaveBody = slaveBody.replace(/<w:footnoteReference\s[^/]*\/>/g, "");
+    slaveBody = slaveBody.replace(/<w:endnoteReference\s[^/]*\/>/g, "");
 
-      const slaveNotesXml = await slaveZip
-        .file(`word/${noteType}.xml`)
-        ?.async("string");
-      if (!slaveNotesXml) continue;
-
-      // Extract content notes from slave (ID > 0)
-      const noteRegex = new RegExp(
-        `<w:${tagName}\\s[^>]*?w:id="(\\d+)"[^>]*?>[\\s\\S]*?<\\/w:${tagName}>`,
-        "g"
-      );
-      const slaveNotes: { id: number; xml: string }[] = [];
-      let noteMatch;
-      while ((noteMatch = noteRegex.exec(slaveNotesXml)) !== null) {
-        const id = parseInt(noteMatch[1], 10);
-        if (id > 0) {
-          slaveNotes.push({ id, xml: noteMatch[0] });
-        }
+    // Keep inline sectPr (they define section layout: columns, margins, etc.)
+    // but strip header/footer references inside them (those parts aren't copied)
+    slaveBody = slaveBody.replace(
+      /<w:sectPr[\s\S]*?<\/w:sectPr>/g,
+      (match) => {
+        let cleaned = match;
+        cleaned = cleaned.replace(/<w:headerReference\s[^/]*\/>/g, "");
+        cleaned = cleaned.replace(/<w:footerReference\s[^/]*\/>/g, "");
+        cleaned = cleaned.replace(/<w:titlePg\/>/g, "");
+        return cleaned;
       }
-      if (slaveNotes.length === 0) continue;
-
-      // Ensure master has the notes file
-      let masterNotesXml = await masterZip
-        .file(`word/${noteType}.xml`)
-        ?.async("string");
-      if (!masterNotesXml) {
-        // Copy root tag (with namespaces) and separator notes from slave
-        const rootMatch = slaveNotesXml.match(
-          new RegExp(`<w:${noteType}[\\s\\S]*?>`)
-        );
-        const rootTag = rootMatch ? rootMatch[0] : `<w:${noteType}>`;
-
-        // Extract separator notes (id <= 0)
-        const sepRegex = new RegExp(
-          `<w:${tagName}\\s[^>]*?w:id="(-?\\d+)"[^>]*?>[\\s\\S]*?<\\/w:${tagName}>`,
-          "g"
-        );
-        let sepNotes = "";
-        let sepMatch;
-        while ((sepMatch = sepRegex.exec(slaveNotesXml)) !== null) {
-          const sepId = parseInt(sepMatch[1], 10);
-          if (sepId <= 0) sepNotes += sepMatch[0] + "\n";
-        }
-
-        masterNotesXml =
-          `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
-          `${rootTag}\n${sepNotes}</w:${noteType}>`;
-
-        // Add relationship to master
-        const relId = `rId${nextRelId++}`;
-        masterRels.push({
-          id: relId,
-          type: relTypeUrl,
-          target: `${noteType}.xml`,
-        });
-
-        // Add content type override
-        if (!contentTypesXml.includes(`PartName="/word/${noteType}.xml"`)) {
-          contentTypesXml = contentTypesXml.replace(
-            "</Types>",
-            `<Override PartName="/word/${noteType}.xml" ContentType="${partContentType}"/></Types>`
-          );
-        }
-      }
-
-      // Find max note ID in master
-      let maxNoteId = 0;
-      for (const m of masterNotesXml.matchAll(/w:id="(-?\d+)"/g)) {
-        const nid = parseInt(m[1], 10);
-        if (nid > maxNoteId) maxNoteId = nid;
-      }
-
-      // Remap slave note IDs to avoid conflicts
-      const noteIdMap = new Map<number, number>();
-      for (const note of slaveNotes) {
-        noteIdMap.set(note.id, ++maxNoteId);
-      }
-
-      // Update footnoteReference / endnoteReference in slave body
-      for (const [oldNoteId, newNoteId] of noteIdMap) {
-        slaveBody = slaveBody.replace(
-          new RegExp(
-            `(<w:${refTagName}\\s[^>]*?w:id=")${oldNoteId}(")`,
-            "g"
-          ),
-          `$1${newNoteId}$2`
-        );
-      }
-
-      // Build remapped notes XML
-      let newNotesXml = "";
-      for (const note of slaveNotes) {
-        const newNoteId = noteIdMap.get(note.id)!;
-        newNotesXml +=
-          note.xml.replace(/w:id="\d+"/, `w:id="${newNoteId}"`) + "\n";
-      }
-
-      // Insert before closing tag
-      masterNotesXml = masterNotesXml.replace(
-        new RegExp(`</w:${noteType}>`),
-        newNotesXml + `</w:${noteType}>`
-      );
-
-      masterZip.file(`word/${noteType}.xml`, masterNotesXml);
-    }
+    );
 
     // Add page break before slave content
     const pageBreak =
@@ -258,22 +167,17 @@ export async function mergeDocx(buffers: Buffer[]): Promise<Buffer> {
 
 // --- Helpers ---
 
-type Rel = { id: string; type: string; target: string };
+type Rel = { id: string; type: string; target: string; external?: boolean };
 
 function parseRels(xml: string): Rel[] {
   const rels: Rel[] = [];
   const regex =
-    /<Relationship\s+Id="([^"]+)"\s+Type="([^"]+)"\s+Target="([^"]+)"[^/]*\/>/g;
+    /<Relationship\s+[^>]*?Id="([^"]+)"[^>]*?Type="([^"]+)"[^>]*?Target="([^"]+)"[^/]*\/?>/g;
   let match;
   while ((match = regex.exec(xml)) !== null) {
-    rels.push({ id: match[1], type: match[2], target: match[3] });
-  }
-  // Also handle different attribute order
-  const regex2 =
-    /<Relationship\s+[^>]*?Id="([^"]+)"[^>]*?Type="([^"]+)"[^>]*?Target="([^"]+)"[^/]*\/>/g;
-  while ((match = regex2.exec(xml)) !== null) {
     if (!rels.find((r) => r.id === match![1])) {
-      rels.push({ id: match[1], type: match[2], target: match[3] });
+      const external = match[0].includes('TargetMode="External"');
+      rels.push({ id: match[1], type: match[2], target: match[3], external });
     }
   }
   return rels;
@@ -294,10 +198,30 @@ function extractBodyContent(docXml: string): string {
   if (!bodyMatch) return "";
   let body = bodyMatch[1];
 
-  // Remove the final section properties (keep them only in master)
-  body = body.replace(/<w:sectPr[\s\S]*?<\/w:sectPr>\s*$/, "");
-  // Also handle self-closing sectPr
-  body = body.replace(/<w:sectPr[^/]*\/>\s*$/, "");
+  // Remove the LAST section properties only (keep them only in master).
+  // We must find the last <w:sectPr to avoid removing inline sectPr (inside <w:pPr>)
+  // and everything between them.
+  const lastSectPrIdx = body.lastIndexOf("<w:sectPr");
+  if (lastSectPrIdx >= 0) {
+    const closeTag = "</w:sectPr>";
+    const closeIdx = body.indexOf(closeTag, lastSectPrIdx);
+    if (closeIdx >= 0) {
+      // Only remove if everything after is whitespace (i.e. it's a direct body child)
+      const afterClose = body.substring(closeIdx + closeTag.length);
+      if (/^\s*$/.test(afterClose)) {
+        body = body.substring(0, lastSectPrIdx);
+      }
+    } else {
+      // Self-closing sectPr at the end
+      const selfCloseIdx = body.indexOf("/>", lastSectPrIdx);
+      if (selfCloseIdx >= 0) {
+        const afterSelfClose = body.substring(selfCloseIdx + 2);
+        if (/^\s*$/.test(afterSelfClose)) {
+          body = body.substring(0, lastSectPrIdx);
+        }
+      }
+    }
+  }
 
   return body;
 }
@@ -326,7 +250,9 @@ function buildRelsXml(rels: Rel[]): string {
   const entries = rels
     .map(
       (r) =>
-        `<Relationship Id="${r.id}" Type="${r.type}" Target="${r.target}"/>`
+        r.external
+          ? `<Relationship Id="${r.id}" Type="${r.type}" Target="${r.target}" TargetMode="External"/>`
+          : `<Relationship Id="${r.id}" Type="${r.type}" Target="${r.target}"/>`
     )
     .join("\n  ");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -337,6 +263,83 @@ function buildRelsXml(rels: Rel[]): string {
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Replace a placeholder that Word has split across multiple <w:t> runs.
+ * Scans all <w:t> nodes, finds sequences whose concatenated text contains
+ * the placeholder, then replaces the matched XML span with the replacement
+ * text inside the first run (keeping its formatting).
+ */
+function replaceCrossRun(xml: string, placeholder: string, replacement: string): string {
+  // Find all <w:t ...>text</w:t> with their positions
+  const tRegex = /<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g;
+  const nodes: { start: number; end: number; text: string }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = tRegex.exec(xml)) !== null) {
+    nodes.push({ start: m.index, end: m.index + m[0].length, text: m[1] });
+  }
+
+  // Build paragraph boundaries so we never match across <w:p> elements
+  const pBoundaries: number[] = [];
+  const pRegex = /<\/w:p>/g;
+  while ((m = pRegex.exec(xml)) !== null) {
+    pBoundaries.push(m.index);
+  }
+  // Check if two positions are in the same paragraph
+  const sameParaBlock = (posA: number, posB: number): boolean => {
+    // They are in the same paragraph if no </w:p> appears between them
+    for (const boundary of pBoundaries) {
+      if (boundary > posA && boundary < posB) return false;
+      if (boundary >= posB) break;
+    }
+    return true;
+  };
+
+  // Sliding window: concatenate consecutive <w:t> texts and look for the placeholder
+  // Only within the same paragraph to avoid destroying paragraph structure
+  for (let i = 0; i < nodes.length; i++) {
+    let concat = "";
+    for (let j = i; j < nodes.length; j++) {
+      // Stop if we crossed a paragraph boundary
+      if (j > i && !sameParaBlock(nodes[i].start, nodes[j].start)) break;
+      concat += nodes[j].text;
+      const idx = concat.indexOf(placeholder);
+      if (idx >= 0) {
+        // Found! Determine which nodes are involved
+        // Characters before the placeholder in the first node
+        const prefix = concat.substring(0, idx);
+        // Characters after the placeholder in the last node
+        const suffix = concat.substring(idx + placeholder.length);
+
+        // Get the XML range to replace: from start of first matched node to end of last
+        const xmlStart = nodes[i].start;
+        const xmlEnd = nodes[j].end;
+
+        // Grab the opening <w:t> tag from the first node to preserve xml:space etc.
+        const firstTag = xml.substring(xmlStart).match(/<w:t(?:\s[^>]*)?>/)?.[0] ?? '<w:t xml:space="preserve">';
+
+        // Build replacement: keep prefix and suffix in <w:t> nodes
+        const newXml = `${firstTag}${prefix}${replacement}${suffix}</w:t>`;
+
+        // Remove the intermediate runs between first and last node
+        // But we need to be careful: we can only safely remove content between
+        // the first <w:t>'s parent </w:t> and the last <w:t>'s </w:t>
+        xml = xml.substring(0, xmlStart) + newXml + xml.substring(xmlEnd);
+
+        // Remove now-empty <w:r> elements left behind (runs whose <w:t> was consumed)
+        // An empty run looks like: <w:r>...<w:rPr>...</w:rPr></w:r> (no <w:t>)
+        xml = xml.replace(/<w:r\b[^>]*>(?:\s*<w:rPr>[\s\S]*?<\/w:rPr>\s*)?<\/w:r>/g, (match) => {
+          return match.includes("<w:t") ? match : "";
+        });
+
+        // Recurse to handle multiple occurrences
+        return replaceCrossRun(xml, placeholder, replacement);
+      }
+      if (concat.length > placeholder.length * 3) break; // too far apart
+    }
+  }
+  return xml;
 }
 
 // ---------------------------------------------------------------------------
@@ -386,24 +389,7 @@ export async function replaceOfferText(
     // Simple case: placeholder is in a single <w:t> run
     docXml = docXml.replace(placeholder, replacement);
   } else {
-    // Word split the placeholder across multiple runs.
-    // Allow run-boundary XML tags between each character:
-    //   </w:t> </w:r> <w:r> <w:rPr>…</w:rPr> <w:t …>
-    // Also allow <w:proofErr …/> elements that Word inserts for spell-check.
-    const runBoundary =
-      "(?:" +
-        "\\s*</w:t>\\s*" +
-        "(?:</w:r>\\s*" +
-          "(?:<w:proofErr[^/]*/?>\\s*)*" +
-          "<w:r>\\s*(?:<w:rPr>[\\s\\S]*?</w:rPr>\\s*)?" +
-        ")?" +
-        "<w:t[^>]*>\\s*" +
-      ")?";
-    const pattern = placeholder
-      .split("")
-      .map((c) => escapeRegex(c))
-      .join(runBoundary);
-    docXml = docXml.replace(new RegExp(pattern), replacement);
+    docXml = replaceCrossRun(docXml, placeholder, replacement);
   }
 
   zip.file("word/document.xml", docXml);
@@ -457,20 +443,7 @@ export async function replacePlaceholders(
     if (docXml.includes(placeholder)) {
       docXml = docXml.replaceAll(placeholder, replacement);
     } else {
-      const runBoundary =
-        "(?:" +
-          "\\s*</w:t>\\s*" +
-          "(?:</w:r>\\s*" +
-            "(?:<w:proofErr[^/]*/?>\\s*)*" +
-            "<w:r>\\s*(?:<w:rPr>[\\s\\S]*?</w:rPr>\\s*)?" +
-          ")?" +
-          "<w:t[^>]*>\\s*" +
-        ")?";
-      const pattern = placeholder
-        .split("")
-        .map((c) => escapeRegex(c))
-        .join(runBoundary);
-      docXml = docXml.replace(new RegExp(pattern, "g"), replacement);
+      docXml = replaceCrossRun(docXml, placeholder, replacement);
     }
   }
 
