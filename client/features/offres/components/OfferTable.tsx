@@ -242,7 +242,7 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
   };
 
   const handleNavigate = (id: string) => {
-    router.push(`/offres/${id}`);
+    window.open(`/offres/${id}`, "_blank");
   };
 
   useEffect(() => {

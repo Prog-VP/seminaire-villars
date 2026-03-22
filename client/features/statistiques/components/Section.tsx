@@ -13,7 +13,7 @@ export function Section({
 }) {
   return (
     <div
-      className={`rounded-xl border bg-white p-5 shadow-sm transition-colors ${
+      className={`rounded-xl border bg-white p-5 shadow-sm transition-colors overflow-visible ${
         filterActive ? "border-brand-300 ring-1 ring-brand-200" : "border-slate-200"
       }`}
     >

@@ -1,7 +1,6 @@
 import type { Dimension, Filters, YearPin, MonthFilters, YearFilters } from "../types";
 import { DIM_LABELS, MONTH_NAMES } from "../types";
-import { YEAR_HEX } from "../colors";
-import { yearColorIndex } from "../colors";
+import { yearColor } from "../colors";
 
 const closeIcon = (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3 shrink-0">
@@ -9,16 +8,20 @@ const closeIcon = (
   </svg>
 );
 
-export function ActiveFilters({ filters, yearPin, monthFilters, yearFilters, allYears, hotelFilter, onClear, onClearMonth, onToggleYear, onClearHotel, onClearAll }: {
+export function ActiveFilters({ filters, yearPin, monthFilters, yearFilters, envoiYearFilters, sejourYearFilters, allYears, hotelFilter, onClear, onClearMonth, onToggleYear, onToggleEnvoiYear, onToggleSejourYear, onClearHotel, onClearAll }: {
   filters: Filters;
   yearPin: YearPin;
   monthFilters: MonthFilters;
   yearFilters: YearFilters;
+  envoiYearFilters?: YearFilters;
+  sejourYearFilters?: YearFilters;
   allYears: number[];
   hotelFilter?: string;
   onClear: (dim: Dimension) => void;
   onClearMonth: (type: "envoi" | "sejour") => void;
   onToggleYear: (year: number) => void;
+  onToggleEnvoiYear?: (year: number) => void;
+  onToggleSejourYear?: (year: number) => void;
   onClearHotel: () => void;
   onClearAll: () => void;
 }) {
@@ -26,12 +29,14 @@ export function ActiveFilters({ filters, yearPin, monthFilters, yearFilters, all
   const hasMonthEnvoi = monthFilters.envoi != null;
   const hasMonthSejour = monthFilters.sejour != null;
   const hasYearFilter = yearFilters.size > 0;
+  const hasEnvoiYear = envoiYearFilters && envoiYearFilters.size > 0;
+  const hasSejourYear = sejourYearFilters && sejourYearFilters.size > 0;
   const hasHotel = !!hotelFilter;
-  const chipCount = entries.length + (hasMonthEnvoi ? 1 : 0) + (hasMonthSejour ? 1 : 0) + (hasYearFilter ? 1 : 0) + (hasHotel ? 1 : 0);
+  const chipCount = entries.length + (hasMonthEnvoi ? 1 : 0) + (hasMonthSejour ? 1 : 0) + (hasYearFilter ? 1 : 0) + (hasEnvoiYear ? 1 : 0) + (hasSejourYear ? 1 : 0) + (hasHotel ? 1 : 0);
   if (chipCount === 0) return null;
 
-  function yearColorIdx(year: number) {
-    return yearColorIndex(year, allYears);
+  function getYearColor(year: number) {
+    return yearColor(year, allYears);
   }
 
   return (
@@ -39,7 +44,6 @@ export function ActiveFilters({ filters, yearPin, monthFilters, yearFilters, all
       <span className="text-xs font-medium text-slate-500">Filtres actifs :</span>
       {entries.map(([dim, val]) => {
         const hasPin = yearPin?.dim === dim;
-        const pinIdx = hasPin ? yearColorIdx(yearPin!.year) : -1;
         return (
           <button
             key={dim}
@@ -50,7 +54,7 @@ export function ActiveFilters({ filters, yearPin, monthFilters, yearFilters, all
                 ? "text-white hover:opacity-80"
                 : "bg-brand-100 text-brand-700 hover:bg-brand-200"
             }`}
-            style={hasPin && pinIdx >= 0 ? { backgroundColor: YEAR_HEX[pinIdx % YEAR_HEX.length] } : undefined}
+            style={hasPin ? { backgroundColor: getYearColor(yearPin!.year) } : undefined}
           >
             {DIM_LABELS[dim]} : {val}{hasPin ? ` (${yearPin!.year})` : ""}
             {closeIcon}
@@ -80,21 +84,52 @@ export function ActiveFilters({ filters, yearPin, monthFilters, yearFilters, all
       {hasYearFilter && (
         <span className="inline-flex items-center gap-1 text-xs">
           <span className="text-slate-500">Années :</span>
-          {Array.from(yearFilters).sort().map((y) => {
-            const idx = yearColorIdx(y);
-            return (
-              <button
-                key={y}
-                type="button"
-                onClick={() => onToggleYear(y)}
-                className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium text-white transition hover:opacity-80"
-                style={{ backgroundColor: idx >= 0 ? YEAR_HEX[idx % YEAR_HEX.length] : "#64748b" }}
-              >
-                {y}
-                {closeIcon}
-              </button>
-            );
-          })}
+          {Array.from(yearFilters).sort().map((y) => (
+            <button
+              key={y}
+              type="button"
+              onClick={() => onToggleYear(y)}
+              className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium text-white transition hover:opacity-80"
+              style={{ backgroundColor: getYearColor(y) }}
+            >
+              {y}
+              {closeIcon}
+            </button>
+          ))}
+        </span>
+      )}
+      {hasEnvoiYear && (
+        <span className="inline-flex items-center gap-1 text-xs">
+          <span className="text-slate-500">Envoi :</span>
+          {Array.from(envoiYearFilters!).sort().map((y) => (
+            <button
+              key={y}
+              type="button"
+              onClick={() => onToggleEnvoiYear?.(y)}
+              className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium text-white transition hover:opacity-80"
+              style={{ backgroundColor: getYearColor(y) }}
+            >
+              {y}
+              {closeIcon}
+            </button>
+          ))}
+        </span>
+      )}
+      {hasSejourYear && (
+        <span className="inline-flex items-center gap-1 text-xs">
+          <span className="text-slate-500">Séjour :</span>
+          {Array.from(sejourYearFilters!).sort().map((y) => (
+            <button
+              key={y}
+              type="button"
+              onClick={() => onToggleSejourYear?.(y)}
+              className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium text-white transition hover:opacity-80"
+              style={{ backgroundColor: getYearColor(y) }}
+            >
+              {y}
+              {closeIcon}
+            </button>
+          ))}
         </span>
       )}
       {hasHotel && (

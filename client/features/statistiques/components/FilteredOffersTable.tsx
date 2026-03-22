@@ -93,12 +93,13 @@ function CommentsPopover({ comments, societe }: { comments: OfferComment[]; soci
 
 /* ── Filtered offers table ── */
 
-export function FilteredOffersTable({ offers, hasFilters, filters, yearFilters, monthFilters }: {
+export function FilteredOffersTable({ offers, hasFilters, filters, yearFilters, monthFilters, filteredOfferIds }: {
   offers: Offer[];
   hasFilters: boolean;
   filters: Filters;
   yearFilters: YearFilters;
   monthFilters: MonthFilters;
+  filteredOfferIds?: string[];
 }) {
   const [page, setPage] = useState(0);
 
@@ -114,40 +115,13 @@ export function FilteredOffersTable({ offers, hasFilters, filters, yearFilters, 
   const totalPages = Math.ceil(offers.length / PAGE_SIZE);
   const paged = offers.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  /** Build sessionStorage filters matching the Offres page format, then navigate */
+  /** Store filtered offer IDs, then open Offres page */
   const openInOffres = useCallback(() => {
-    const offerFilters: Record<string, string> = {};
-
-    // Map dimension filters
-    if (filters.statut) offerFilters.statut = filters.statut;
-    if (filters.pays) offerFilters.pays = filters.pays;
-    if (filters.typeSociete) offerFilters.typeSociete = filters.typeSociete;
-    if (filters.typeSejour) offerFilters.typeSejour = filters.typeSejour;
-    if (filters.stationDemandee) offerFilters.stationDemandee = filters.stationDemandee;
-    if (filters.traitePar) offerFilters.traitePar = filters.traitePar;
-    if (filters.transmisPar) offerFilters.transmisPar = filters.transmisPar;
-
-    // Map year filters
-    if (yearFilters.size > 0) {
-      offerFilters.anneeOffre = Array.from(yearFilters).sort().join(",");
+    if (filteredOfferIds && filteredOfferIds.length > 0) {
+      localStorage.setItem("offer-filter-ids", JSON.stringify(filteredOfferIds));
     }
-
-    // Map month envoi -> date range for that month across all years
-    if (monthFilters.envoi != null) {
-      const m = monthFilters.envoi;
-      // Use a wide range: first year to last year for that month
-      const minYear = 2000;
-      const maxYear = 2099;
-      const du = `${minYear}-${String(m + 1).padStart(2, "0")}-01`;
-      const lastDay = new Date(maxYear, m + 1, 0).getDate();
-      const au = `${maxYear}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-      offerFilters.dateEnvoiDu = du;
-      offerFilters.dateEnvoiAu = au;
-    }
-
-    sessionStorage.setItem("offer-filters", JSON.stringify(offerFilters));
     window.open("/offres", "_blank");
-  }, [filters, yearFilters, monthFilters]);
+  }, [filters, filteredOfferIds]);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">

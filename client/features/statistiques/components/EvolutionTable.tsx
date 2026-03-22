@@ -3,8 +3,7 @@
 import { useMemo } from "react";
 import type { Dimension, EvoDimData, YearFilters } from "../types";
 import { DIM_LABELS } from "../types";
-import { YEAR_BG, YEAR_HEX } from "../colors";
-import { yearColorIndex } from "../colors";
+import { yearColor } from "../colors";
 import { pct } from "../data";
 
 export function EvolutionTable({
@@ -58,10 +57,9 @@ export function EvolutionTable({
           <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <th className="px-2 py-2 text-left">{DIM_LABELS[dim]}</th>
             {visibleYears.map((y) => {
-              const ci = yearColorIndex(y, allYears);
               return (
                 <th key={y} className="px-2 py-2 text-right">
-                  <span className={`inline-block h-2 w-2 rounded-full ${YEAR_BG[ci % YEAR_BG.length]} mr-1 align-middle`} />
+                  <span className="inline-block h-2 w-2 rounded-full mr-1 align-middle" style={{ backgroundColor: yearColor(y, allYears) }} />
                   {y}
                 </th>
               );
@@ -89,7 +87,6 @@ export function EvolutionTable({
                   {row.label}
                 </td>
                 {visibleYears.map((y) => {
-                  const ci = yearColorIndex(y, allYears);
                   const v = row.yearCounts[y] ?? 0;
                   const intensity = maxCell > 0 ? v / maxCell : 0;
                   const isCellActive = isRowActive && activeYear === y;
@@ -104,7 +101,7 @@ export function EvolutionTable({
                             isCellActive ? "ring-2 ring-brand-500 scale-110" : ""
                           }`}
                           style={{
-                            backgroundColor: `color-mix(in srgb, ${YEAR_HEX[ci % YEAR_HEX.length]} ${Math.max(15, intensity * 55)}%, transparent)`,
+                            backgroundColor: `color-mix(in srgb, ${yearColor(y, allYears)} ${Math.max(15, intensity * 55)}%, transparent)`,
                             color: intensity > 0.4 ? "white" : undefined,
                           }}
                         >

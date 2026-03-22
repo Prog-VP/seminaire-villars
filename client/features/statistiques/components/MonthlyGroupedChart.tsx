@@ -1,7 +1,6 @@
 import type { MonthlyData, YearFilters } from "../types";
 import { MONTH_NAMES } from "../types";
-import { YEAR_HEX } from "../colors";
-import { yearColorIndex } from "../colors";
+import { yearColor } from "../colors";
 import { YearLegend } from "./YearLegend";
 
 export function MonthlyGroupedChart({
@@ -24,7 +23,7 @@ export function MonthlyGroupedChart({
   const max = Math.max(
     ...data.months.flatMap((m) => visibleYears.map((y) => m.yearCounts[y] ?? 0)),
   );
-  const chartH = 180;
+  const chartH = 140;
 
   if (max === 0) return <p className="text-sm text-slate-400">Aucune donnée</p>;
 
@@ -33,7 +32,8 @@ export function MonthlyGroupedChart({
       {/* Legend — clickable years */}
       <YearLegend years={data.years} activeYears={activeYears} allYears={allYears} onClickYear={onClickYear} />
       {/* Chart */}
-      <div className="flex items-end gap-3 pb-1" style={{ height: chartH + 30 }}>
+      <div className="overflow-x-auto">
+      <div className="flex items-end gap-3 pb-1 pt-5" style={{ minWidth: data.months.length * (visibleYears.length * 20 + 24) }}>
         {data.months.map(({ month, yearCounts }) => {
           const isActive = activeMonth === month;
           const isDimmed = activeMonth != null && !isActive;
@@ -47,14 +47,13 @@ export function MonthlyGroupedChart({
             >
               <div className="flex items-end gap-px" style={{ height: chartH }}>
                 {visibleYears.map((y) => {
-                  const ci = yearColorIndex(y, allYears);
                   const v = yearCounts[y] ?? 0;
                   const h = max > 0 ? (v / max) * chartH : 0;
                   return (
                     <div key={y} className="group relative" style={{ width: Math.max(8, Math.min(18, 120 / visibleYears.length)) }}>
                       <div
                         className="w-full rounded-t transition-opacity hover:opacity-80"
-                        style={{ height: h, backgroundColor: YEAR_HEX[ci % YEAR_HEX.length] }}
+                        style={{ height: h, backgroundColor: yearColor(y, allYears) }}
                       />
                       {v > 0 && (
                         <span className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] tabular-nums text-slate-500 opacity-0 transition group-hover:opacity-100">
@@ -74,6 +73,7 @@ export function MonthlyGroupedChart({
             </button>
           );
         })}
+      </div>
       </div>
     </div>
   );

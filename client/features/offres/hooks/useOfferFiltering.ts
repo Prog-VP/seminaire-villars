@@ -261,9 +261,24 @@ function loadSort(): SortConfig {
   return { key: "createdAt", direction: "desc" };
 }
 
+const IDS_STORAGE_KEY = "offer-filter-ids";
+
 export function useOfferFiltering(data: Offer[]) {
   const [filters, setFilters] = useState<OfferFiltersState>(loadFilters);
   const [sortConfig, setSortConfig] = useState<SortConfig>(loadSort);
+
+  // One-shot: load IDs from stats page, then clear
+  const [statsIds, setStatsIds] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(IDS_STORAGE_KEY);
+      if (raw) {
+        localStorage.removeItem(IDS_STORAGE_KEY);
+        const ids = JSON.parse(raw) as string[];
+        if (ids.length > 0) setStatsIds(new Set(ids));
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const isDefault = JSON.stringify(filters) === JSON.stringify(INITIAL_FILTERS);
@@ -275,9 +290,14 @@ export function useOfferFiltering(data: Offer[]) {
     sessionStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(sortConfig));
   }, [sortConfig]);
 
+  const baseOffers = useMemo(
+    () => statsIds ? data.filter((o) => statsIds.has(o.id)) : data,
+    [data, statsIds]
+  );
+
   const filteredOffers = useMemo(
-    () => data.filter((offer) => matchesOffer(offer, filters)),
-    [data, filters]
+    () => baseOffers.filter((offer) => matchesOffer(offer, filters)),
+    [baseOffers, filters]
   );
 
   const sortedOffers = useMemo(() => {

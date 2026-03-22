@@ -1,6 +1,5 @@
 import type { YearFilters } from "../types";
-import { YEAR_BG } from "../colors";
-import { yearColorIndex } from "../colors";
+import { yearColor } from "../colors";
 
 export function YearLegend({
   years,
@@ -16,7 +15,6 @@ export function YearLegend({
   return (
     <div className="flex flex-wrap gap-1 text-[11px]">
       {years.map((y) => {
-        const ci = yearColorIndex(y, allYears);
         const isOn = activeYears.size === 0 || activeYears.has(y);
         return (
           <button
@@ -27,7 +25,7 @@ export function YearLegend({
               isOn ? "bg-slate-100 text-slate-700" : "bg-slate-50 text-slate-300 line-through"
             } hover:bg-slate-200`}
           >
-            <span className={`inline-block h-2.5 w-2.5 rounded-sm ${YEAR_BG[ci % YEAR_BG.length]} ${isOn ? "" : "opacity-30"}`} />
+            <span className={`inline-block h-2.5 w-2.5 rounded-sm ${isOn ? "" : "opacity-30"}`} style={{ backgroundColor: yearColor(y, allYears) }} />
             {y}
           </button>
         );

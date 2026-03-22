@@ -3,8 +3,7 @@
 import React, { useMemo } from "react";
 import type { Offer } from "@/features/offres/types";
 import type { HotelRow, YearFilters } from "../types";
-import { YEAR_BG } from "../colors";
-import { yearColorIndex } from "../colors";
+import { yearColor } from "../colors";
 import { getYear } from "../data";
 import { Section } from "./Section";
 
@@ -67,7 +66,7 @@ export function HotelStatsTab({ offers, allYears, yearFilters, activeHotel, onTo
         {data.length === 0 ? (
           <p className="text-sm text-slate-400">Aucune donnée</p>
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 overflow-x-auto">
             {data.slice(0, 20).map((row) => {
               const isActive = activeHotel === row.name;
               const isDimmed = activeHotel != null && !isActive;
@@ -126,10 +125,9 @@ export function HotelStatsTab({ offers, allYears, yearFilters, activeHotel, onTo
                 <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-2 py-2 text-left">Hôtel</th>
                   {visibleYears.map((y) => {
-                    const ci = yearColorIndex(y, allYears);
                     return (
                       <th key={y} className="px-2 py-2 text-center" colSpan={2}>
-                        <span className={`inline-block h-2 w-2 rounded-full ${YEAR_BG[ci % YEAR_BG.length]} mr-1 align-middle`} />
+                        <span className="inline-block h-2 w-2 rounded-full mr-1 align-middle" style={{ backgroundColor: yearColor(y, allYears) }} />
                         {y}
                       </th>
                     );

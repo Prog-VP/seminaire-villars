@@ -1,6 +1,5 @@
 import type { Dimension, EvoDimData, YearFilters } from "../types";
-import { YEAR_HEX } from "../colors";
-import { yearColorIndex } from "../colors";
+import { yearColor } from "../colors";
 import { YearLegend } from "./YearLegend";
 
 export function GroupedBarChart({
@@ -12,6 +11,7 @@ export function GroupedBarChart({
   allYears,
   onClickBar,
   onClickYear,
+  hideLegend,
 }: {
   data: EvoDimData;
   limit?: number;
@@ -21,6 +21,7 @@ export function GroupedBarChart({
   allYears: number[];
   onClickBar?: (value: string) => void;
   onClickYear?: (year: number) => void;
+  hideLegend?: boolean;
 }) {
   const displayRows = limit ? data.rows.slice(0, limit) : data.rows;
   if (displayRows.length === 0) return <p className="text-sm text-slate-400">Aucune donnée</p>;
@@ -35,12 +36,12 @@ export function GroupedBarChart({
   return (
     <div className="space-y-2">
       {/* Legend — clickable */}
-      <YearLegend years={data.years} activeYears={activeYears} allYears={allYears} onClickYear={onClickYear} />
+      {!hideLegend && <YearLegend years={data.years} activeYears={activeYears} allYears={allYears} onClickYear={onClickYear} />}
       {/* Bars */}
       <div className="overflow-x-auto">
         <div
-          className="flex items-end gap-4 pb-6"
-          style={{ height: chartH + 36, minWidth: displayRows.length * (visibleYears.length * 16 + 24) }}
+          className="flex items-end gap-5 pb-6 pt-5"
+          style={{ minWidth: displayRows.length * (visibleYears.length * 18 + 32) }}
         >
           {displayRows.map((row) => {
             const isActive = activeValue === row.label;
@@ -54,14 +55,13 @@ export function GroupedBarChart({
               >
                 <div className="flex items-end gap-px" style={{ height: chartH }}>
                   {visibleYears.map((y) => {
-                    const ci = yearColorIndex(y, allYears);
                     const v = row.yearCounts[y] ?? 0;
                     const h = max > 0 ? (v / max) * chartH : 0;
                     return (
                       <div key={y} className="group relative" style={{ width: 14 }}>
                         <div
                           className="w-full rounded-t transition-opacity hover:opacity-80"
-                          style={{ height: h, backgroundColor: YEAR_HEX[ci % YEAR_HEX.length] }}
+                          style={{ height: h, backgroundColor: yearColor(y, allYears) }}
                         />
                         {v > 0 && (
                           <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] tabular-nums text-slate-500 opacity-0 transition group-hover:opacity-100">
@@ -72,7 +72,7 @@ export function GroupedBarChart({
                     );
                   })}
                 </div>
-                <span className="max-w-[80px] truncate text-[10px] text-slate-500" title={row.label}>
+                <span className="max-w-[100px] truncate text-[10px] text-slate-500" title={row.label}>
                   {row.label}
                 </span>
               </button>

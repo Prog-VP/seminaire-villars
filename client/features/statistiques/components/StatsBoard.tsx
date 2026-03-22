@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { Offer } from "@/features/offres/types";
 import type { Dimension, EvoDimData } from "../types";
 import { DIM_LABELS, DIM_CONFIG } from "../types";
@@ -18,6 +18,8 @@ type StatsBoardProps = {
   offers: Offer[];
   errorMessage?: string | null;
 };
+
+const emptyYearSet = new Set<number>();
 
 export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
   const {
@@ -40,17 +42,43 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
 
   /* ── Derived state that depends on offers ── */
 
-  // All years across the dataset (stable order for color mapping)
+  // All years across the dataset (envoi + séjour, for stable color mapping)
   const allYears = useMemo(() => {
     const set = new Set<number>();
     for (const o of offers) {
-      const y = getYear(o.dateEnvoiOffre);
-      if (y) set.add(y);
+      const yEnvoi = getYear(o.dateEnvoiOffre);
+      if (yEnvoi) set.add(yEnvoi);
+      const ySejour = getYear(o.dateConfirmeeDu) ?? (o.dateOptions?.[0]?.du ? getYear(o.dateOptions[0].du) : null);
+      if (ySejour) set.add(ySejour);
     }
     return Array.from(set).sort((a, b) => a - b);
   }, [offers]);
 
-  const hasFilters = Object.keys(filters).length > 0 || yearPin !== null || monthFilters.envoi != null || monthFilters.sejour != null || yearFilters.size > 0 || !!hotelFilter;
+  /* ── Local year visibility per chart (legend toggle = show/hide bars + filter data) ── */
+  const [chartYearFilters, setChartYearFilters] = useState<Record<string, Set<number>>>({});
+  const toggleChartYearFilter = useCallback((chartKey: string, year: number) => {
+    setChartYearFilters((prev) => {
+      const current = prev[chartKey] ?? new Set<number>();
+      const next = new Set(current);
+      if (next.has(year)) next.delete(year);
+      else next.add(year);
+      return { ...prev, [chartKey]: next };
+    });
+  }, []);
+  const getChartYearFilters = useCallback((chartKey: string): Set<number> => {
+    return chartYearFilters[chartKey] ?? new Set<number>();
+  }, [chartYearFilters]);
+
+  const hasFilters = Object.keys(filters).length > 0 || yearPin !== null || monthFilters.envoi != null || monthFilters.sejour != null || yearFilters.size > 0 || (chartYearFilters["mEnvoi"]?.size ?? 0) > 0 || (chartYearFilters["mSejour"]?.size ?? 0) > 0 || !!hotelFilter;
+
+  // Helper: get séjour year from an offer
+  const getSejourYear = useCallback((o: Offer): number | null => {
+    const dc = o.dateConfirmeeDu;
+    if (dc) { const y = getYear(dc); if (y) return y; }
+    const d1 = o.dateOptions?.[0]?.du;
+    if (d1) { const y = getYear(d1); if (y) return y; }
+    return null;
+  }, []);
 
   // Cross-filter: for each dim, exclude own filter
   const applyFilters = useCallback(
@@ -60,11 +88,20 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
         if (dim === excludeDim) continue;
         result = result.filter((o) => dimValue(o, dim) === val);
       }
-      // Apply year filters
-      if (yearFilters.size > 0) {
+      // Apply envoi year filters (from monthly envoi chart legend)
+      const envoiYF = chartYearFilters["mEnvoi"];
+      if (envoiYF && envoiYF.size > 0) {
         result = result.filter((o) => {
           const y = getYear(o.dateEnvoiOffre);
-          return y !== null && yearFilters.has(y);
+          return y !== null && envoiYF.has(y);
+        });
+      }
+      // Apply séjour year filters (from monthly séjour chart legend)
+      const sejourYF = chartYearFilters["mSejour"];
+      if (sejourYF && sejourYF.size > 0) {
+        result = result.filter((o) => {
+          const y = getSejourYear(o);
+          return y !== null && sejourYF.has(y);
         });
       }
       // Apply month filters
@@ -89,7 +126,7 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
       }
       return result;
     },
-    [filters, monthFilters, yearFilters, searchParams],
+    [filters, monthFilters, chartYearFilters, searchParams, getSejourYear],
   );
 
   // Fully filtered + year pin applied
@@ -161,6 +198,17 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
     });
   }, [pushParams]);
 
+  /* ── Table visibility per dimension ── */
+  const [visibleTables, setVisibleTables] = useState<Set<string>>(new Set());
+  const toggleTable = useCallback((key: string) => {
+    setVisibleTables((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
   /* ── Render ── */
 
   if (errorMessage) {
@@ -216,14 +264,21 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
         filters={filters}
         yearPin={yearPin}
         monthFilters={monthFilters}
-        yearFilters={yearFilters}
+        yearFilters={emptyYearSet}
+        envoiYearFilters={getChartYearFilters("mEnvoi")}
+        sejourYearFilters={getChartYearFilters("mSejour")}
         allYears={allYears}
         hotelFilter={hotelFilter}
         onClear={clearFilter}
         onClearMonth={clearMonthFilter}
-        onToggleYear={toggleYearFilter}
+        onToggleYear={() => {}}
+        onToggleEnvoiYear={(y) => toggleChartYearFilter("mEnvoi", y)}
+        onToggleSejourYear={(y) => toggleChartYearFilter("mSejour", y)}
         onClearHotel={() => pushParams((p) => p.delete("hotel"))}
-        onClearAll={clearAllFilters}
+        onClearAll={() => {
+          clearAllFilters();
+          setChartYearFilters({});
+        }}
       />
 
       {/* === Général tab === */}
@@ -280,10 +335,10 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
             <MonthlyGroupedChart
               data={envoiMonthlyData}
               activeMonth={monthFilters.envoi}
-              activeYears={yearFilters}
+              activeYears={getChartYearFilters("mEnvoi")}
               allYears={allYears}
               onClickMonth={(m) => toggleMonthFilter("envoi", m)}
-              onClickYear={toggleYearFilter}
+              onClickYear={(y) => toggleChartYearFilter("mEnvoi", y)}
             />
           </Section>
         )}
@@ -296,10 +351,10 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
             <MonthlyGroupedChart
               data={sejourMonthlyData}
               activeMonth={monthFilters.sejour}
-              activeYears={yearFilters}
+              activeYears={getChartYearFilters("mSejour")}
               allYears={allYears}
               onClickMonth={(m) => toggleMonthFilter("sejour", m)}
-              onClickYear={toggleYearFilter}
+              onClickYear={(y) => toggleChartYearFilter("mSejour", y)}
             />
           </Section>
         )}
@@ -322,23 +377,42 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
                   limit={limit ? Math.min(limit, 10) : 10}
                   dim={dim}
                   activeValue={filters[dim]}
-                  activeYears={yearFilters}
+                  activeYears={emptyYearSet}
                   allYears={allYears}
                   onClickBar={(val) => toggleFilter(dim, val)}
-                  onClickYear={toggleYearFilter}
+                  hideLegend
                 />
-                <div className="border-t border-slate-100 pt-3">
-                  <EvolutionTable
-                    data={dimData[dim]}
-                    dim={dim}
-                    limit={limit}
-                    activeValue={filters[dim]}
-                    activeYear={yearPin?.dim === dim ? yearPin.year : undefined}
-                    activeYears={yearFilters}
-                    allYears={allYears}
-                    onClickRow={(val) => toggleFilter(dim, val)}
-                    onClickCell={(val, year) => toggleCellFilter(dim, val, year)}
-                  />
+                <div className="border-t border-slate-100 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleTable(dim)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-slate-400 transition hover:text-slate-600"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className={`h-3.5 w-3.5 transition-transform ${visibleTables.has(dim) ? "rotate-90" : ""}`}
+                    >
+                      <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z" clipRule="evenodd" />
+                    </svg>
+                    {visibleTables.has(dim) ? "Masquer le tableau" : "Afficher le tableau"}
+                  </button>
+                  {visibleTables.has(dim) && (
+                    <div className="mt-3">
+                      <EvolutionTable
+                        data={dimData[dim]}
+                        dim={dim}
+                        limit={limit}
+                        activeValue={filters[dim]}
+                        activeYear={yearPin?.dim === dim ? yearPin.year : undefined}
+                        activeYears={emptyYearSet}
+                        allYears={allYears}
+                        onClickRow={(val) => toggleFilter(dim, val)}
+                        onClickCell={(val, year) => toggleCellFilter(dim, val, year)}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </Section>
@@ -372,6 +446,7 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
         filters={filters}
         yearFilters={yearFilters}
         monthFilters={monthFilters}
+        filteredOfferIds={fullyFiltered.map((o) => o.id)}
       />
     </div>
   );
