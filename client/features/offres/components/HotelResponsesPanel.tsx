@@ -46,6 +46,7 @@ export function HotelResponsesPanel({
     });
   }, [responses]);
 
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<ResponseEditFormState>({
     hotelName: "",
@@ -59,8 +60,18 @@ export function HotelResponsesPanel({
     text: string;
   } | null>(null);
 
+  const toggleOpen = (id: string) => {
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const handleEditClick = (response: HotelResponse) => {
     if (!response.id) return;
+    setOpenIds((prev) => new Set(prev).add(response.id!));
     setEditingId(response.id);
     setEditForm({
       hotelName: response.hotelName,
@@ -175,79 +186,105 @@ export function HotelResponsesPanel({
             Les hôtels contactés pourront répondre via le lien de partage.
           </p>
         ) : (
-          <ul className="mt-6 space-y-4">
-            {orderedResponses.map((response, index) => (
-              <li
-                key={`${response.hotelName}-${response.createdAt ?? index}`}
-                className="rounded-lg border border-slate-100 bg-slate-50 p-4"
-              >
-                {/* Header */}
-                <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                  <p className="font-semibold text-slate-900">
-                    {response.hotelName}
-                  </p>
-                  {response.respondentName && <span>• {response.respondentName}</span>}
-                  {response.createdAt && (
-                    <span className="ml-auto text-xs text-slate-500">
-                      {formatDateTime(response.createdAt)}
+          <ul className="mt-6 space-y-3">
+            {orderedResponses.map((response, index) => {
+              const rid = response.id ?? `${response.hotelName}-${index}`;
+              const isOpen = openIds.has(rid);
+              const isEditing = editingId === response.id;
+              const hasCustomText = response.offerText && response.offerText !== response.message;
+
+              return (
+                <li
+                  key={rid}
+                  className="overflow-hidden rounded-lg border border-slate-200 bg-white transition-shadow hover:shadow-sm"
+                >
+                  {/* Header — always visible, clickable */}
+                  <button
+                    type="button"
+                    onClick={() => toggleOpen(rid)}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isOpen ? "rotate-90" : ""}`}
+                    >
+                      <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z" clipRule="evenodd" />
+                    </svg>
+                    <span className="font-semibold text-slate-900 text-sm">
+                      {response.hotelName}
                     </span>
-                  )}
-                </div>
-
-                {/* Réponse originale de l'hôtel (lecture seule) */}
-                <div className="mt-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                    Réponse de l&apos;hôtel
-                  </p>
-                  <p className="mt-1 whitespace-pre-line rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-                    {response.message}
-                  </p>
-                </div>
-
-                {/* Texte pour l'offre (éditable) */}
-                {editingId === response.id ? (
-                  <ResponseEditForm
-                    response={response}
-                    editForm={editForm}
-                    onEditChange={handleEditChange}
-                    onSave={handleSave}
-                    onCancel={handleCancel}
-                    onResetOfferText={() => {
-                      setEditForm((prev) => ({ ...prev, offerText: editForm.message }));
-                    }}
-                    onDelete={handleDelete}
-                    editingId={editingId}
-                    isSaving={isSaving}
-                    isBusy={isBusy}
-                    onUpdateResponse={!!onUpdateResponse}
-                    onDeleteResponse={!!onDeleteResponse}
-                  />
-                ) : (
-                  <div className="mt-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">
-                      Texte pour l&apos;offre
-                      {response.offerText && response.offerText !== response.message && (
-                        <span className="ml-1.5 rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">
-                          Personnalisé
-                        </span>
-                      )}
-                    </p>
-                    <p className="mt-1 whitespace-pre-line rounded-md border border-brand-100 bg-white px-3 py-2 text-sm text-slate-700">
-                      {response.offerText ?? response.message}
-                    </p>
-                    {onUpdateResponse && response.id && (
-                      <button
-                        type="button"
-                        onClick={() => handleEditClick(response)}
-                        className="mt-2 text-xs font-semibold uppercase tracking-wide text-brand-700 underline-offset-4 hover:text-brand-900 hover:underline"
-                      >
-                        Modifier le texte offre
-                      </button>
+                    {response.respondentName && (
+                      <span className="text-sm text-slate-500">• {response.respondentName}</span>
                     )}
-                  </div>
-                )}
-              </li>
-            ))}
+                    {hasCustomText && (
+                      <span className="rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">
+                        Personnalisé
+                      </span>
+                    )}
+                    {response.createdAt && (
+                      <span className="ml-auto text-xs text-slate-400">
+                        {formatDateTime(response.createdAt)}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Collapsible content */}
+                  {isOpen && (
+                    <div className="border-t border-slate-100 px-4 py-4 space-y-4">
+                      {/* Réponse originale de l'hôtel */}
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                          Réponse de l&apos;hôtel
+                        </p>
+                        <p className="mt-1 whitespace-pre-line rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                          {response.message}
+                        </p>
+                      </div>
+
+                      {/* Texte pour l'offre (éditable) */}
+                      {isEditing ? (
+                        <ResponseEditForm
+                          response={response}
+                          editForm={editForm}
+                          onEditChange={handleEditChange}
+                          onSave={handleSave}
+                          onCancel={handleCancel}
+                          onResetOfferText={() => {
+                            setEditForm((prev) => ({ ...prev, offerText: editForm.message }));
+                          }}
+                          onDelete={handleDelete}
+                          editingId={editingId}
+                          isSaving={isSaving}
+                          isBusy={isBusy}
+                          onUpdateResponse={!!onUpdateResponse}
+                          onDeleteResponse={!!onDeleteResponse}
+                        />
+                      ) : (
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">
+                            Texte pour l&apos;offre
+                          </p>
+                          <p className="mt-1 whitespace-pre-line rounded-md border border-brand-100 bg-white px-3 py-2 text-sm text-slate-700">
+                            {response.offerText ?? response.message}
+                          </p>
+                          {onUpdateResponse && response.id && (
+                            <button
+                              type="button"
+                              onClick={() => handleEditClick(response)}
+                              className="mt-2 text-xs font-semibold uppercase tracking-wide text-brand-700 underline-offset-4 hover:text-brand-900 hover:underline"
+                            >
+                              Modifier le texte offre
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
         {panelMessage && (
