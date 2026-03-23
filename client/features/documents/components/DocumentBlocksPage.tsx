@@ -10,6 +10,7 @@ import {
   downloadDocumentBlock,
 } from "../api";
 import { downloadBlob } from "@/lib/download";
+import { PlaceholderInfo } from "@/components/ui/PlaceholderInfo";
 
 const DESTINATIONS = [
   { value: "villars", label: "Villars-sur-Ollon" },
@@ -213,7 +214,10 @@ export function DocumentBlocksPage() {
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
                     <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Nom
+                      <span className="inline-flex items-center gap-1.5">
+                        Nom
+                        <PlaceholderInfo type="documents" />
+                      </span>
                     </th>
                     <th
                       className="cursor-pointer px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-brand-700"

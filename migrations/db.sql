@@ -41,6 +41,7 @@ CREATE TABLE public.hotel_responses (
    message text NOT NULL,
    createdAt timestamp with time zone DEFAULT now(),
    offerText text,
+   is_read boolean NOT NULL DEFAULT false,
    CONSTRAINT hotel_responses_pkey PRIMARY KEY (id),
    CONSTRAINT hotel_responses_offer_id_fkey FOREIGN KEY (offer_id) REFERENCES public.offers(id)
 );

@@ -414,9 +414,11 @@ export function useDocumentGeneration({
           if (pick?.hotelId && pick?.docLang) {
             const doc = hotelDocsByHotelAndLang.get(`${pick.hotelId}_${pick.docLang}`);
             if (doc) {
+              const resp = responseById.get(item.id);
               const text =
                 localOfferTexts[item.id] ??
-                responseById.get(item.id)?.offerText ??
+                resp?.offerText ??
+                resp?.message ??
                 "";
               items.push({
                 type: "hotel",

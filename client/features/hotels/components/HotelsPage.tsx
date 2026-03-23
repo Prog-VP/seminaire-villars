@@ -16,6 +16,7 @@ import {
   downloadHotelDocument,
 } from "@/features/documents/api";
 import { downloadBlob } from "@/lib/download";
+import { PlaceholderInfo } from "@/components/ui/PlaceholderInfo";
 import { useSettings } from "@/features/settings/context";
 import { CreateHotelForm } from "./CreateHotelForm";
 import { HotelRow } from "./HotelRow";
@@ -134,8 +135,9 @@ export function HotelsPage() {
             <tr className="border-b border-slate-100 bg-slate-50">
               <th className="px-5 py-3">
                 <div className="space-y-1.5">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Nom
+                    <PlaceholderInfo type="hotels" />
                   </span>
                   <input
                     type="text"
