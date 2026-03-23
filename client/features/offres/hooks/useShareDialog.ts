@@ -20,6 +20,13 @@ export function useShareDialog(offer: Offer, onClose: () => void, onTokenCreated
   // UI state
   const [step, setStep] = useState<Step>("select");
   const [search, setSearch] = useState("");
+  const [destinationFilter, setDestinationFilter] = useState<string | null>(() => {
+    const station = offer.stationDemandee?.toLowerCase();
+    if (!station) return null;
+    if (station.includes("diableret")) return "Diablerets";
+    if (station.includes("villars")) return "Villars";
+    return null;
+  });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sentInSession, setSentInSession] = useState<Set<string>>(new Set());
   const [linkCopied, setLinkCopied] = useState(false);
@@ -73,20 +80,27 @@ export function useShareDialog(offer: Offer, onClose: () => void, onTokenCreated
     return map;
   }, [sends]);
 
-  const filteredHotels = useMemo(() => {
-    if (!search.trim()) return hotels;
-    const q = search.toLowerCase();
-    return hotels.filter((h) => h.nom.toLowerCase().includes(q));
-  }, [hotels, search]);
+  const destinations = useMemo(() => {
+    const set = new Set<string>();
+    for (const h of hotels) if (h.destination) set.add(h.destination);
+    return Array.from(set).sort();
+  }, [hotels]);
 
-  const hotelsWithEmail = useMemo(
-    () => hotels.filter((h) => !!h.email),
-    [hotels]
-  );
+  const filteredHotels = useMemo(() => {
+    let list = hotels;
+    if (destinationFilter) {
+      list = list.filter((h) => h.destination === destinationFilter);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((h) => h.nom.toLowerCase().includes(q));
+    }
+    return list;
+  }, [hotels, search, destinationFilter]);
 
   const unsendedWithEmail = useMemo(
-    () => hotelsWithEmail.filter((h) => !sendsByHotelId.has(h.id)),
-    [hotelsWithEmail, sendsByHotelId]
+    () => filteredHotels.filter((h) => !!h.email && !sendsByHotelId.has(h.id)),
+    [filteredHotels, sendsByHotelId]
   );
 
   // Selection helpers
@@ -180,6 +194,9 @@ export function useShareDialog(offer: Offer, onClose: () => void, onTokenCreated
     setStep,
     search,
     setSearch,
+    destinationFilter,
+    setDestinationFilter,
+    destinations,
     selected,
     sentInSession,
     linkCopied,

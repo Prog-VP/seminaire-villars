@@ -21,6 +21,9 @@ export function ShareDialog({ offer, onClose, onTokenCreated }: Props) {
     setStep,
     search,
     setSearch,
+    destinationFilter,
+    setDestinationFilter,
+    destinations,
     selected,
     sentInSession,
     linkCopied,
@@ -78,6 +81,9 @@ export function ShareDialog({ offer, onClose, onTokenCreated }: Props) {
             filteredHotels={filteredHotels}
             search={search}
             setSearch={setSearch}
+            destinationFilter={destinationFilter}
+            setDestinationFilter={setDestinationFilter}
+            destinations={destinations}
             selected={selected}
             sentInSession={sentInSession}
             sendsByHotelId={sendsByHotelId}

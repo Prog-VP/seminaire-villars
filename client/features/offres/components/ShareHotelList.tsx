@@ -8,6 +8,9 @@ type Props = {
   filteredHotels: Hotel[];
   search: string;
   setSearch: (v: string) => void;
+  destinationFilter: string | null;
+  setDestinationFilter: (v: string | null) => void;
+  destinations: string[];
   selected: Set<string>;
   sentInSession: Set<string>;
   sendsByHotelId: Map<string, OfferHotelSend>;
@@ -26,6 +29,9 @@ export function ShareHotelList({
   filteredHotels,
   search,
   setSearch,
+  destinationFilter,
+  setDestinationFilter,
+  destinations,
   selected,
   sentInSession,
   sendsByHotelId,
@@ -78,7 +84,37 @@ export function ShareHotelList({
           </div>
         ) : (
           <>
-            {/* Search */}
+            {/* Destination filter + Search */}
+            {destinations.length > 1 && (
+              <div className="mb-3 flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setDestinationFilter(null)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    destinationFilter === null
+                      ? "bg-brand-900 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  Tous
+                </button>
+                {destinations.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDestinationFilter(d === destinationFilter ? null : d)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                      destinationFilter === d
+                        ? "bg-brand-900 text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="mb-3 flex items-center gap-3">
               <input
                 type="text"
