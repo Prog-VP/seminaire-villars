@@ -1,5 +1,7 @@
 import JSZip from "jszip";
 
+const SECT_PR_REGEX = /<w:sectPr\b[^>]*\/>|<w:sectPr\b[\s\S]*?<\/w:sectPr>/g;
+
 /**
  * Merge multiple DOCX buffers into one, preserving images, styles, and formatting.
  * Uses the first document as the master (keeps its styles/theme/headers).
@@ -127,7 +129,7 @@ export async function mergeDocx(buffers: Buffer[]): Promise<Buffer> {
     // but strip header/footer references inside them (those parts aren't copied).
     // Handle both full (<w:sectPr ...>...</w:sectPr>) and self-closing (<w:sectPr ... />) forms.
     slaveBody = slaveBody.replace(
-      /<w:sectPr[\s\S]*?(?:<\/w:sectPr>|\/>)/g,
+      SECT_PR_REGEX,
       (match) => {
         let cleaned = match;
         cleaned = cleaned.replace(/<w:headerReference\s[^/]*\/>/g, "");
@@ -199,29 +201,9 @@ function extractBodyContent(docXml: string): string {
   if (!bodyMatch) return "";
   let body = bodyMatch[1];
 
-  // Remove the LAST section properties only (keep them only in master).
-  // We must find the last <w:sectPr to avoid removing inline sectPr (inside <w:pPr>)
-  // and everything between them.
-  const lastSectPrIdx = body.lastIndexOf("<w:sectPr");
-  if (lastSectPrIdx >= 0) {
-    const closeTag = "</w:sectPr>";
-    const closeIdx = body.indexOf(closeTag, lastSectPrIdx);
-    if (closeIdx >= 0) {
-      // Only remove if everything after is whitespace (i.e. it's a direct body child)
-      const afterClose = body.substring(closeIdx + closeTag.length);
-      if (/^\s*$/.test(afterClose)) {
-        body = body.substring(0, lastSectPrIdx);
-      }
-    } else {
-      // Self-closing sectPr at the end
-      const selfCloseIdx = body.indexOf("/>", lastSectPrIdx);
-      if (selfCloseIdx >= 0) {
-        const afterSelfClose = body.substring(selfCloseIdx + 2);
-        if (/^\s*$/.test(afterSelfClose)) {
-          body = body.substring(0, lastSectPrIdx);
-        }
-      }
-    }
+  const trailingSectPr = findTrailingSectPr(body);
+  if (trailingSectPr) {
+    body = body.substring(0, trailingSectPr.start);
   }
 
   return body;
@@ -239,12 +221,43 @@ function extractBodyWrapper(docXml: string): {
 
   // Keep the final sectPr from master
   const bodyContent = docXml.substring(bodyTagEnd, bodyClose);
-  const sectPrMatch = bodyContent.match(/<w:sectPr[\s\S]*?<\/w:sectPr>\s*$/);
-  const sectPr = sectPrMatch ? sectPrMatch[0] : "";
+  const trailingSectPr = findTrailingSectPr(bodyContent);
+  const sectPr = trailingSectPr
+    ? bodyContent.substring(trailingSectPr.start, trailingSectPr.end)
+    : "";
 
   const after = sectPr + "</w:body>" + docXml.substring(bodyClose + "</w:body>".length);
 
   return { before, after };
+}
+
+function findTrailingSectPr(body: string): { start: number; end: number } | null {
+  // The body-level sectPr is always the last direct child of <w:body>.
+  // Inline sectPr inside <w:pPr> can appear near the end of the document, so
+  // we only accept the last <w:sectPr...> if nothing but whitespace follows it.
+  const lastSectPrIdx = body.lastIndexOf("<w:sectPr");
+  if (lastSectPrIdx < 0) return null;
+
+  const openTagEnd = body.indexOf(">", lastSectPrIdx);
+  if (openTagEnd < 0) return null;
+
+  const openTag = body.substring(lastSectPrIdx, openTagEnd + 1);
+  let end = -1;
+
+  if (openTag.endsWith("/>")) {
+    end = openTagEnd + 1;
+  } else {
+    const closeTag = "</w:sectPr>";
+    const closeIdx = body.indexOf(closeTag, lastSectPrIdx);
+    if (closeIdx < 0) return null;
+    end = closeIdx + closeTag.length;
+  }
+
+  if (!/^\s*$/.test(body.substring(end))) {
+    return null;
+  }
+
+  return { start: lastSectPrIdx, end };
 }
 
 function buildRelsXml(rels: Rel[]): string {
