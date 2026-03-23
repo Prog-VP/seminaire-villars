@@ -9,20 +9,20 @@ export type DateOptionResponse = {
   disponible: boolean;
   dateFrom: string;
   dateTo: string;
+  roomsSimple: string;
+  roomsDouble: string;
   priceSimpleChf: string;
   priceDoubleChf: string;
   demiPensionChf: string;
   pensionCompleteChf: string;
-  forfaitSeminaireChf: string;
+  forfaitJourneeChf: string;
+  forfaitDemiJourneeChf: string;
   taxeChf: string;
   commentaire: string;
 };
 
 export type TemplateState = {
   dateResponses: DateOptionResponse[];
-  roomsSimple: string;
-  roomsDouble: string;
-  forfaitType: "journee" | "demi-journee";
   commentaireGeneral: string;
 };
 
@@ -30,16 +30,23 @@ export type TemplateState = {
 // Defaults
 // ---------------------------------------------------------------------------
 
-export function createDateOptionResponse(du: string, au: string): DateOptionResponse {
+export function createDateOptionResponse(
+  du: string,
+  au: string,
+  prefill?: { roomsSimple?: string; roomsDouble?: string },
+): DateOptionResponse {
   return {
     disponible: true,
     dateFrom: du,
     dateTo: au,
+    roomsSimple: prefill?.roomsSimple ?? "",
+    roomsDouble: prefill?.roomsDouble ?? "",
     priceSimpleChf: "",
     priceDoubleChf: "",
     demiPensionChf: "",
     pensionCompleteChf: "",
-    forfaitSeminaireChf: "",
+    forfaitJourneeChf: "",
+    forfaitDemiJourneeChf: "",
     taxeChf: "",
     commentaire: "",
   };
@@ -49,6 +56,7 @@ export function createTemplateDefaults(
   dateOptions: { du: string; au: string }[] | undefined,
   confirmeeDu?: string | null,
   confirmeeAu?: string | null,
+  prefill?: { chambresSimple?: number | null; chambresDouble?: number | null },
 ): TemplateState {
   const options = dateOptions?.length
     ? dateOptions
@@ -56,11 +64,13 @@ export function createTemplateDefaults(
       ? [{ du: confirmeeDu || "", au: confirmeeAu || "" }]
       : [{ du: "", au: "" }];
 
+  const rooms = {
+    roomsSimple: prefill?.chambresSimple ? String(prefill.chambresSimple) : "",
+    roomsDouble: prefill?.chambresDouble ? String(prefill.chambresDouble) : "",
+  };
+
   return {
-    dateResponses: options.map((o) => createDateOptionResponse(o.du || "", o.au || "")),
-    roomsSimple: "",
-    roomsDouble: "",
-    forfaitType: "journee",
+    dateResponses: options.map((o) => createDateOptionResponse(o.du || "", o.au || "", rooms)),
     commentaireGeneral: "",
   };
 }
@@ -90,6 +100,8 @@ export function buildTemplateMessage(state: TemplateState, lang: Lang, rate: num
   showSimple: boolean;
   showDouble: boolean;
   showSeminaire: boolean;
+  showJournee: boolean;
+  showDemiJournee: boolean;
   activiteUniquement: boolean;
 }): string {
   const allClosed = state.dateResponses.every((d) => !d.disponible);
@@ -118,6 +130,12 @@ export function buildTemplateMessage(state: TemplateState, lang: Lang, rate: num
     lines.push(`${t(lang, "availableDates")}: ${arrival} → ${departure}`);
 
     if (!opts.activiteUniquement) {
+      if (opts.showSimple && dr.roomsSimple) {
+        lines.push(`${t(lang, "availableRoomsSimple")}: ${dr.roomsSimple}`);
+      }
+      if (opts.showDouble && dr.roomsDouble) {
+        lines.push(`${t(lang, "availableRoomsDouble")}: ${dr.roomsDouble}`);
+      }
       if (opts.showSimple && dr.priceSimpleChf) {
         const eur = chfToEur(dr.priceSimpleChf, rate);
         lines.push(`${t(lang, "priceSingleChf")}: CHF ${dr.priceSimpleChf}${eur ? ` (≈ €${eur})` : ""}`);
@@ -136,10 +154,17 @@ export function buildTemplateMessage(state: TemplateState, lang: Lang, rate: num
       }
     }
 
-    if (opts.showSeminaire && dr.forfaitSeminaireChf) {
-      const eur = chfToEur(dr.forfaitSeminaireChf, rate);
-      const typeLabel = state.forfaitType === "journee" ? t(lang, "fullDay") : t(lang, "halfDay");
-      lines.push(`${t(lang, "seminarPackageChf")} (${typeLabel}): CHF ${dr.forfaitSeminaireChf}${eur ? ` (≈ €${eur})` : ""}`);
+    if (opts.showSeminaire) {
+      if (opts.showJournee && dr.forfaitJourneeChf) {
+        const eur = chfToEur(dr.forfaitJourneeChf, rate);
+        const lbl = opts.showDemiJournee ? t(lang, "seminarPackageFullDayChf") : t(lang, "seminarPackageChf");
+        lines.push(`${lbl}: CHF ${dr.forfaitJourneeChf}${eur ? ` (≈ €${eur})` : ""}`);
+      }
+      if (opts.showDemiJournee && dr.forfaitDemiJourneeChf) {
+        const eur = chfToEur(dr.forfaitDemiJourneeChf, rate);
+        const lbl = opts.showJournee ? t(lang, "seminarPackageHalfDayChf") : t(lang, "seminarPackageChf");
+        lines.push(`${lbl}: CHF ${dr.forfaitDemiJourneeChf}${eur ? ` (≈ €${eur})` : ""}`);
+      }
     }
 
     if (dr.taxeChf) {
@@ -152,15 +177,6 @@ export function buildTemplateMessage(state: TemplateState, lang: Lang, rate: num
     }
 
     lines.push("");
-  }
-
-  if (!opts.activiteUniquement) {
-    if (opts.showSimple && state.roomsSimple) {
-      lines.push(`${t(lang, "availableRoomsSimple")}: ${state.roomsSimple}`);
-    }
-    if (opts.showDouble && state.roomsDouble) {
-      lines.push(`${t(lang, "availableRoomsDouble")}: ${state.roomsDouble}`);
-    }
   }
 
   if (state.commentaireGeneral.trim()) {
