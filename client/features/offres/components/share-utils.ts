@@ -1,4 +1,4 @@
-import { getEffectiveDates, computeNights, formatApproxDate } from "@/features/offres/utils";
+import { getEffectiveDates, computeNights } from "@/features/offres/utils";
 import type { Offer } from "../types";
 import type { Hotel } from "@/features/hotels/types";
 
@@ -7,15 +7,14 @@ const fmtDate = (d: string | null) =>
 
 export function buildMailto(offer: Offer, hotel: Hotel, shareUrl: string | null): string {
   const eff = getEffectiveDates(offer);
-  const firstOpt = offer.dateOptions?.[0];
-  const nights = computeNights(eff.du, eff.au, firstOpt?.approximatif);
 
-  const fmtOpt = (opt: { du: string; au: string; approximatif?: boolean }) =>
-    opt.approximatif ? formatApproxDate(opt.du) : `du ${fmtDate(opt.du)} au ${fmtDate(opt.au)}`;
+  const fmtOpt = (opt: { du: string; au: string }) => {
+    const base = `du ${fmtDate(opt.du)} au ${fmtDate(opt.au)}`;
+    const n = computeNights(opt.du || null, opt.au || null);
+    return n !== null ? `${base} (${n} nuit${n > 1 ? "s" : ""})` : base;
+  };
 
-  const subject = firstOpt?.approximatif
-    ? `Demande de disponibilité – ${offer.societeContact} – ${formatApproxDate(eff.du ?? "")}`
-    : `Demande de disponibilité – ${offer.societeContact} – ${fmtDate(eff.du)} au ${fmtDate(eff.au)}`;
+  const subject = `Demande de disponibilité – ${offer.societeContact} – ${fmtDate(eff.du)} au ${fmtDate(eff.au)}`;
 
   const dateOptionsText =
     offer.dateOptions && offer.dateOptions.length > 0
@@ -23,6 +22,11 @@ export function buildMailto(offer: Offer, hotel: Hotel, shareUrl: string | null)
           .map((opt, i) => `  Option ${i + 1} : ${fmtOpt(opt)}`)
           .join("\n")
       : `  Du ${fmtDate(eff.du)} au ${fmtDate(eff.au)}`;
+
+  // Only show a single "Nombre de nuits" line when there's exactly one option
+  const singleNights = offer.dateOptions?.length === 1
+    ? computeNights(eff.du, eff.au)
+    : null;
 
   const lines = [
     `Bonjour,`,
@@ -34,7 +38,7 @@ export function buildMailto(offer: Offer, hotel: Hotel, shareUrl: string | null)
     ...(offer.dateOptions && offer.dateOptions.length > 1
       ? [`Dates (${offer.dateOptions.length} options) :`, dateOptionsText]
       : [`Dates : du ${fmtDate(eff.du)} au ${fmtDate(eff.au)}`]),
-    ...(nights ? [`Nombre de nuits : ${nights}`] : []),
+    ...(singleNights ? [`Nombre de nuits : ${singleNights}`] : []),
     ...(offer.nombrePax ? [`Participants : ${offer.nombrePax}`] : []),
     ...(offer.chambresSimple || offer.chambresDouble
       ? [

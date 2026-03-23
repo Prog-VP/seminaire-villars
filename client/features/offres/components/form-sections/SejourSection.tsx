@@ -171,7 +171,7 @@ export function SejourSection({
             </div>
             <div className="flex items-center gap-2 sm:pb-2">
               {(() => {
-                const n = computeNights(opt.du || null, opt.au || null, opt.approximatif);
+                const n = computeNights(opt.du || null, opt.au || null);
                 return n !== null ? (
                   <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
                     {n} nuit{n > 1 ? "s" : ""}
@@ -198,15 +198,6 @@ export function SejourSection({
           + Ajouter une option
         </button>
 
-        <Field label="Nombre de nuits (si différent du calcul automatique)">
-          <input
-            name="nombreDeNuits"
-            value={formState.nombreDeNuits}
-            onChange={handleChange}
-            className={inputClass}
-            placeholder="Ex : 4"
-          />
-        </Field>
       </div>
     </FormSection>
   );

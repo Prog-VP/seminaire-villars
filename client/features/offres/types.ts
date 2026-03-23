@@ -1,7 +1,6 @@
 export type DateOption = {
   du: string;
   au: string;
-  approximatif?: boolean;
 };
 
 export type Offer = {

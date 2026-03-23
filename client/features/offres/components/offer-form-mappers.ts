@@ -12,14 +12,13 @@ export function mapFormValuesToPayload(values: OfferFormValues) {
     dateConfirmeeAu: values.dateConfirmeeAu || null,
   });
 
-  const hasApprox = dateOptions.some((opt) => opt.approximatif);
-  const nights = computeNights(effective.du, effective.au, hasApprox);
+  const nights = computeNights(effective.du, effective.au);
 
   return {
     ...values,
     activiteUniquement: values.activiteUniquement,
     activitesDemandees: values.activitesDemandees,
-    nombreDeNuits: values.nombreDeNuits || (nights !== null ? String(nights) : ""),
+    nombreDeNuits: nights !== null ? String(nights) : "",
     nombrePax: values.nombrePax ? Number(values.nombrePax) : undefined,
     chambresSimple: values.chambresSimple ? Number(values.chambresSimple) : undefined,
     chambresDouble: values.chambresDouble ? Number(values.chambresDouble) : undefined,

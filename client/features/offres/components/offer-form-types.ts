@@ -19,7 +19,7 @@ export type OfferFormValues = {
   chambresSimple: string;
   chambresDouble: string;
   chambresAutre: string;
-  dateOptions: { du: string; au: string; approximatif?: boolean }[];
+  dateOptions: { du: string; au: string }[];
   dateConfirmeeDu: string;
   dateConfirmeeAu: string;
   transmisPar: string;
@@ -41,7 +41,7 @@ export const defaultOfferFormValues: OfferFormValues = {
   activitesDemandees: false,
   societeContact: "",
   typeSociete: "",
-  pays: "🇨🇭 CH",
+  pays: "CH",
   nomContact: "",
   prenomContact: "",
   titreContact: "",

@@ -6,7 +6,7 @@ import type { SharedOfferResponse } from "@/features/offres/api";
 import type { HotelResponseConfirmation } from "@/features/offres/types";
 import type { Lang } from "@/features/offres/i18n";
 import { t, formatDateLocale } from "@/features/offres/i18n";
-import { formatApproxDate } from "@/features/offres/utils";
+import { computeNights } from "@/features/offres/utils";
 import { ConfirmationPreview, TemplateField } from "./ShareOfferWidgets";
 import {
   type TemplateState,
@@ -32,17 +32,25 @@ type FormState = {
 
 export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferViewProps) {
   const lang: Lang = detectLang(initialData?.langue);
+  const fl: Lang = "fr"; // form labels always in French
   const rate = chfEurRate;
 
   const showSimple = !!(initialData?.chambresSimple && initialData.chambresSimple > 0);
   const showDouble = !!(initialData?.chambresDouble && initialData.chambresDouble > 0);
   const showSeminaire = !!initialData?.seminaire;
+  const showJournee = !!initialData?.seminaireJournee;
+  const showDemiJournee = !!initialData?.seminaireDemiJournee;
   const isActivityOnly = !!initialData?.activiteUniquement;
 
   const [offer] = useState<SharedOfferResponse | null>(initialData);
   const [form, setForm] = useState<FormState>({ hotelName: "", respondentName: "" });
   const [templateValues, setTemplateValues] = useState<TemplateState>(() =>
-    createTemplateDefaults(initialData?.dateOptions, initialData?.dateConfirmeeDu, initialData?.dateConfirmeeAu)
+    createTemplateDefaults(
+      initialData?.dateOptions,
+      initialData?.dateConfirmeeDu,
+      initialData?.dateConfirmeeAu,
+      { chambresSimple: initialData?.chambresSimple, chambresDouble: initialData?.chambresDouble },
+    )
   );
   const [activeTab, setActiveTab] = useState(0);
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -55,8 +63,10 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
     showSimple,
     showDouble,
     showSeminaire,
+    showJournee: showJournee || (!showJournee && !showDemiJournee),
+    showDemiJournee,
     activiteUniquement: isActivityOnly,
-  }), [showSimple, showDouble, showSeminaire, isActivityOnly]);
+  }), [showSimple, showDouble, showSeminaire, showJournee, showDemiJournee, isActivityOnly]);
 
   const previewMessage = useMemo(
     () => buildTemplateMessage(templateValues, lang, rate, messageOpts),
@@ -68,7 +78,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
   if (!offer) {
     return (
       <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500 shadow-sm">
-        <p>{t(lang, "linkExpired")}</p>
+        <p>{t(fl, "linkExpired")}</p>
       </section>
     );
   }
@@ -94,11 +104,11 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!form.hotelName.trim()) {
-      setStatus({ type: "error", message: t(lang, "errorHotelName") });
+      setStatus({ type: "error", message: t(fl, "errorHotelName") });
       return;
     }
     if (!isTemplateValid(templateValues)) {
-      setStatus({ type: "error", message: t(lang, "errorFields") });
+      setStatus({ type: "error", message: t(fl, "errorFields") });
       return;
     }
 
@@ -123,7 +133,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
       }).catch(() => {});
 
       setConfirmation(response.confirmation ?? null);
-      setStatus({ type: "success", message: t(lang, "thankYou") });
+      setStatus({ type: "success", message: t(fl, "thankYou") });
     } catch (error) {
       setStatus({
         type: "error",
@@ -145,7 +155,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
           {/* Header with request info */}
           <header className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
             <p className="text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {t(lang, "requestSummary")}
+              {t(fl, "requestSummary")}
             </p>
             <h1 className="mt-2 text-center text-3xl font-semibold text-slate-900">
               {offer.societeContact}
@@ -153,27 +163,27 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
 
             <div className="mt-6 grid gap-4 text-sm text-slate-700 md:grid-cols-2">
               {offer.typeSejour && (
-                <InfoItem label={t(lang, "stayTypeLabel")} value={offer.typeSejour} />
+                <InfoItem label={t(fl, "stayTypeLabel")} value={offer.typeSejour} />
               )}
               {isActivityOnly && (
-                <InfoItem label="" value={t(lang, "activityOnly")} className="text-amber-600 font-medium" />
+                <InfoItem label="" value={t(fl, "activityOnly")} className="text-amber-600 font-medium" />
               )}
               {typeof offer.nombrePax === "number" && (
-                <InfoItem label={t(lang, "participants")} value={`${offer.nombrePax}`} />
+                <InfoItem label={t(fl, "participants")} value={`${offer.nombrePax}`} />
               )}
               {offer.nombreDeNuits && (
-                <InfoItem label={t(lang, "nights")} value={offer.nombreDeNuits} />
+                <InfoItem label={t(fl, "nights")} value={offer.nombreDeNuits} />
               )}
 
               {/* Rooms requested */}
               {!isActivityOnly && (showSimple || showDouble || (offer.chambresAutre && offer.chambresAutre > 0)) && (
                 <div className="col-span-full">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t(lang, "requestedRooms")}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t(fl, "requestedRooms")}</p>
                   <p className="mt-1">
                     {[
-                      showSimple ? `${offer.chambresSimple} ${t(lang, "singleRooms")}` : null,
-                      showDouble ? `${offer.chambresDouble} ${t(lang, "doubleRooms")}` : null,
-                      offer.chambresAutre && offer.chambresAutre > 0 ? `${offer.chambresAutre} ${t(lang, "otherRooms")}` : null,
+                      showSimple ? `${offer.chambresSimple} ${t(fl, "singleRooms")}` : null,
+                      showDouble ? `${offer.chambresDouble} ${t(fl, "doubleRooms")}` : null,
+                      offer.chambresAutre && offer.chambresAutre > 0 ? `${offer.chambresAutre} ${t(fl, "otherRooms")}` : null,
                     ].filter(Boolean).join(" / ")}
                   </p>
                 </div>
@@ -182,12 +192,12 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
               {/* Seminar info */}
               {showSeminaire && (
                 <div className="col-span-full">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t(lang, "seminarInfo")}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t(fl, "seminarInfo")}</p>
                   <p className="mt-1">
                     {[
-                      offer.seminaireJournee ? t(lang, "fullDay") : null,
-                      offer.seminaireDemiJournee ? t(lang, "halfDay") : null,
-                    ].filter(Boolean).join(" + ") || t(lang, "yes")}
+                      offer.seminaireJournee ? t(fl, "fullDay") : null,
+                      offer.seminaireDemiJournee ? t(fl, "halfDay") : null,
+                    ].filter(Boolean).join(" + ") || t(fl, "yes")}
                     {offer.seminaireDetails ? ` — ${offer.seminaireDetails}` : ""}
                   </p>
                 </div>
@@ -196,15 +206,21 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
               {/* Dates requested */}
               {offer.dateOptions && offer.dateOptions.length > 0 && (
                 <div className="col-span-full">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t(lang, "datesRequested")}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t(fl, "datesRequested")}</p>
                   <div className="mt-1 flex flex-wrap gap-2">
-                    {offer.dateOptions.map((opt, i) => (
-                      <span key={i} className="rounded-xl bg-slate-100 px-3 py-1 text-sm">
-                        {opt.approximatif
-                          ? formatApproxDate(opt.du)
-                          : `${formatDateLocale(opt.du, lang)} → ${formatDateLocale(opt.au, lang)}`}
-                      </span>
-                    ))}
+                    {offer.dateOptions.map((opt, i) => {
+                      const n = computeNights(opt.du || null, opt.au || null);
+                      return (
+                        <span key={i} className="rounded-xl bg-slate-100 px-3 py-1 text-sm">
+                          {`${formatDateLocale(opt.du, lang)} → ${formatDateLocale(opt.au, lang)}`}
+                          {n !== null && (
+                            <span className="ml-1.5 text-xs text-slate-500">
+                              ({n} {t(fl, "nights")})
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -216,7 +232,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
       {confirmation ? (
         <div className="space-y-4">
           <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-            {t(lang, "thankYou")}
+            {t(fl, "thankYou")}
           </p>
           <ConfirmationPreview confirmation={confirmation} />
         </div>
@@ -225,12 +241,12 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
           onSubmit={handleSubmit}
           className="space-y-4 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm"
         >
-          <h2 className="text-lg font-semibold text-slate-900">{t(lang, "hotelFormTitle")}</h2>
+          <h2 className="text-lg font-semibold text-slate-900">{t(fl, "hotelFormTitle")}</h2>
 
           {/* Hotel name + contact */}
           <div className="grid gap-4 md:grid-cols-2">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {t(lang, "hotelName")}
+              {t(fl, "hotelName")}
               <input
                 name="hotelName"
                 value={form.hotelName}
@@ -240,7 +256,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
               />
             </label>
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {t(lang, "contactName")}
+              {t(fl, "contactName")}
               <input
                 name="respondentName"
                 value={form.respondentName}
@@ -250,56 +266,20 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
             </label>
           </div>
 
-          {/* Global fields: rooms available */}
-          {!isActivityOnly && (
-            <div className="grid gap-4 md:grid-cols-2">
-              {showSimple && (
-                <TemplateField
-                  label={t(lang, "availableRoomsSimple")}
-                  value={templateValues.roomsSimple}
-                  onChange={(e) => updateGlobal({ roomsSimple: e.target.value })}
-                  type="number"
-                  min="0"
-                />
-              )}
-              {showDouble && (
-                <TemplateField
-                  label={t(lang, "availableRoomsDouble")}
-                  value={templateValues.roomsDouble}
-                  onChange={(e) => updateGlobal({ roomsDouble: e.target.value })}
-                  type="number"
-                  min="0"
-                />
-              )}
-            </div>
-          )}
+          {/* Rooms moved to per-date options */}
 
-          {/* Seminar type selector */}
+          {/* Seminar type info */}
           {showSeminaire && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {t(lang, "seminarType")}
+                {t(fl, "seminarType")}
               </p>
-              <div className="mt-1 flex gap-4">
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="radio"
-                    name="forfaitType"
-                    checked={templateValues.forfaitType === "journee"}
-                    onChange={() => updateGlobal({ forfaitType: "journee" })}
-                  />
-                  {t(lang, "fullDay")}
-                </label>
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="radio"
-                    name="forfaitType"
-                    checked={templateValues.forfaitType === "demi-journee"}
-                    onChange={() => updateGlobal({ forfaitType: "demi-journee" })}
-                  />
-                  {t(lang, "halfDay")}
-                </label>
-              </div>
+              <p className="mt-1 text-sm text-slate-700">
+                {[
+                  showJournee ? t(fl, "fullDay") : null,
+                  showDemiJournee ? t(fl, "halfDay") : null,
+                ].filter(Boolean).join(" + ") || t(fl, "fullDay")}
+              </p>
             </div>
           )}
 
@@ -317,7 +297,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
                       : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
-                  {t(lang, "dateOption")} {i + 1}
+                  {t(fl, "dateOption")} {i + 1}
                   {!dr.disponible && (
                     <span className="ml-1 text-rose-500">✕</span>
                   )}
@@ -333,7 +313,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
               <span className="text-sm font-medium text-slate-700">
                 {currentDr.dateFrom && currentDr.dateTo
                   ? `${formatDateLocale(currentDr.dateFrom, lang)} → ${formatDateLocale(currentDr.dateTo, lang)}`
-                  : t(lang, "dateOption")}
+                  : t(fl, "dateOption")}
               </span>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -343,7 +323,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
                   className="h-4 w-4 rounded border-slate-300"
                 />
                 <span className={currentDr.disponible ? "text-slate-500" : "font-medium text-rose-600"}>
-                  {t(lang, "closed")}
+                  {t(fl, "closed")}
                 </span>
               </label>
             </div>
@@ -352,26 +332,44 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
               <div className="grid gap-4 md:grid-cols-2">
                 {/* Dates */}
                 <TemplateField
-                  label={t(lang, "availableDates") + " — " + t(lang, "stayDates").toLowerCase().split(" ")[0]}
+                  label={t(fl, "availableDates") + " — " + t(fl, "stayDates").toLowerCase().split(" ")[0]}
                   name="dateFrom"
                   value={currentDr.dateFrom}
                   onChange={(e) => updateDateResponse(activeTab, { dateFrom: e.target.value })}
                   type="date"
                 />
                 <TemplateField
-                  label={t(lang, "availableDates") + " — " + (lang === "fr" ? "départ" : lang === "de" ? "Abreise" : "departure")}
+                  label={t(fl, "availableDates") + " — départ"}
                   name="dateTo"
                   value={currentDr.dateTo}
                   onChange={(e) => updateDateResponse(activeTab, { dateTo: e.target.value })}
                   type="date"
                 />
 
-                {/* Prices — hidden if activiteUniquement */}
+                {/* Rooms & Prices — hidden if activiteUniquement */}
                 {!isActivityOnly && (
                   <>
                     {showSimple && (
+                      <TemplateField
+                        label={t(fl, "availableRoomsSimple")}
+                        value={currentDr.roomsSimple}
+                        onChange={(e) => updateDateResponse(activeTab, { roomsSimple: e.target.value })}
+                        type="number"
+                        min="0"
+                      />
+                    )}
+                    {showDouble && (
+                      <TemplateField
+                        label={t(fl, "availableRoomsDouble")}
+                        value={currentDr.roomsDouble}
+                        onChange={(e) => updateDateResponse(activeTab, { roomsDouble: e.target.value })}
+                        type="number"
+                        min="0"
+                      />
+                    )}
+                    {showSimple && (
                       <ChfField
-                        label={t(lang, "priceSingleChf")}
+                        label={t(fl, "priceSingleChf")}
                         value={currentDr.priceSimpleChf}
                         onChange={(v) => updateDateResponse(activeTab, { priceSimpleChf: v })}
                         rate={rate}
@@ -379,20 +377,20 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
                     )}
                     {showDouble && (
                       <ChfField
-                        label={t(lang, "priceDoubleChf")}
+                        label={t(fl, "priceDoubleChf")}
                         value={currentDr.priceDoubleChf}
                         onChange={(v) => updateDateResponse(activeTab, { priceDoubleChf: v })}
                         rate={rate}
                       />
                     )}
                     <ChfField
-                      label={t(lang, "halfBoardChf")}
+                      label={t(fl, "halfBoardChf")}
                       value={currentDr.demiPensionChf}
                       onChange={(v) => updateDateResponse(activeTab, { demiPensionChf: v })}
                       rate={rate}
                     />
                     <ChfField
-                      label={t(lang, "fullBoardChf")}
+                      label={t(fl, "fullBoardChf")}
                       value={currentDr.pensionCompleteChf}
                       onChange={(v) => updateDateResponse(activeTab, { pensionCompleteChf: v })}
                       rate={rate}
@@ -400,19 +398,28 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
                   </>
                 )}
 
-                {/* Seminar package */}
-                {showSeminaire && (
+                {/* Seminar package — full day */}
+                {showSeminaire && (showJournee || (!showJournee && !showDemiJournee)) && (
                   <ChfField
-                    label={t(lang, "seminarPackageChf")}
-                    value={currentDr.forfaitSeminaireChf}
-                    onChange={(v) => updateDateResponse(activeTab, { forfaitSeminaireChf: v })}
+                    label={showDemiJournee ? t(fl, "seminarPackageFullDayChf") : t(fl, "seminarPackageChf")}
+                    value={currentDr.forfaitJourneeChf}
+                    onChange={(v) => updateDateResponse(activeTab, { forfaitJourneeChf: v })}
+                    rate={rate}
+                  />
+                )}
+                {/* Seminar package — half day */}
+                {showSeminaire && showDemiJournee && (
+                  <ChfField
+                    label={showJournee ? t(fl, "seminarPackageHalfDayChf") : t(fl, "seminarPackageChf")}
+                    value={currentDr.forfaitDemiJourneeChf}
+                    onChange={(v) => updateDateResponse(activeTab, { forfaitDemiJourneeChf: v })}
                     rate={rate}
                   />
                 )}
 
                 {/* Tourist tax */}
                 <ChfField
-                  label={t(lang, "touristTaxChf")}
+                  label={t(fl, "touristTaxChf")}
                   value={currentDr.taxeChf}
                   onChange={(v) => updateDateResponse(activeTab, { taxeChf: v })}
                   rate={rate}
@@ -423,7 +430,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
             {/* Comment per date */}
             {currentDr.disponible && (
               <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {t(lang, "commentPerDate")}
+                {t(fl, "commentPerDate")}
                 <textarea
                   value={currentDr.commentaire}
                   onChange={(e) => updateDateResponse(activeTab, { commentaire: e.target.value })}
@@ -436,7 +443,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
 
           {/* General comment */}
           <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {t(lang, "generalComment")}
+            {t(fl, "generalComment")}
             <textarea
               value={templateValues.commentaireGeneral}
               onChange={(e) => updateGlobal({ commentaireGeneral: e.target.value })}
@@ -449,7 +456,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
           <section className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {t(lang, "previewTitle")}
+                {t(fl, "previewTitle")}
               </p>
               <button
                 type="button"
@@ -463,14 +470,14 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
                 }}
                 className="text-xs font-medium text-brand-700 hover:text-brand-900"
               >
-                {previewEditable ? t(lang, "lockPreview") : t(lang, "editPreview")}
+                {previewEditable ? t(fl, "lockPreview") : t(fl, "editPreview")}
               </button>
             </div>
             <textarea
               readOnly={!previewEditable}
               value={previewEditable ? (editedPreview ?? previewMessage) : previewMessage}
               onChange={(e) => setEditedPreview(e.target.value)}
-              className={`${inputClass} min-h-[160px] ${previewEditable ? "bg-white" : "bg-slate-50"}`}
+              className={`${inputClass} min-h-[360px] ${previewEditable ? "bg-white" : "bg-slate-50"}`}
             />
           </section>
 
@@ -485,7 +492,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
             disabled={isSubmitting}
             className="w-full rounded-full bg-brand-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isSubmitting ? t(lang, "submitting") : t(lang, "submitResponse")}
+            {isSubmitting ? t(fl, "submitting") : t(fl, "submitResponse")}
           </button>
         </form>
       )}

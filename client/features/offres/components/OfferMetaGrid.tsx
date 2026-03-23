@@ -3,7 +3,7 @@
 import { useCallback, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Offer } from "../types";
-import { formatStars, getEffectiveDates, computeNights, normalizeStatut, formatApproxDate } from "../utils";
+import { formatStars, getEffectiveDates, computeNights, normalizeStatut } from "../utils";
 import { formatDate } from "@/lib/format";
 
 type OfferMetaGridProps = {
@@ -45,8 +45,8 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
   const activeGroup = parseSection(searchParams.get("section"));
 
   const effectiveDates = getEffectiveDates(offer);
-  const firstOpt = offer.dateOptions?.[0];
-  const computedNights = computeNights(effectiveDates.du, effectiveDates.au, firstOpt?.approximatif);
+  const hasMultipleOptions = (offer.dateOptions?.length ?? 0) > 1;
+  const computedNights = hasMultipleOptions ? null : computeNights(effectiveDates.du, effectiveDates.au);
 
   const visibleGroups = offer.activiteUniquement
     ? SUB_GROUPS.filter((g) => g.key !== "seminaire")
@@ -135,7 +135,7 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
             <InfoItem label="Station demandée" value={offer.stationDemandee} />
             {!offer.activiteUniquement && (
               <>
-                <InfoItem label="Nombre de nuits" value={computedNights ?? offer.nombreDeNuits} />
+                <InfoItem label="Nombre de nuits" value={computedNights ?? undefined} />
                 <InfoItem label="Nombre de participants" value={offer.nombrePax} />
                 <InfoItem label="Chambres simple" value={offer.chambresSimple} />
                 <InfoItem label="Chambres double" value={offer.chambresDouble} />
@@ -148,14 +148,20 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
                   Options de dates
                 </dt>
                 <dd className="mt-1 space-y-1">
-                  {offer.dateOptions.map((opt, i) => (
-                    <p key={i} className="text-sm text-slate-900">
-                      <span className="font-medium text-slate-500">Option {i + 1} :</span>{" "}
-                      {opt.approximatif
-                        ? formatApproxDate(opt.du)
-                        : `${formatDate(opt.du)} → ${formatDate(opt.au)}`}
-                    </p>
-                  ))}
+                  {offer.dateOptions.map((opt, i) => {
+                    const n = computeNights(opt.du || null, opt.au || null);
+                    return (
+                      <p key={i} className="text-sm text-slate-900">
+                        <span className="font-medium text-slate-500">Option {i + 1} :</span>{" "}
+                        {`${formatDate(opt.du)} → ${formatDate(opt.au)}`}
+                        {n !== null && (
+                          <span className="ml-2 text-xs text-slate-500">
+                            ({n} nuit{n > 1 ? "s" : ""})
+                          </span>
+                        )}
+                      </p>
+                    );
+                  })}
                 </dd>
               </div>
             ) : null}
