@@ -124,9 +124,10 @@ export async function mergeDocx(buffers: Buffer[]): Promise<Buffer> {
     slaveBody = slaveBody.replace(/<w:endnoteReference\s[^/]*\/>/g, "");
 
     // Keep inline sectPr (they define section layout: columns, margins, etc.)
-    // but strip header/footer references inside them (those parts aren't copied)
+    // but strip header/footer references inside them (those parts aren't copied).
+    // Handle both full (<w:sectPr ...>...</w:sectPr>) and self-closing (<w:sectPr ... />) forms.
     slaveBody = slaveBody.replace(
-      /<w:sectPr[\s\S]*?<\/w:sectPr>/g,
+      /<w:sectPr[\s\S]*?(?:<\/w:sectPr>|\/>)/g,
       (match) => {
         let cleaned = match;
         cleaned = cleaned.replace(/<w:headerReference\s[^/]*\/>/g, "");

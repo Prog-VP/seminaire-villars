@@ -43,9 +43,9 @@ export async function POST(request: Request) {
       let buf: Buffer = Buffer.from(new Uint8Array(await data.arrayBuffer()));
 
       // Replace {{OFFER_TEXT}} placeholder in hotel documents
-      if (item.type === "hotel" && item.offerText) {
+      if (item.type === "hotel") {
         try {
-          buf = await replaceOfferText(buf, item.offerText);
+          buf = await replaceOfferText(buf, item.offerText ?? "");
         } catch (err) {
           console.warn("[generate-offer-doc] replaceOfferText failed, using original:", err);
         }
