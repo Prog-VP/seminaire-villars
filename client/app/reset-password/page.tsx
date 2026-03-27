@@ -14,15 +14,37 @@ export default function ResetPasswordPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Supabase sets the session from the URL hash automatically
     const supabase = createClient();
+
+    // Listen for auth events (PASSWORD_RECOVERY, SIGNED_IN from invite)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session && (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+          setReady(true);
+          setError(null);
+        }
+      }
+    );
+
+    // Also check if session already exists (set by /auth/confirm via cookies)
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
         setReady(true);
-      } else {
-        setError("Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation.");
       }
     });
+
+    // If still not ready after 3s, show error
+    const timeout = setTimeout(() => {
+      setReady((r) => {
+        if (!r) setError("Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation.");
+        return r;
+      });
+    }, 3000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
