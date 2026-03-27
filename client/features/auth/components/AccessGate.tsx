@@ -24,15 +24,20 @@ export function AccessGate() {
     const type = params.get("type");
     const accessToken = params.get("access_token");
 
-    if (accessToken && (type === "invite" || type === "recovery")) {
-      // Supabase client will pick up the tokens from the hash automatically
-      const supabase = createClient();
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) {
+    if (!accessToken || (type !== "invite" && type !== "recovery")) return;
+
+    const supabase = createClient();
+
+    // onAuthStateChange fires once the client processes the hash tokens
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session && (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY" || event === "INITIAL_SESSION")) {
           router.replace("/reset-password");
         }
-      });
-    }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, [router]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
