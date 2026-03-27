@@ -105,12 +105,12 @@ export async function updateSettingValue(
       // For comma-separated fields, fetch matching offers and update each
       const { data: rows } = await supabase()
         .from("offers")
-        .select("id, " + column)
+        .select("id, categorieHotel, stationDemandee")
         .like(column, `%${oldLabel}%`);
 
       if (rows) {
         for (const row of rows) {
-          const current = (row as unknown as Record<string, string>)[column] ?? "";
+          const current = (row[column as "categorieHotel" | "stationDemandee"] as string) ?? "";
           const parts = current.split(",").map((p: string) => p.trim());
           const updated = parts
             .map((p: string) => (p === oldLabel ? label : p))
