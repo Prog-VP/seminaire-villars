@@ -23,7 +23,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     // Send password reset email via Supabase
     const { error } = await supabase.auth.resetPasswordForEmail(userData.user.email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin}/reset-password`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin}/auth/callback?next=/reset-password`,
     });
 
     if (error) {

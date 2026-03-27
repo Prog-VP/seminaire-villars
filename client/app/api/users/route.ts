@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     // Invite user — they receive an email to set their password
     const admin = createAdminClient();
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin}/reset-password`;
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin}/auth/callback?next=/reset-password`;
     const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
       redirectTo,
     });
