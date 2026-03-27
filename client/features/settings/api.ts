@@ -110,7 +110,7 @@ export async function updateSettingValue(
 
       if (rows) {
         for (const row of rows) {
-          const current = (row as Record<string, string>)[column] ?? "";
+          const current = (row as unknown as Record<string, string>)[column] ?? "";
           const parts = current.split(",").map((p: string) => p.trim());
           const updated = parts
             .map((p: string) => (p === oldLabel ? label : p))
