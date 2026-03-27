@@ -15,36 +15,34 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const supabase = createClient();
+    const hash = window.location.hash;
 
-    // Listen for auth events (PASSWORD_RECOVERY, SIGNED_IN from invite)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (session && (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
-          setReady(true);
-          setError(null);
-        }
-      }
-    );
+    if (!hash) {
+      setError("Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation.");
+      return;
+    }
 
-    // Also check if session already exists (set by /auth/confirm via cookies)
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
+    const params = new URLSearchParams(hash.substring(1));
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+
+    if (!accessToken || !refreshToken) {
+      setError("Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation.");
+      return;
+    }
+
+    // Sign out any existing session first, then set the invite session
+    supabase.auth.signOut().then(() =>
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+    ).then(({ error: sessionError }) => {
+      if (sessionError) {
+        setError("Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation.");
+      } else {
+        // Clear the hash from the URL to avoid reuse
+        window.history.replaceState(null, "", window.location.pathname);
         setReady(true);
       }
     });
-
-    // If still not ready after 3s, show error
-    const timeout = setTimeout(() => {
-      setReady((r) => {
-        if (!r) setError("Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation.");
-        return r;
-      });
-    }, 3000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
