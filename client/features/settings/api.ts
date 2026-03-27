@@ -79,7 +79,8 @@ export async function createSettingValue(
 export async function updateSettingValue(
   id: string,
   label: string,
-  color?: string | null
+  color?: string | null,
+  oldLabel?: string
 ): Promise<SettingValue> {
   const patch: Record<string, unknown> = { label };
   if (color !== undefined) patch.color = color;
@@ -92,7 +93,43 @@ export async function updateSettingValue(
       .single()
   );
   if (!data) throw new Error("Mise à jour échouée.");
-  return { id: data.id, type: data.type as SettingType, label: data.label, color: data.color };
+
+  const type = data.type as SettingType;
+
+  // Cascade rename to offers if label changed
+  if (oldLabel && oldLabel !== label && type !== "emailNotification") {
+    const column = type as string;
+    const multiFields: SettingType[] = ["categorieHotel", "stationDemandee"];
+
+    if (multiFields.includes(type)) {
+      // For comma-separated fields, fetch matching offers and update each
+      const { data: rows } = await supabase()
+        .from("offers")
+        .select("id, " + column)
+        .like(column, `%${oldLabel}%`);
+
+      if (rows) {
+        for (const row of rows) {
+          const current = (row as Record<string, string>)[column] ?? "";
+          const parts = current.split(",").map((p: string) => p.trim());
+          const updated = parts
+            .map((p: string) => (p === oldLabel ? label : p))
+            .join(", ");
+          await supabase()
+            .from("offers")
+            .update({ [column]: updated })
+            .eq("id", row.id);
+        }
+      }
+    } else {
+      await supabase()
+        .from("offers")
+        .update({ [column]: label })
+        .eq(column, oldLabel);
+    }
+  }
+
+  return { id: data.id, type, label: data.label, color: data.color };
 }
 
 /** Count how many offers reference a given setting value. */

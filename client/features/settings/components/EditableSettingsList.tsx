@@ -92,7 +92,7 @@ export function EditableSettingsList({
               key={item.id}
               item={item}
               type={type}
-              onSave={(label, color) => editValue(item.id, type, label, color)}
+              onSave={(label, color) => editValue(item.id, type, label, color, item.label)}
               onDelete={() => removeValue(item.id, type)}
             />
           ))
