@@ -172,7 +172,7 @@ export async function mergeDocx(buffers: Buffer[]): Promise<Buffer> {
 
 type Rel = { id: string; type: string; target: string; external?: boolean };
 
-function parseRels(xml: string): Rel[] {
+export function parseRels(xml: string): Rel[] {
   const rels: Rel[] = [];
   const regex =
     /<Relationship\s+[^>]*?Id="([^"]+)"[^>]*?Type="([^"]+)"[^>]*?Target="([^"]+)"[^/]*\/?>/g;
@@ -186,7 +186,7 @@ function parseRels(xml: string): Rel[] {
   return rels;
 }
 
-function getNextRelId(rels: Rel[]): number {
+export function getNextRelId(rels: Rel[]): number {
   let max = 0;
   for (const rel of rels) {
     const num = parseInt(rel.id.replace(/\D/g, ""), 10);
@@ -195,7 +195,7 @@ function getNextRelId(rels: Rel[]): number {
   return max + 1;
 }
 
-function extractBodyContent(docXml: string): string {
+export function extractBodyContent(docXml: string): string {
   // Extract everything between <w:body> and </w:body>, excluding the final sectPr
   const bodyMatch = docXml.match(/<w:body[^>]*>([\s\S]*)<\/w:body>/);
   if (!bodyMatch) return "";
@@ -231,7 +231,7 @@ function extractBodyWrapper(docXml: string): {
   return { before, after };
 }
 
-function findTrailingSectPr(body: string): { start: number; end: number } | null {
+export function findTrailingSectPr(body: string): { start: number; end: number } | null {
   // The body-level sectPr is always the last direct child of <w:body>.
   // Inline sectPr inside <w:pPr> can appear near the end of the document, so
   // we only accept the last <w:sectPr...> if nothing but whitespace follows it.
@@ -285,7 +285,7 @@ function escapeRegex(str: string): string {
  * the placeholder, then replaces the matched XML span with the replacement
  * text inside the first run (keeping its formatting).
  */
-function replaceCrossRun(xml: string, placeholder: string, replacement: string): string {
+export function replaceCrossRun(xml: string, placeholder: string, replacement: string): string {
   // Find all <w:t ...>text</w:t> with their positions
   const tRegex = /<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g;
   const nodes: { start: number; end: number; text: string }[] = [];

@@ -52,7 +52,7 @@ const COLUMN_MAP: Record<string, keyof Offer> = {
 // Parse helpers
 // ---------------------------------------------------------------------------
 
-function parseBool(value: unknown): boolean | undefined {
+export function parseBool(value: unknown): boolean | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   const s = String(value).toLowerCase().trim();
   if (["oui", "yes", "1", "true", "vrai", "x"].includes(s)) return true;
@@ -60,19 +60,19 @@ function parseBool(value: unknown): boolean | undefined {
   return undefined;
 }
 
-function parseInteger(value: unknown): number | undefined {
+export function parseInteger(value: unknown): number | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   const n = Number(value);
   return Number.isFinite(n) ? Math.round(n) : undefined;
 }
 
-function parseString(value: unknown): string | undefined {
+export function parseString(value: unknown): string | undefined {
   if (value === undefined || value === null) return undefined;
   const s = String(value).trim();
   return s || undefined;
 }
 
-function parseDate(value: unknown): string | undefined {
+export function parseDate(value: unknown): string | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   // XLSX can return Date objects or serial numbers
   if (value instanceof Date) {
@@ -123,7 +123,7 @@ async function fetchHotelList(): Promise<{ nom: string; id: string }[]> {
   return _hotelCache;
 }
 
-function resolveHotelIds(
+export function resolveHotelIds(
   names: string[],
   hotels: { nom: string; id: string }[]
 ): { found: { id: string; nom: string }[]; notFound: string[] } {
@@ -142,7 +142,7 @@ function resolveHotelIds(
 // Parse a single row into an Offer payload
 // ---------------------------------------------------------------------------
 
-function parseRow(row: Record<string, unknown>): Partial<Offer> | null {
+export function parseRow(row: Record<string, unknown>): Partial<Offer> | null {
   const payload: Record<string, unknown> = {};
 
   const societe = parseString(row["Société"]);
@@ -223,7 +223,7 @@ export type AllowedValues = {
 
 type ValidationError = { field: string; value: string; allowed: string[] };
 
-function validateRow(row: Record<string, unknown>, allowed: AllowedValues): ValidationError[] {
+export function validateRow(row: Record<string, unknown>, allowed: AllowedValues): ValidationError[] {
   const errors: ValidationError[] = [];
 
   const checks: { excelCol: string; key: keyof AllowedValues; multi?: boolean }[] = [
