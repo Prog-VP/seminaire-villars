@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -14,31 +14,6 @@ export function AccessGate() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Handle Supabase hash fragments (invite, recovery links)
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (!hash) return;
-
-    const params = new URLSearchParams(hash.substring(1));
-    const type = params.get("type");
-    const accessToken = params.get("access_token");
-
-    if (!accessToken || (type !== "invite" && type !== "recovery")) return;
-
-    const supabase = createClient();
-
-    // onAuthStateChange fires once the client processes the hash tokens
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (session && (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY" || event === "INITIAL_SESSION")) {
-          router.replace("/reset-password");
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, [router]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
