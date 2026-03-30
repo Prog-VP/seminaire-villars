@@ -40,9 +40,12 @@ export async function fetchMyRole(): Promise<UserRole> {
 }
 
 export async function fetchUsersWithRoles(): Promise<UserProfile[]> {
-  const { data, error } = await supabase().rpc("get_users_with_roles");
-  if (error) throw new Error(error.message);
-  return (data as UserProfile[]) ?? [];
+  const res = await fetch("/api/users");
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Impossible de charger les utilisateurs.");
+  }
+  return res.json();
 }
 
 export async function createUser(
@@ -76,6 +79,14 @@ export async function resetUserPassword(id: string): Promise<void> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? "Impossible d'envoyer l'email de réinitialisation.");
+  }
+}
+
+export async function resendUserInvite(id: string): Promise<void> {
+  const res = await fetch(`/api/users/${id}/invite`, { method: "POST" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Impossible de renvoyer l'invitation.");
   }
 }
 

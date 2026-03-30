@@ -37,9 +37,11 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
 
   const showSimple = !!(initialData?.chambresSimple && initialData.chambresSimple > 0);
   const showDouble = !!(initialData?.chambresDouble && initialData.chambresDouble > 0);
-  const showSeminaire = !!initialData?.seminaire;
+  const showSeminaire = !!(initialData?.seminaireJournee || initialData?.seminaireDemiJournee);
   const showJournee = !!initialData?.seminaireJournee;
   const showDemiJournee = !!initialData?.seminaireDemiJournee;
+  const showDemiPension = !!initialData?.demiPension;
+  const showPensionComplete = !!initialData?.pensionComplete;
   const isActivityOnly = !!initialData?.activiteUniquement;
 
   const [offer] = useState<SharedOfferResponse | null>(initialData);
@@ -63,10 +65,12 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
     showSimple,
     showDouble,
     showSeminaire,
-    showJournee: showJournee || (!showJournee && !showDemiJournee),
+    showJournee: showJournee,
     showDemiJournee,
     activiteUniquement: isActivityOnly,
-  }), [showSimple, showDouble, showSeminaire, showJournee, showDemiJournee, isActivityOnly]);
+    showDemiPension,
+    showPensionComplete,
+  }), [showSimple, showDouble, showSeminaire, showJournee, showDemiJournee, isActivityOnly, showDemiPension, showPensionComplete]);
 
   const previewMessage = useMemo(
     () => buildTemplateMessage(templateValues, lang, rate, messageOpts),
@@ -221,9 +225,12 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
             showSimple={showSimple}
             showDouble={showDouble}
             showSeminaire={showSeminaire}
-            showJournee={showJournee || (!showJournee && !showDemiJournee)}
+            showJournee={showJournee}
             showDemiJournee={showDemiJournee}
             isActivityOnly={isActivityOnly}
+            showDemiPension={showDemiPension}
+            showPensionComplete={showPensionComplete}
+            singleDate={!hasTabs}
             onUpdate={(patch) => updateDateResponse(activeTab, patch)}
           />
 

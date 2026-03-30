@@ -10,7 +10,7 @@ export async function fetchOffers(): Promise<Offer[]> {
     await supabase()
       .from("offers")
       .select("*, hotel_responses(*), offer_comments(*), offer_hotel_sends(id, hotels(nom))")
-      .order("createdAt", { ascending: false })
+      .order("numeroOffre", { ascending: false })
   );
   return (data ?? []).map(mapRow);
 }

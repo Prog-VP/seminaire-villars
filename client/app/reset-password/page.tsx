@@ -15,34 +15,50 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    const hash = window.location.hash;
+    const hash = window.location.hash.substring(1);
 
-    if (!hash) {
-      setError("Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation.");
-      return;
-    }
+    async function prepareResetSession() {
+      if (!hash) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-    const params = new URLSearchParams(hash.substring(1));
-    const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token");
+        if (user) {
+          setReady(true);
+        } else {
+          setError("Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation.");
+        }
+        return;
+      }
 
-    if (!accessToken || !refreshToken) {
-      setError("Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation.");
-      return;
-    }
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
 
-    // Sign out any existing session first, then set the invite session
-    supabase.auth.signOut().then(() =>
-      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-    ).then(({ error: sessionError }) => {
+      if (!accessToken || !refreshToken) {
+        setError("Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation.");
+        return;
+      }
+
+      const { error: sessionError } = await supabase.auth
+        .signOut()
+        .then(() =>
+          supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+        );
+
       if (sessionError) {
         setError("Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation.");
-      } else {
-        // Clear the hash from the URL to avoid reuse
-        window.history.replaceState(null, "", window.location.pathname);
-        setReady(true);
+        return;
       }
-    });
+
+      window.history.replaceState(null, "", window.location.pathname);
+      setReady(true);
+    }
+
+    void prepareResetSession();
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {

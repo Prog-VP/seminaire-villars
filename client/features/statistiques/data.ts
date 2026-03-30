@@ -45,7 +45,7 @@ export function dimValue(o: Offer, dim: Dimension): string {
     case "activiteUniquement":
       return o.activiteUniquement ? "Oui" : "Non";
     case "seminaire":
-      return (o.seminaire || o.seminaireJournee || o.seminaireDemiJournee) ? "Oui" : "Non";
+      return (o.seminaireJournee || o.seminaireDemiJournee) ? "Oui" : "Non";
   }
 }
 

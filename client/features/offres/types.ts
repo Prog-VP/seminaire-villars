@@ -35,7 +35,8 @@ export type Offer = {
   reservationEffectuee?: boolean;
   retourEffectueHotels?: boolean;
   contactEntreDansBrevo?: boolean;
-  seminaire?: boolean;
+  demiPension?: boolean;
+  pensionComplete?: boolean;
   seminaireJournee?: boolean;
   seminaireDemiJournee?: boolean;
   seminaireDetails?: string;

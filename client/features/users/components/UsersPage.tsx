@@ -29,22 +29,37 @@ export function UsersPage() {
   }, []);
 
   useEffect(() => {
+    if (isRoleLoading) return;
+    if (!isAdmin) {
+      setUsers([]);
+      setIsLoading(false);
+      return;
+    }
     void loadUsers();
-  }, [loadUsers]);
+  }, [isAdmin, isRoleLoading, loadUsers]);
 
   useEffect(() => {
+    if (!isAdmin) return;
     async function getCurrentUser() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) setCurrentUserId(user.id);
     }
     void getCurrentUser();
-  }, []);
+  }, [isAdmin]);
 
   if (isRoleLoading) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-500">
         Chargement...
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-10 text-center text-sm text-amber-800">
+        Cette section est réservée aux administrateurs.
       </div>
     );
   }

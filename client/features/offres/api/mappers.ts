@@ -16,7 +16,8 @@ export type SharedOfferResponse = {
   chambresSimple?: number | null;
   chambresDouble?: number | null;
   chambresAutre?: number | null;
-  seminaire?: boolean | null;
+  demiPension?: boolean | null;
+  pensionComplete?: boolean | null;
   seminaireJournee?: boolean | null;
   seminaireDemiJournee?: boolean | null;
   seminaireDetails?: string | null;
@@ -83,7 +84,8 @@ export function mapRow(row: Record<string, unknown>): Offer {
     reservationEffectuee: row.reservationEffectuee as boolean | undefined,
     retourEffectueHotels: row.retourEffectueHotels as boolean | undefined,
     contactEntreDansBrevo: row.contactEntreDansBrevo as boolean | undefined,
-    seminaire: row.seminaire as boolean | undefined,
+    demiPension: row.demiPension as boolean | undefined,
+    pensionComplete: row.pensionComplete as boolean | undefined,
     seminaireJournee: row.seminaireJournee as boolean | undefined,
     seminaireDemiJournee: row.seminaireDemiJournee as boolean | undefined,
     seminaireDetails: row.seminaireDetails as string | undefined,
@@ -133,7 +135,8 @@ export function mapSharedOfferRow(row: Record<string, unknown>): SharedOfferResp
     chambresSimple: (row.chambresSimple as number) ?? null,
     chambresDouble: (row.chambresDouble as number) ?? null,
     chambresAutre: (row.chambresAutre as number) ?? null,
-    seminaire: (row.seminaire as boolean) ?? null,
+    demiPension: (row.demiPension as boolean) ?? null,
+    pensionComplete: (row.pensionComplete as boolean) ?? null,
     seminaireJournee: (row.seminaireJournee as boolean) ?? null,
     seminaireDemiJournee: (row.seminaireDemiJournee as boolean) ?? null,
     seminaireDetails: (row.seminaireDetails as string) ?? null,

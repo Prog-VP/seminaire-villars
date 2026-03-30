@@ -140,6 +140,8 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
                 <InfoItem label="Chambres simple" value={offer.chambresSimple} />
                 <InfoItem label="Chambres double" value={offer.chambresDouble} />
                 <InfoItem label="Chambres autre" value={offer.chambresAutre} />
+                <InfoItem label="Demi-pension" value={formatBoolean(offer.demiPension)} />
+                <InfoItem label="Pension complète" value={formatBoolean(offer.pensionComplete)} />
               </>
             )}
             {offer.dateOptions && offer.dateOptions.length > 0 ? (
@@ -185,15 +187,10 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
       {activeGroup === "seminaire" && (
         <MetaSection title="Séminaire">
           <dl className="mt-4 grid gap-5 sm:grid-cols-2">
-            <InfoItem label="Séminaire" value={formatBoolean(offer.seminaire)} />
-            {offer.seminaire && (
-              <>
-                <InfoItem label="Journée" value={formatBoolean(offer.seminaireJournee)} />
-                <InfoItem label="Demi-journée" value={formatBoolean(offer.seminaireDemiJournee)} />
-                {offer.seminaireDetails && (
-                  <InfoItem label="Détails" value={offer.seminaireDetails} />
-                )}
-              </>
+            <InfoItem label="Journée" value={formatBoolean(offer.seminaireJournee)} />
+            <InfoItem label="Demi-journée" value={formatBoolean(offer.seminaireDemiJournee)} />
+            {offer.seminaireDetails && (
+              <InfoItem label="Détails" value={offer.seminaireDetails} />
             )}
           </dl>
         </MetaSection>

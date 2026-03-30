@@ -190,8 +190,8 @@ describe("parseRow", () => {
   });
 
   it("parses booleans", () => {
-    const result = parseRow({ "Société": "Test", "Séminaire": "oui", "Activité uniquement": "non" });
-    expect(result!.seminaire).toBe(true);
+    const result = parseRow({ "Société": "Test", "Séminaire journée": "oui", "Activité uniquement": "non" });
+    expect(result!.seminaireJournee).toBe(true);
     expect(result!.activiteUniquement).toBe(false);
   });
 

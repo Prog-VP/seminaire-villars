@@ -58,6 +58,18 @@ export function OfferRequestSummary({
           </div>
         )}
 
+        {(offer.demiPension || offer.pensionComplete) && (
+          <div className="col-span-full">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Pension</p>
+            <p className="mt-1">
+              {[
+                offer.demiPension ? "Demi-pension" : null,
+                offer.pensionComplete ? "Pension complète" : null,
+              ].filter(Boolean).join(" + ")}
+            </p>
+          </div>
+        )}
+
         {showSeminaire && (
           <div className="col-span-full">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t(fl, "seminarInfo")}</p>

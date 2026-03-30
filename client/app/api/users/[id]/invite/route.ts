@@ -20,6 +20,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Utilisateur introuvable." }, { status: 404 });
     }
 
+    if (
+      userData.user.last_sign_in_at ||
+      userData.user.email_confirmed_at ||
+      userData.user.confirmed_at
+    ) {
+      return NextResponse.json(
+        { error: "Ce compte est déjà actif. Utilisez le reset mot de passe." },
+        { status: 400 }
+      );
+    }
+
     const { data: linkData, error } = await admin.auth.admin.generateLink({
       type: "recovery",
       email: userData.user.email,
@@ -30,7 +41,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     if (error || !linkData.properties?.action_link) {
       return NextResponse.json(
-        { error: error?.message ?? "Impossible de générer le lien de réinitialisation." },
+        { error: error?.message ?? "Impossible de générer le lien d'activation." },
         { status: 400 }
       );
     }
@@ -49,7 +60,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         .filter(Boolean)
         .join(" ") || undefined;
 
-    const emailContent = buildAccessEmail("reset-password", {
+    const emailContent = buildAccessEmail("complete-access", {
       actionUrl: linkData.properties.action_link,
       recipientEmail: userData.user.email,
       recipientName,
@@ -64,9 +75,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[api/users/[id]/reset-password]", err);
+    console.error("[api/users/[id]/invite]", err);
     return NextResponse.json(
-      { error: "Erreur interne du serveur." },
+      {
+        error:
+          err instanceof Error ? err.message : "Erreur interne du serveur.",
+      },
       { status: 500 }
     );
   }

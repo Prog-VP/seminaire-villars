@@ -308,7 +308,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
     defaultVisible: false,
     renderCell: (o) => (
       <span className="text-xs">
-        {o.seminaire ? (
+        {(o.seminaireJournee || o.seminaireDemiJournee) ? (
           <span className="text-emerald-600">✓</span>
         ) : (
           <span className="text-slate-300">—</span>

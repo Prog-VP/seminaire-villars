@@ -3,6 +3,8 @@ import {
   chfToEur,
   detectLang,
   isTemplateValid,
+  buildTemplateMessage,
+  createDateOptionResponse,
   type TemplateState,
 } from "@/features/offres/components/share-offer-utils";
 
@@ -94,5 +96,76 @@ describe("isTemplateValid", () => {
   it("returns false for empty responses", () => {
     const state: TemplateState = { dateResponses: [], commentaireGeneral: "" };
     expect(isTemplateValid(state)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildTemplateMessage — demi-pension / pension complète conditionals
+// ---------------------------------------------------------------------------
+
+describe("buildTemplateMessage", () => {
+  const baseOpts = {
+    showSimple: false,
+    showDouble: false,
+    showSeminaire: false,
+    showJournee: false,
+    showDemiJournee: false,
+    activiteUniquement: false,
+    showDemiPension: false,
+    showPensionComplete: false,
+  };
+
+  function makeState(overrides: Partial<ReturnType<typeof createDateOptionResponse>> = {}): TemplateState {
+    return {
+      dateResponses: [{ ...createDateOptionResponse("2025-06-01", "2025-06-03"), ...overrides }],
+      commentaireGeneral: "",
+    };
+  }
+
+  it("includes demi-pension line when showDemiPension is true and value filled", () => {
+    const msg = buildTemplateMessage(
+      makeState({ demiPensionChf: "25" }),
+      "fr", 0.92,
+      { ...baseOpts, showDemiPension: true },
+    );
+    expect(msg).toContain("demi-pension");
+    expect(msg).toContain("CHF 25");
+  });
+
+  it("excludes demi-pension line when showDemiPension is false", () => {
+    const msg = buildTemplateMessage(
+      makeState({ demiPensionChf: "25" }),
+      "fr", 0.92,
+      { ...baseOpts, showDemiPension: false },
+    );
+    expect(msg).not.toContain("demi-pension");
+  });
+
+  it("includes pension complète line when showPensionComplete is true and value filled", () => {
+    const msg = buildTemplateMessage(
+      makeState({ pensionCompleteChf: "50" }),
+      "fr", 0.92,
+      { ...baseOpts, showPensionComplete: true },
+    );
+    expect(msg).toContain("pension complète");
+    expect(msg).toContain("CHF 50");
+  });
+
+  it("excludes pension complète line when showPensionComplete is false", () => {
+    const msg = buildTemplateMessage(
+      makeState({ pensionCompleteChf: "50" }),
+      "fr", 0.92,
+      { ...baseOpts, showPensionComplete: false },
+    );
+    expect(msg).not.toContain("pension complète");
+  });
+
+  it("shows all closed message when no date is available", () => {
+    const state: TemplateState = {
+      dateResponses: [{ ...createDateOptionResponse("2025-06-01", "2025-06-03"), disponible: false }],
+      commentaireGeneral: "",
+    };
+    const msg = buildTemplateMessage(state, "fr", 0.92, baseOpts);
+    expect(msg).not.toContain("CHF");
   });
 });

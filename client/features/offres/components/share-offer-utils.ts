@@ -103,6 +103,8 @@ export function buildTemplateMessage(state: TemplateState, lang: Lang, rate: num
   showJournee: boolean;
   showDemiJournee: boolean;
   activiteUniquement: boolean;
+  showDemiPension: boolean;
+  showPensionComplete: boolean;
 }): string {
   const allClosed = state.dateResponses.every((d) => !d.disponible);
   if (allClosed) {
@@ -144,11 +146,11 @@ export function buildTemplateMessage(state: TemplateState, lang: Lang, rate: num
         const eur = chfToEur(dr.priceDoubleChf, rate);
         lines.push(`${t(lang, "priceDoubleChf")}: CHF ${dr.priceDoubleChf}${eur ? ` (≈ €${eur})` : ""}`);
       }
-      if (dr.demiPensionChf) {
+      if (opts.showDemiPension && dr.demiPensionChf) {
         const eur = chfToEur(dr.demiPensionChf, rate);
         lines.push(`${t(lang, "halfBoardChf")}: CHF ${dr.demiPensionChf}${eur ? ` (≈ €${eur})` : ""}`);
       }
-      if (dr.pensionCompleteChf) {
+      if (opts.showPensionComplete && dr.pensionCompleteChf) {
         const eur = chfToEur(dr.pensionCompleteChf, rate);
         lines.push(`${t(lang, "fullBoardChf")}: CHF ${dr.pensionCompleteChf}${eur ? ` (≈ €${eur})` : ""}`);
       }

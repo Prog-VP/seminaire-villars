@@ -13,6 +13,9 @@ type DateResponseSectionProps = {
   showJournee: boolean;
   showDemiJournee: boolean;
   isActivityOnly: boolean;
+  showDemiPension: boolean;
+  showPensionComplete: boolean;
+  singleDate: boolean;
   onUpdate: (patch: Partial<DateOptionResponse>) => void;
 };
 
@@ -26,6 +29,9 @@ export function DateResponseSection({
   showJournee,
   showDemiJournee,
   isActivityOnly,
+  showDemiPension,
+  showPensionComplete,
+  singleDate,
   onUpdate,
 }: DateResponseSectionProps) {
   const fl: Lang = "fr";
@@ -104,24 +110,28 @@ export function DateResponseSection({
                   rate={rate}
                 />
               )}
-              <ChfField
-                label={t(fl, "halfBoardChf")}
-                value={dr.demiPensionChf}
-                onChange={(v) => onUpdate({ demiPensionChf: v })}
-                rate={rate}
-              />
-              <ChfField
-                label={t(fl, "fullBoardChf")}
-                value={dr.pensionCompleteChf}
-                onChange={(v) => onUpdate({ pensionCompleteChf: v })}
-                rate={rate}
-              />
+              {showDemiPension && (
+                <ChfField
+                  label={t(fl, "halfBoardChf")}
+                  value={dr.demiPensionChf}
+                  onChange={(v) => onUpdate({ demiPensionChf: v })}
+                  rate={rate}
+                />
+              )}
+              {showPensionComplete && (
+                <ChfField
+                  label={t(fl, "fullBoardChf")}
+                  value={dr.pensionCompleteChf}
+                  onChange={(v) => onUpdate({ pensionCompleteChf: v })}
+                  rate={rate}
+                />
+              )}
             </>
           )}
 
-          {showSeminaire && (showJournee || (!showJournee && !showDemiJournee)) && (
+          {showSeminaire && showJournee && (
             <ChfField
-              label={showDemiJournee ? t(fl, "seminarPackageFullDayChf") : t(fl, "seminarPackageChf")}
+              label={t(fl, showDemiJournee ? "seminarPackageFullDayChf" : "seminarPackageChf")}
               value={dr.forfaitJourneeChf}
               onChange={(v) => onUpdate({ forfaitJourneeChf: v })}
               rate={rate}
@@ -129,7 +139,7 @@ export function DateResponseSection({
           )}
           {showSeminaire && showDemiJournee && (
             <ChfField
-              label={showJournee ? t(fl, "seminarPackageHalfDayChf") : t(fl, "seminarPackageChf")}
+              label={t(fl, showJournee ? "seminarPackageHalfDayChf" : "seminarPackageChf")}
               value={dr.forfaitDemiJourneeChf}
               onChange={(v) => onUpdate({ forfaitDemiJourneeChf: v })}
               rate={rate}
@@ -145,7 +155,7 @@ export function DateResponseSection({
         </div>
       )}
 
-      {dr.disponible && (
+      {dr.disponible && !singleDate && (
         <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           {t(fl, "commentPerDate")}
           <textarea

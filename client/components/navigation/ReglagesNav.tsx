@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useUserRole } from "@/features/users/context";
 
 const subTabs = [
   { href: "/reglages/donnees-de-base", label: "Données de base" },
@@ -10,10 +11,14 @@ const subTabs = [
 
 export function ReglagesNav() {
   const pathname = usePathname();
+  const { isAdmin } = useUserRole();
+  const visibleTabs = subTabs.filter((tab) =>
+    tab.href === "/reglages/utilisateurs" ? isAdmin : true
+  );
 
   return (
     <nav className="flex gap-1">
-      {subTabs.map((tab) => {
+      {visibleTabs.map((tab) => {
         const isActive = pathname === tab.href;
 
         return (

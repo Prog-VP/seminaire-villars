@@ -19,12 +19,13 @@ export type OfferFormValues = {
   chambresSimple: string;
   chambresDouble: string;
   chambresAutre: string;
+  demiPension: boolean;
+  pensionComplete: boolean;
   dateOptions: { du: string; au: string }[];
   dateConfirmeeDu: string;
   dateConfirmeeAu: string;
   transmisPar: string;
   traitePar: string;
-  seminaire: boolean;
   seminaireJournee: boolean;
   seminaireDemiJournee: boolean;
   seminaireDetails: string;
@@ -57,12 +58,13 @@ export const defaultOfferFormValues: OfferFormValues = {
   chambresSimple: "",
   chambresDouble: "",
   chambresAutre: "",
+  demiPension: false,
+  pensionComplete: false,
   dateOptions: [{ du: "", au: "" }],
   dateConfirmeeDu: "",
   dateConfirmeeAu: "",
   transmisPar: "",
   traitePar: "",
-  seminaire: false,
   seminaireJournee: false,
   seminaireDemiJournee: false,
   seminaireDetails: "",

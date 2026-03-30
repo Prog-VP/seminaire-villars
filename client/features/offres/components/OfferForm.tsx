@@ -94,7 +94,7 @@ export function OfferForm({
         formState.typeSejour || formState.categorieHotel || formState.categorieHotelAutre ||
         formState.stationDemandee || formState.chambresSimple ||
         formState.chambresDouble || formState.chambresAutre || formState.dateOptions.some((o) => o.du || o.au) ||
-        formState.seminaire || formState.seminaireJournee || formState.seminaireDemiJournee || formState.seminaireDetails;
+        formState.seminaireJournee || formState.seminaireDemiJournee || formState.seminaireDetails;
 
       if (hasData && !window.confirm("Les informations Séjour et Séminaire remplies seront supprimées. Continuer ?")) return;
 
@@ -103,7 +103,7 @@ export function OfferForm({
         typeSejour: "", categorieHotel: "", categorieHotelAutre: "", stationDemandee: "",
         chambresSimple: "", chambresDouble: "", chambresAutre: "",
         dateOptions: [{ du: "", au: "" }],
-        seminaire: false, seminaireJournee: false, seminaireDemiJournee: false, seminaireDetails: "",
+        seminaireJournee: false, seminaireDemiJournee: false, seminaireDetails: "",
       }));
       setCurrentStep((prev) => (prev > 2 ? 0 : prev));
     } else {

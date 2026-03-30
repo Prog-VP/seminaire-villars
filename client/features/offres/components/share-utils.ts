@@ -51,7 +51,7 @@ export function buildMailto(offer: Offer, hotel: Hotel, shareUrl: string | null)
             .join(", ")}`,
         ]
       : []),
-    ...(offer.seminaire
+    ...((offer.seminaireJournee || offer.seminaireDemiJournee)
       ? [`Séminaire : Oui${offer.seminaireDetails ? ` – ${offer.seminaireDetails}` : ""}`]
       : []),
     ``,

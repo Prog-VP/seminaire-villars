@@ -129,7 +129,6 @@ CREATE TABLE public.offers (
    chambresSimple integer,
    chambresDouble integer,
    chambresAutre integer,
-   seminaire boolean,
    seminaireJournee boolean,
    seminaireDemiJournee boolean,
    seminaireDetails text,
@@ -139,6 +138,8 @@ CREATE TABLE public.offers (
    dateEnvoiOffre date,
    retourEffectueHotels boolean DEFAULT false,
    activitesDemandees boolean DEFAULT false,
+   demiPension boolean DEFAULT false,
+   pensionComplete boolean DEFAULT false,
    CONSTRAINT offers_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.profiles (

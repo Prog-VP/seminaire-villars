@@ -35,7 +35,8 @@ const COLUMN_MAP: Record<string, keyof Offer> = {
   "Statut": "statut",
   "Activité uniquement": "activiteUniquement",
   "Activités demandées": "activitesDemandees",
-  "Séminaire": "seminaire",
+  "Demi-pension": "demiPension",
+  "Pension complète": "pensionComplete",
   "Séminaire journée": "seminaireJournee",
   "Séminaire demi-journée": "seminaireDemiJournee",
   "Détails séminaire": "seminaireDetails",
@@ -186,8 +187,9 @@ export function parseRow(row: Record<string, unknown>): Partial<Offer> | null {
   payload.statut = parseStatut(row["Statut"]) ?? "Brouillon";
   payload.activiteUniquement = parseBool(row["Activité uniquement"]);
   payload.activitesDemandees = parseBool(row["Activités demandées"]);
-  payload.seminaire = parseBool(row["Séminaire"]);
-  payload.seminaireJournee = parseBool(row["Séminaire journée"]);
+  payload.demiPension = parseBool(row["Demi-pension"]);
+  payload.pensionComplete = parseBool(row["Pension complète"]);
+  payload.seminaireJournee = parseBool(row["Séminaire journée"]) || parseBool(row["Séminaire"]);
   payload.seminaireDemiJournee = parseBool(row["Séminaire demi-journée"]);
   payload.seminaireDetails = parseString(row["Détails séminaire"]);
   payload.dateEnvoiOffre = parseDate(row["Date d'envoi"]) ?? null;
@@ -436,7 +438,8 @@ export function exportOffersXLSX(offers: Offer[]) {
     "Statut": normalizeStatut(o.statut),
     "Activité uniquement": o.activiteUniquement ? "Oui" : "Non",
     "Activités demandées": o.activitesDemandees ? "Oui" : "Non",
-    "Séminaire": o.seminaire ? "Oui" : "Non",
+    "Demi-pension": o.demiPension ? "Oui" : "Non",
+    "Pension complète": o.pensionComplete ? "Oui" : "Non",
     "Séminaire journée": o.seminaireJournee ? "Oui" : "Non",
     "Séminaire demi-journée": o.seminaireDemiJournee ? "Oui" : "Non",
     "Détails séminaire": o.seminaireDetails ?? "",

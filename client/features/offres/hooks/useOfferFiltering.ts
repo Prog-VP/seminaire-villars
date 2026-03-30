@@ -190,7 +190,7 @@ function matchesOffer(offer: Offer, filters: OfferFiltersState): boolean {
 
   if (!matchesBoolean(filters.activiteUniquement, offer.activiteUniquement)) return false;
   if (!matchesBoolean(filters.activitesDemandees, offer.activitesDemandees)) return false;
-  if (!matchesBoolean(filters.seminaire, offer.seminaire)) return false;
+  if (!matchesBoolean(filters.seminaire, offer.seminaireJournee || offer.seminaireDemiJournee)) return false;
   if (!matchesBoolean(filters.reservationEffectuee, offer.reservationEffectuee)) return false;
   if (!matchesBoolean(filters.retourEffectueHotels, offer.retourEffectueHotels)) return false;
   if (!matchesBoolean(filters.contactEntreDansBrevo, offer.contactEntreDansBrevo)) return false;
@@ -258,7 +258,7 @@ function loadSort(): SortConfig {
     const raw = sessionStorage.getItem(SORT_STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { key: "createdAt", direction: "desc" };
+  return { key: "numeroOffre", direction: "desc" };
 }
 
 const IDS_STORAGE_KEY = "offer-filter-ids";

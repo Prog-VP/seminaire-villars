@@ -1,10 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { deleteUser, resetUserPassword } from "../api";
+import { deleteUser, resendUserInvite, resetUserPassword } from "../api";
 import type { UserProfile } from "../types";
 import { useUserRole } from "../context";
 import { EditUserModal } from "./EditUserModal";
+import {
+  getUserActionLabel,
+  getUserStatusClassName,
+  getUserStatusLabel,
+  isInvitationPending,
+} from "../status";
 
 type Props = {
   users: UserProfile[];
@@ -17,6 +23,7 @@ export function UserTable({ users, currentUserId, onRefresh }: Props) {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
+  const [sendingInviteId, setSendingInviteId] = useState<string | null>(null);
 
   async function handleResetPassword(user: UserProfile) {
     if (!confirm(`Envoyer un email de réinitialisation de mot de passe à ${user.email} ?`)) return;
@@ -28,6 +35,19 @@ export function UserTable({ users, currentUserId, onRefresh }: Props) {
       alert(err instanceof Error ? err.message : "Erreur lors de l'envoi.");
     } finally {
       setResettingId(null);
+    }
+  }
+
+  async function handleResendInvite(user: UserProfile) {
+    if (!confirm(`Renvoyer un lien d'activation à ${user.email} ?`)) return;
+    setSendingInviteId(user.id);
+    try {
+      await resendUserInvite(user.id);
+      alert(`Lien d'activation renvoyé à ${user.email}.`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur lors de l'envoi.");
+    } finally {
+      setSendingInviteId(null);
     }
   }
 
@@ -63,6 +83,7 @@ export function UserTable({ users, currentUserId, onRefresh }: Props) {
               <th className="px-4 py-3 font-medium">Nom</th>
               <th className="px-4 py-3 font-medium">Email</th>
               <th className="px-4 py-3 font-medium">Rôle</th>
+              <th className="px-4 py-3 font-medium">Statut</th>
               <th className="px-4 py-3 font-medium">Créé le</th>
               {isAdmin && <th className="px-4 py-3 text-right font-medium">Actions</th>}
             </tr>
@@ -98,6 +119,15 @@ export function UserTable({ users, currentUserId, onRefresh }: Props) {
                     {user.role === "admin" ? "Admin" : "Standard"}
                   </span>
                 </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-block rounded-md px-2 py-0.5 text-xs font-medium ${getUserStatusClassName(
+                      user.status
+                    )}`}
+                  >
+                    {getUserStatusLabel(user.status)}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-slate-500">
                   {formatDate(user.created_at)}
                 </td>
@@ -113,11 +143,17 @@ export function UserTable({ users, currentUserId, onRefresh }: Props) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleResetPassword(user)}
-                        disabled={resettingId === user.id}
+                        onClick={() =>
+                          isInvitationPending(user.status)
+                            ? handleResendInvite(user)
+                            : handleResetPassword(user)
+                        }
+                        disabled={resettingId === user.id || sendingInviteId === user.id}
                         className="rounded-lg border border-amber-200 px-3 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-50 disabled:opacity-50"
                       >
-                        {resettingId === user.id ? "..." : "Reset mdp"}
+                        {resettingId === user.id || sendingInviteId === user.id
+                          ? "..."
+                          : getUserActionLabel(user.status)}
                       </button>
                       {user.id !== currentUserId && (
                         <button
@@ -137,7 +173,7 @@ export function UserTable({ users, currentUserId, onRefresh }: Props) {
             {users.length === 0 && (
               <tr>
                 <td
-                  colSpan={isAdmin ? 5 : 4}
+                  colSpan={isAdmin ? 6 : 5}
                   className="px-4 py-10 text-center text-slate-400"
                 >
                   Aucun utilisateur trouvé.

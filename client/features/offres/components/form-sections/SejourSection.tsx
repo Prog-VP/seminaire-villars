@@ -19,7 +19,7 @@ export function SejourSection({
   traiteParChoices: string[];
   categorieSuggestions: string[];
 }) {
-  const { formState, handleChange, setFormState, inputClass } = useOfferFormCtx();
+  const { formState, handleChange, handleCheckbox, setFormState, inputClass, checkboxClass } = useOfferFormCtx();
 
   return (
     <FormSection title="Séjour" description="Informations sur la demande reçue.">
@@ -124,6 +124,15 @@ export function SejourSection({
               <input name="chambresAutre" value={formState.chambresAutre} onChange={handleChange} className={inputClass} type="number" min={0} />
             </Field>
           </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Demi-pension">
+              <input type="checkbox" name="demiPension" checked={formState.demiPension} onChange={handleCheckbox} className={checkboxClass} />
+            </Field>
+            <Field label="Pension complète">
+              <input type="checkbox" name="pensionComplete" checked={formState.pensionComplete} onChange={handleCheckbox} className={checkboxClass} />
+            </Field>
+          </div>
         </>
       )}
 
@@ -150,7 +159,12 @@ export function SejourSection({
                   value={opt.du}
                   onChange={(e) => {
                     const updated = [...formState.dateOptions];
-                    updated[i] = { ...updated[i], du: e.target.value };
+                    const newDu = e.target.value;
+                    updated[i] = {
+                      ...updated[i],
+                      du: newDu,
+                      au: !updated[i].au || updated[i].au < newDu ? newDu : updated[i].au,
+                    };
                     setFormState((prev) => ({ ...prev, dateOptions: updated }));
                   }}
                   className={inputClass}
