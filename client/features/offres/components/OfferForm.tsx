@@ -35,6 +35,8 @@ export function OfferForm({
   deleteLabel = "Supprimer",
   isDeleteLoading = false,
   stepper = false,
+  onDirtyChange,
+  initialSection = "societe",
 }: OfferFormProps) {
   const [formState, setFormState] = useState<OfferFormValues>({ ...defaultOfferFormValues, ...initialValues });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,7 +45,7 @@ export function OfferForm({
   const [currentStep, setCurrentStep] = useState(0);
   const [categorieSuggestions, setCategorieSuggestions] = useState<string[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
-  const [activeSection, setActiveSection] = useState("societe");
+  const [activeSection, setActiveSection] = useState(initialSection);
   const [tabErrors, setTabErrors] = useState<Set<string>>(new Set());
 
   const choices = useFormChoices(formState);
@@ -61,13 +63,14 @@ export function OfferForm({
 
   // Warn on page leave with unsaved changes
   useEffect(() => {
+    onDirtyChange?.(isDirty);
     if (!isDirty) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
+  }, [isDirty, onDirtyChange]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setIsDirty(true);
@@ -101,7 +104,7 @@ export function OfferForm({
       setFormState((prev) => ({
         ...prev, activiteUniquement: true, activitesDemandees: true,
         typeSejour: "", categorieHotel: "", categorieHotelAutre: "", stationDemandee: "",
-        chambresSimple: "", chambresDouble: "", chambresAutre: "",
+        chambresSimple: "", chambresDouble: "", chambresAutre: "", chambresAutrePrecision: "",
         dateOptions: [{ du: "", au: "" }],
         seminaireJournee: false, seminaireDemiJournee: false, seminaireDetails: "",
       }));

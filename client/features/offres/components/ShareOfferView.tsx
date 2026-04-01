@@ -37,6 +37,8 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
 
   const showSimple = !!(initialData?.chambresSimple && initialData.chambresSimple > 0);
   const showDouble = !!(initialData?.chambresDouble && initialData.chambresDouble > 0);
+  const showAutre = !!(initialData?.chambresAutre && initialData.chambresAutre > 0);
+  const autreLabel = initialData?.chambresAutrePrecision || null;
   const showSeminaire = !!(initialData?.seminaireJournee || initialData?.seminaireDemiJournee);
   const showJournee = !!initialData?.seminaireJournee;
   const showDemiJournee = !!initialData?.seminaireDemiJournee;
@@ -51,7 +53,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
       initialData?.dateOptions,
       initialData?.dateConfirmeeDu,
       initialData?.dateConfirmeeAu,
-      { chambresSimple: initialData?.chambresSimple, chambresDouble: initialData?.chambresDouble },
+      { chambresSimple: initialData?.chambresSimple, chambresDouble: initialData?.chambresDouble, chambresAutre: initialData?.chambresAutre  },
     )
   );
   const [activeTab, setActiveTab] = useState(0);
@@ -61,16 +63,25 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
   const [previewEditable, setPreviewEditable] = useState(false);
   const [editedPreview, setEditedPreview] = useState<string | null>(null);
 
+  const requestedRooms = useMemo(() => ({
+    simple: initialData?.chambresSimple,
+    double: initialData?.chambresDouble,
+    autre: initialData?.chambresAutre,
+  }), [initialData?.chambresSimple, initialData?.chambresDouble, initialData?.chambresAutre]);
+
   const messageOpts = useMemo(() => ({
     showSimple,
     showDouble,
+    showAutre,
+    autreLabel,
+    requestedRooms,
     showSeminaire,
     showJournee: showJournee,
     showDemiJournee,
     activiteUniquement: isActivityOnly,
     showDemiPension,
     showPensionComplete,
-  }), [showSimple, showDouble, showSeminaire, showJournee, showDemiJournee, isActivityOnly, showDemiPension, showPensionComplete]);
+  }), [showSimple, showDouble, showAutre, autreLabel, requestedRooms, showSeminaire, showJournee, showDemiJournee, isActivityOnly, showDemiPension, showPensionComplete]);
 
   const previewMessage = useMemo(
     () => buildTemplateMessage(templateValues, lang, rate, messageOpts),
@@ -158,9 +169,6 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
         <OfferRequestSummary
           offer={offer}
           lang={lang}
-          showSimple={showSimple}
-          showDouble={showDouble}
-          showSeminaire={showSeminaire}
           isActivityOnly={isActivityOnly}
         />
       )}
@@ -170,7 +178,11 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
           <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
             {t(fl, "thankYou")}
           </p>
-          <ConfirmationPreview confirmation={confirmation} />
+          <ConfirmationPreview
+            confirmation={confirmation}
+            dateOptions={offer.dateOptions}
+            dateResponses={templateValues.dateResponses}
+          />
         </div>
       ) : (
         <form
@@ -189,16 +201,6 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
               <input name="respondentName" value={form.respondentName} onChange={handleChange} className={inputClass} />
             </label>
           </div>
-
-          {showSeminaire && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t(fl, "seminarType")}</p>
-              <p className="mt-1 text-sm text-slate-700">
-                {[showJournee ? t(fl, "fullDay") : null, showDemiJournee ? t(fl, "halfDay") : null]
-                  .filter(Boolean).join(" + ") || t(fl, "fullDay")}
-              </p>
-            </div>
-          )}
 
           {hasTabs && (
             <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
@@ -224,6 +226,9 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
             rate={rate}
             showSimple={showSimple}
             showDouble={showDouble}
+            showAutre={showAutre}
+            autreLabel={autreLabel}
+            requestedRooms={requestedRooms}
             showSeminaire={showSeminaire}
             showJournee={showJournee}
             showDemiJournee={showDemiJournee}
@@ -231,6 +236,7 @@ export function ShareOfferView({ token, initialData, chfEurRate }: ShareOfferVie
             showDemiPension={showDemiPension}
             showPensionComplete={showPensionComplete}
             singleDate={!hasTabs}
+            seminaireDetails={initialData?.seminaireDetails ?? null}
             onUpdate={(patch) => updateDateResponse(activeTab, patch)}
           />
 

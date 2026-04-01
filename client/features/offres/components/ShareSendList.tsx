@@ -6,7 +6,6 @@ type Props = {
   selectedHotels: Hotel[];
   sentInSession: Set<string>;
   handleSendOne: (hotel: Hotel) => void;
-  handleSendAll: () => void;
   onBack: () => void;
   onClose: () => void;
 };
@@ -15,26 +14,16 @@ export function ShareSendList({
   selectedHotels,
   sentInSession,
   handleSendOne,
-  handleSendAll,
   onBack,
   onClose,
 }: Props) {
   return (
     <>
       <div className="flex-1 overflow-y-auto px-6 py-4">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4">
           <p className="text-sm font-medium text-slate-700">
             {selectedHotels.length} hôtel{selectedHotels.length > 1 ? "s" : ""} sélectionné{selectedHotels.length > 1 ? "s" : ""}
           </p>
-          {selectedHotels.length > 1 && (
-            <button
-              type="button"
-              onClick={handleSendAll}
-              className="rounded-lg bg-brand-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-brand-800"
-            >
-              Ouvrir tous les emails
-            </button>
-          )}
         </div>
 
         <div className="space-y-2">

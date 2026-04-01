@@ -35,6 +35,7 @@ export function ShareDialog({ offer, onClose, onTokenCreated }: Props) {
     handleCopyLink,
     handleSendOne,
     handleSendAll,
+    handleDeleteSend,
     selectedHotels,
   } = useShareDialog(offer, onClose, onTokenCreated);
 
@@ -93,6 +94,7 @@ export function ShareDialog({ offer, onClose, onTokenCreated }: Props) {
             shareUrl={shareUrl}
             linkCopied={linkCopied}
             handleCopyLink={handleCopyLink}
+            onDeleteSend={handleDeleteSend}
             onNext={() => setStep("send")}
             onClose={onClose}
           />
@@ -101,7 +103,6 @@ export function ShareDialog({ offer, onClose, onTokenCreated }: Props) {
             selectedHotels={selectedHotels}
             sentInSession={sentInSession}
             handleSendOne={handleSendOne}
-            handleSendAll={handleSendAll}
             onBack={() => setStep("select")}
             onClose={onClose}
           />

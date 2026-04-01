@@ -26,6 +26,7 @@ export type Offer = {
   chambresSimple?: number;
   chambresDouble?: number;
   chambresAutre?: number;
+  chambresAutrePrecision?: string;
   transmisPar?: string;
   typeSejour?: string;
   categorieHotel?: string;

@@ -19,6 +19,7 @@ export type OfferFormValues = {
   chambresSimple: string;
   chambresDouble: string;
   chambresAutre: string;
+  chambresAutrePrecision: string;
   demiPension: boolean;
   pensionComplete: boolean;
   dateOptions: { du: string; au: string }[];
@@ -58,6 +59,7 @@ export const defaultOfferFormValues: OfferFormValues = {
   chambresSimple: "",
   chambresDouble: "",
   chambresAutre: "",
+  chambresAutrePrecision: "",
   demiPension: false,
   pensionComplete: false,
   dateOptions: [{ du: "", au: "" }],
@@ -99,4 +101,6 @@ export type OfferFormProps = {
   deleteLabel?: string;
   isDeleteLoading?: boolean;
   stepper?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+  initialSection?: string;
 };

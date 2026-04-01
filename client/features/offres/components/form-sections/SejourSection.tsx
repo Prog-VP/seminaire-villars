@@ -123,6 +123,11 @@ export function SejourSection({
             <Field label="Chambres autre">
               <input name="chambresAutre" value={formState.chambresAutre} onChange={handleChange} className={inputClass} type="number" min={0} />
             </Field>
+            {formState.chambresAutre && Number(formState.chambresAutre) > 0 && (
+              <Field label="Précision chambres autre">
+                <input name="chambresAutrePrecision" value={formState.chambresAutrePrecision} onChange={handleChange} className={inputClass} placeholder="Ex : suite, triple, familiale…" />
+              </Field>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

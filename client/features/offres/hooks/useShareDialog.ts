@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createShareLink, fetchOfferHotelSends, recordHotelSend } from "@/features/offres/api";
+import { createShareLink, fetchOfferHotelSends, recordHotelSend, deleteHotelSend } from "@/features/offres/api";
 import { fetchHotels } from "@/features/hotels/api";
 import { buildMailto } from "@/features/offres/components/share-utils";
 import type { Offer, OfferHotelSend } from "../types";
@@ -175,10 +175,62 @@ export function useShareDialog(offer: Offer, onClose: () => void, onTokenCreated
   };
 
   const handleSendAll = async () => {
-    const selectedHotels = hotels.filter((h) => selected.has(h.id) && h.email);
-    for (let i = 0; i < selectedHotels.length; i++) {
-      if (i > 0) await new Promise((r) => setTimeout(r, 400));
-      await handleSendOne(selectedHotels[i]);
+    const hotelsToSend = hotels.filter((h) => selected.has(h.id) && h.email);
+    if (hotelsToSend.length === 0) return;
+
+    // Use temporary <a> elements to trigger mailto links without popup blocking
+    for (const hotel of hotelsToSend) {
+      const a = document.createElement("a");
+      a.href = buildMailto(offer, hotel, shareUrl);
+      a.target = "_blank";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    // Record all sends in DB
+    for (const hotel of hotelsToSend) {
+      try {
+        await recordHotelSend(offer.id, hotel.id);
+        setSentInSession((prev) => new Set(prev).add(hotel.id));
+        setSends((prev) => {
+          const existing = prev.find((s) => s.hotelId === hotel.id);
+          if (existing) {
+            return prev.map((s) =>
+              s.hotelId === hotel.id ? { ...s, sentAt: new Date().toISOString() } : s
+            );
+          }
+          return [
+            {
+              id: crypto.randomUUID(),
+              hotelId: hotel.id,
+              hotelName: hotel.nom,
+              hotelEmail: hotel.email,
+              sentAt: new Date().toISOString(),
+            },
+            ...prev,
+          ];
+        });
+      } catch (err) {
+        console.error("Failed to record send:", err);
+      }
+    }
+  };
+
+  // Delete a send record
+  const handleDeleteSend = async (hotelId: string) => {
+    try {
+      await deleteHotelSend(offer.id, hotelId);
+      setSends((prev) => prev.filter((s) => s.hotelId !== hotelId));
+      setSentInSession((prev) => {
+        const next = new Set(prev);
+        next.delete(hotelId);
+        return next;
+      });
+    } catch (err) {
+      console.error("Failed to delete send:", err);
     }
   };
 
@@ -208,6 +260,7 @@ export function useShareDialog(offer: Offer, onClose: () => void, onTokenCreated
     handleCopyLink,
     handleSendOne,
     handleSendAll,
+    handleDeleteSend,
     selectedHotels,
   };
 }

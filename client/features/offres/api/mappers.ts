@@ -16,6 +16,7 @@ export type SharedOfferResponse = {
   chambresSimple?: number | null;
   chambresDouble?: number | null;
   chambresAutre?: number | null;
+  chambresAutrePrecision?: string | null;
   demiPension?: boolean | null;
   pensionComplete?: boolean | null;
   seminaireJournee?: boolean | null;
@@ -75,6 +76,7 @@ export function mapRow(row: Record<string, unknown>): Offer {
     chambresSimple: row.chambresSimple as number | undefined,
     chambresDouble: row.chambresDouble as number | undefined,
     chambresAutre: row.chambresAutre as number | undefined,
+    chambresAutrePrecision: row.chambresAutrePrecision as string | undefined,
     transmisPar: row.transmisPar as string | undefined,
     typeSejour: row.typeSejour as string | undefined,
     categorieHotel: row.categorieHotel as string | undefined,
@@ -135,6 +137,7 @@ export function mapSharedOfferRow(row: Record<string, unknown>): SharedOfferResp
     chambresSimple: (row.chambresSimple as number) ?? null,
     chambresDouble: (row.chambresDouble as number) ?? null,
     chambresAutre: (row.chambresAutre as number) ?? null,
+    chambresAutrePrecision: (row.chambresAutrePrecision as string) ?? null,
     demiPension: (row.demiPension as boolean) ?? null,
     pensionComplete: (row.pensionComplete as boolean) ?? null,
     seminaireJournee: (row.seminaireJournee as boolean) ?? null,

@@ -38,3 +38,16 @@ export async function recordHotelSend(
       )
   );
 }
+
+export async function deleteHotelSend(
+  offerId: string,
+  hotelId: string
+): Promise<void> {
+  throwOnError(
+    await supabase()
+      .from("offer_hotel_sends")
+      .delete()
+      .eq("offer_id", offerId)
+      .eq("hotel_id", hotelId)
+  );
+}

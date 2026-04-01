@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, type ReactNode } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { type ReactNode } from "react";
 import type { Offer } from "../types";
 import { formatStars, getEffectiveDates, computeNights, normalizeStatut } from "../utils";
 import { formatDate } from "@/lib/format";
@@ -38,59 +37,20 @@ function parseSection(value: string | null): SubGroupKey {
     : "societe";
 }
 
-export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const activeGroup = parseSection(searchParams.get("section"));
+export { SUB_GROUPS, parseSection };
+export type { SubGroupKey };
+
+export function OfferMetaGrid({ offer, attachmentsCount, activeGroup = "societe" }: OfferMetaGridProps & { activeGroup?: SubGroupKey }) {
+  const resolvedGroup = activeGroup;
 
   const effectiveDates = getEffectiveDates(offer);
   const hasMultipleOptions = (offer.dateOptions?.length ?? 0) > 1;
   const computedNights = hasMultipleOptions ? null : computeNights(effectiveDates.du, effectiveDates.au);
 
-  const visibleGroups = offer.activiteUniquement
-    ? SUB_GROUPS.filter((g) => g.key !== "seminaire")
-    : SUB_GROUPS;
-
-  const setActiveGroup = useCallback(
-    (section: SubGroupKey) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (section === "societe") {
-        params.delete("section");
-      } else {
-        params.set("section", section);
-      }
-      const qs = params.toString();
-      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
-    },
-    [router, pathname, searchParams]
-  );
-
   return (
     <section className="space-y-4">
-      <div className="overflow-x-auto -mx-1">
-        <nav className="inline-flex min-w-max rounded-lg bg-slate-100 p-1">
-          {visibleGroups.map((group) => {
-            const isActive = activeGroup === group.key;
-            return (
-              <button
-                key={group.key}
-                type="button"
-                onClick={() => setActiveGroup(group.key)}
-                className={`rounded-md px-2.5 py-1.5 text-xs sm:text-sm sm:px-3 font-medium transition-all whitespace-nowrap ${
-                  isActive
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {group.label}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
 
-      {activeGroup === "societe" && (
+      {resolvedGroup === "societe" && (
         <MetaSection title="Informations société">
           <dl className="mt-4 grid gap-5 sm:grid-cols-2">
             <InfoItem label="Activité uniquement" value={formatBoolean(offer.activiteUniquement)} />
@@ -107,7 +67,7 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
         </MetaSection>
       )}
 
-      {activeGroup === "contact" && (
+      {resolvedGroup === "contact" && (
         <MetaSection title="Contact principal">
           <dl className="mt-4 grid gap-5 sm:grid-cols-2">
             <InfoItem label="Titre du contact" value={offer.titreContact} />
@@ -119,7 +79,7 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
         </MetaSection>
       )}
 
-      {activeGroup === "sejour" && (
+      {resolvedGroup === "sejour" && (
         <MetaSection title="Séjour">
           <dl className="mt-4 grid gap-5 sm:grid-cols-2">
             <InfoItem label="Type de séjour" value={offer.typeSejour} />
@@ -139,7 +99,7 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
                 <InfoItem label="Nombre de participants" value={offer.nombrePax} />
                 <InfoItem label="Chambres simple" value={offer.chambresSimple} />
                 <InfoItem label="Chambres double" value={offer.chambresDouble} />
-                <InfoItem label="Chambres autre" value={offer.chambresAutre} />
+                <InfoItem label={`Chambres autre${offer.chambresAutrePrecision ? ` (${offer.chambresAutrePrecision})` : ""}`} value={offer.chambresAutre} />
                 <InfoItem label="Demi-pension" value={formatBoolean(offer.demiPension)} />
                 <InfoItem label="Pension complète" value={formatBoolean(offer.pensionComplete)} />
               </>
@@ -184,7 +144,7 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
         </MetaSection>
       )}
 
-      {activeGroup === "seminaire" && (
+      {resolvedGroup === "seminaire" && (
         <MetaSection title="Séminaire">
           <dl className="mt-4 grid gap-5 sm:grid-cols-2">
             <InfoItem label="Journée" value={formatBoolean(offer.seminaireJournee)} />
@@ -196,7 +156,7 @@ export function OfferMetaGrid({ offer, attachmentsCount }: OfferMetaGridProps) {
         </MetaSection>
       )}
 
-      {activeGroup === "finalisation" && (
+      {resolvedGroup === "finalisation" && (
         <div className="space-y-6">
           <MetaSection title="Suivi de l'offre">
             <dl className="mt-4 grid gap-5 sm:grid-cols-2">

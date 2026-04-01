@@ -23,6 +23,7 @@ export function mapFormValuesToPayload(values: OfferFormValues) {
     chambresSimple: values.chambresSimple ? Number(values.chambresSimple) : undefined,
     chambresDouble: values.chambresDouble ? Number(values.chambresDouble) : undefined,
     chambresAutre: values.chambresAutre ? Number(values.chambresAutre) : undefined,
+    chambresAutrePrecision: values.chambresAutrePrecision || undefined,
     dateOptions,
     dateConfirmeeDu: values.dateConfirmeeDu
       ? new Date(values.dateConfirmeeDu).toISOString()
@@ -70,6 +71,7 @@ export function mapOfferToFormValues(offer: Offer): OfferFormValues {
     chambresSimple: offer.chambresSimple?.toString() || "",
     chambresDouble: offer.chambresDouble?.toString() || "",
     chambresAutre: offer.chambresAutre?.toString() || "",
+    chambresAutrePrecision: offer.chambresAutrePrecision || "",
     demiPension: offer.demiPension ?? false,
     pensionComplete: offer.pensionComplete ?? false,
     dateOptions,

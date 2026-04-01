@@ -30,4 +30,4 @@ export {
   deleteOfferComment,
 } from "./comments";
 
-export { fetchOfferHotelSends, recordHotelSend } from "./hotel-sends";
+export { fetchOfferHotelSends, recordHotelSend, deleteHotelSend } from "./hotel-sends";

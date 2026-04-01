@@ -20,6 +20,7 @@ type Props = {
   shareUrl: string | null;
   linkCopied: boolean;
   handleCopyLink: () => void;
+  onDeleteSend: (hotelId: string) => void;
   onNext: () => void;
   onClose: () => void;
 };
@@ -41,6 +42,7 @@ export function ShareHotelList({
   shareUrl,
   linkCopied,
   handleCopyLink,
+  onDeleteSend,
   onNext,
   onClose,
 }: Props) {
@@ -169,13 +171,27 @@ export function ShareHotelList({
                       </p>
                     </div>
                     {(send || wasSentInSession) && (
-                      <span className="shrink-0 inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                      <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
                         Envoyé le{" "}
                         {new Date(
                           wasSentInSession && !send
                             ? new Date().toISOString()
                             : send!.sentAt
                         ).toLocaleDateString("fr-CH")}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onDeleteSend(hotel.id);
+                          }}
+                          className="ml-0.5 inline-flex items-center justify-center rounded-full p-0.5 text-emerald-500 transition hover:bg-emerald-100 hover:text-emerald-800"
+                          title="Annuler l'envoi"
+                        >
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
                       </span>
                     )}
                   </label>
