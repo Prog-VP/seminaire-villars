@@ -10,6 +10,7 @@ type EditOfferFormProps = {
   onSuccess: (offer: Offer) => void;
   onDelete?: () => void;
   isDeleting?: boolean;
+  initialSection?: string;
 };
 
 export function EditOfferForm({
@@ -18,6 +19,7 @@ export function EditOfferForm({
   onSuccess,
   onDelete,
   isDeleting = false,
+  initialSection,
 }: EditOfferFormProps) {
   const handleSubmit = async (values: ReturnType<typeof mapOfferToFormValues>) => {
     const payload = mapFormValuesToPayload(values);
@@ -36,6 +38,7 @@ export function EditOfferForm({
       onDelete={onDelete}
       deleteLabel="Supprimer l'offre"
       isDeleteLoading={isDeleting}
+      initialSection={initialSection}
     />
   );
 }

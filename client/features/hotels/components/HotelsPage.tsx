@@ -81,7 +81,7 @@ export function HotelsPage() {
 
   const handleUpdate = async (
     id: string,
-    fields: { nom: string; email: string | null; destination: string | null }
+    fields: { nom: string; email: string | null; email_cc: string | null; destination: string | null }
   ) => {
     const updated = await updateHotel(id, fields);
     setHotels((prev) => {
@@ -188,6 +188,9 @@ export function HotelsPage() {
                 Email
               </th>
               <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                CC
+              </th>
+              <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Documents
               </th>
               <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -199,7 +202,7 @@ export function HotelsPage() {
             {isLoading ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="px-5 py-8 text-center text-sm text-slate-500"
                 >
                   Chargement…
@@ -208,7 +211,7 @@ export function HotelsPage() {
             ) : filteredHotels.length === 0 ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="px-5 py-8 text-center text-sm text-slate-500"
                 >
                   {hotels.length === 0

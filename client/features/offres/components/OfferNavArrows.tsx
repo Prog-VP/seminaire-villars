@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 const STORAGE_KEY = "offer-list-ids";
 
@@ -22,7 +23,7 @@ type NavState = {
 
 const EMPTY: NavState = { prevId: null, nextId: null, position: null, total: null };
 
-export function OfferNavArrows({ currentId }: { currentId: string }) {
+export function OfferNavArrows({ currentId, confirmMessage }: { currentId: string; confirmMessage?: string }) {
   const [nav, setNav] = useState<NavState>(EMPTY);
 
   useEffect(() => {
@@ -54,15 +55,25 @@ export function OfferNavArrows({ currentId }: { currentId: string }) {
           {position} / {total}
         </span>
       )}
-      <NavArrow href={prevId ? `/offres/${prevId}` : null} direction="prev" />
-      <NavArrow href={nextId ? `/offres/${nextId}` : null} direction="next" />
+      <NavArrow href={prevId ? `/offres/${prevId}` : null} direction="prev" confirmMessage={confirmMessage} />
+      <NavArrow href={nextId ? `/offres/${nextId}` : null} direction="next" confirmMessage={confirmMessage} />
     </div>
   );
 }
 
-function NavArrow({ href, direction }: { href: string | null; direction: "prev" | "next" }) {
+function NavArrow({ href, direction, confirmMessage }: { href: string | null; direction: "prev" | "next"; confirmMessage?: string }) {
   const isPrev = direction === "prev";
+  const router = useRouter();
   const cls = "inline-flex items-center justify-center rounded-lg border px-2.5 py-1.5 transition";
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (confirmMessage && href) {
+      e.preventDefault();
+      if (window.confirm(confirmMessage)) {
+        router.push(href);
+      }
+    }
+  };
 
   if (!href) {
     return (
@@ -78,6 +89,7 @@ function NavArrow({ href, direction }: { href: string | null; direction: "prev" 
   return (
     <Link
       href={href}
+      onClick={handleClick}
       className={`${cls} border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900`}
       title={isPrev ? "Offre précédente" : "Offre suivante"}
     >

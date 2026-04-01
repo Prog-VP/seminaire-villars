@@ -24,7 +24,7 @@ export function HotelRow({
   docs: HotelDocument[];
   destinations: string[];
   offerCount: number;
-  onSave: (fields: { nom: string; email: string | null; destination: string | null }) => Promise<void>;
+  onSave: (fields: { nom: string; email: string | null; email_cc: string | null; destination: string | null }) => Promise<void>;
   onDelete: () => Promise<void>;
   onUploadDoc: (lang: string, file: File) => Promise<void>;
   onDeleteDoc: (doc: HotelDocument) => Promise<void>;
@@ -33,6 +33,7 @@ export function HotelRow({
   const [isEditing, setIsEditing] = useState(false);
   const [nom, setNom] = useState(hotel.nom);
   const [email, setEmail] = useState(hotel.email ?? "");
+  const [emailCc, setEmailCc] = useState(hotel.email_cc ?? "");
   const [destination, setDestination] = useState(hotel.destination ?? "");
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "deleting">("idle");
@@ -42,8 +43,9 @@ export function HotelRow({
   useEffect(() => {
     setNom(hotel.nom);
     setEmail(hotel.email ?? "");
+    setEmailCc(hotel.email_cc ?? "");
     setDestination(hotel.destination ?? "");
-  }, [hotel.nom, hotel.email, hotel.destination]);
+  }, [hotel.nom, hotel.email, hotel.email_cc, hotel.destination]);
 
   const handleSave = async () => {
     if (!nom.trim()) {
@@ -56,6 +58,7 @@ export function HotelRow({
       await onSave({
         nom: nom.trim(),
         email: email.trim() || null,
+        email_cc: emailCc.trim() || null,
         destination: destination.trim() || null,
       });
       setIsEditing(false);
@@ -107,6 +110,7 @@ export function HotelRow({
     setIsEditing(false);
     setNom(hotel.nom);
     setEmail(hotel.email ?? "");
+    setEmailCc(hotel.email_cc ?? "");
     setDestination(hotel.destination ?? "");
     setError(null);
   };
@@ -176,6 +180,16 @@ export function HotelRow({
                 disabled={status === "saving"}
               />
             </td>
+            <td className="px-5 py-3">
+              <input
+                type="text"
+                placeholder="CC"
+                className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                value={emailCc}
+                onChange={(e) => setEmailCc(e.target.value)}
+                disabled={status === "saving"}
+              />
+            </td>
             <td className="px-5 py-3" />
             <td className="px-5 py-3">
               <div className="flex items-center justify-end gap-1">
@@ -226,6 +240,9 @@ export function HotelRow({
             </td>
             <td className="px-5 py-3.5 text-slate-500">
               {hotel.email ?? "—"}
+            </td>
+            <td className="px-5 py-3.5 text-slate-500">
+              {hotel.email_cc ?? "—"}
             </td>
             <td className="px-5 py-3.5">
               <div className="flex flex-wrap items-center gap-1.5">
@@ -323,7 +340,7 @@ export function HotelRow({
       </tr>
       {error && (
         <tr>
-          <td colSpan={5} className="px-5 pb-2">
+          <td colSpan={6} className="px-5 pb-2">
             <p className="text-sm text-red-600" role="alert">
               {error}
             </p>
@@ -332,7 +349,7 @@ export function HotelRow({
       )}
       {usageCount !== null && usageCount > 0 && (
         <tr>
-          <td colSpan={5} className="px-5 pb-2">
+          <td colSpan={6} className="px-5 pb-2">
             <p className="text-sm text-amber-700" role="alert">
               Suppression impossible : cet hôtel est lié à{" "}
               <Link

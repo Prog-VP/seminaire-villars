@@ -1,14 +1,30 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type BackButtonProps = {
   href: string;
   label?: string;
+  confirmMessage?: string;
 };
 
-export function BackButton({ href, label = "Retour" }: BackButtonProps) {
+export function BackButton({ href, label = "Retour", confirmMessage }: BackButtonProps) {
+  const router = useRouter();
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (confirmMessage) {
+      e.preventDefault();
+      if (window.confirm(confirmMessage)) {
+        router.push(href);
+      }
+    }
+  };
+
   return (
     <Link
       href={href}
+      onClick={handleClick}
       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
     >
       <span aria-hidden>

@@ -10,7 +10,7 @@ export async function fetchHotels(): Promise<Hotel[]> {
   const data = throwOnError(
     await supabase()
       .from("hotels")
-      .select("id, nom, email, destination, created_at")
+      .select("id, nom, email, email_cc, destination, created_at")
       .order("nom", { ascending: true })
   );
   return data ?? [];
@@ -19,13 +19,14 @@ export async function fetchHotels(): Promise<Hotel[]> {
 export async function createHotel(
   nom: string,
   email: string | null,
-  destination: string | null = null
+  destination: string | null = null,
+  email_cc: string | null = null
 ): Promise<Hotel> {
   const data = throwOnError(
     await supabase()
       .from("hotels")
-      .insert({ nom, email: email || null, destination: destination || null })
-      .select("id, nom, email, destination, created_at")
+      .insert({ nom, email: email || null, email_cc: email_cc || null, destination: destination || null })
+      .select("id, nom, email, email_cc, destination, created_at")
       .single()
   );
   if (!data) throw new Error("Création échouée.");
@@ -34,14 +35,14 @@ export async function createHotel(
 
 export async function updateHotel(
   id: string,
-  fields: { nom: string; email: string | null; destination: string | null }
+  fields: { nom: string; email: string | null; email_cc: string | null; destination: string | null }
 ): Promise<Hotel> {
   const data = throwOnError(
     await supabase()
       .from("hotels")
-      .update({ nom: fields.nom, email: fields.email || null, destination: fields.destination || null })
+      .update({ nom: fields.nom, email: fields.email || null, email_cc: fields.email_cc || null, destination: fields.destination || null })
       .eq("id", id)
-      .select("id, nom, email, destination, created_at")
+      .select("id, nom, email, email_cc, destination, created_at")
       .single()
   );
   if (!data) throw new Error("Mise à jour échouée.");
