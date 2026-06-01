@@ -108,6 +108,7 @@ export function mapHotelResponse(row: Record<string, unknown>): HotelResponse {
   return {
     id: row.id as string,
     hotelName: row.hotelName as string,
+    hotelId: (row.hotel_id as string) ?? null,
     respondentName: row.respondentName as string | undefined,
     message: row.message as string,
     offerText: (row.offerText as string) ?? null,

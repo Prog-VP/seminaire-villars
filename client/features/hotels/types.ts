@@ -4,7 +4,6 @@ export type Hotel = {
   email: string | null;
   email_cc: string | null;
   destination: string | null;
+  ppt_tag: string | null;
   created_at: string;
 };
-
-export type { HotelDocument } from "@/features/documents/types";

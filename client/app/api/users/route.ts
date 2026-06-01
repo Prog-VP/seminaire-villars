@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { buildAccessEmail } from "@/features/users/access-email";
 import {
   findAuthUserByEmail,
+  getUserConfirmUrl,
   getUserRedirectTo,
   isValidUserEmail,
   isValidUserRole,
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (error || !data.user?.id || !data.properties?.action_link) {
+    if (error || !data.user?.id || !data.properties?.hashed_token) {
       return NextResponse.json(
         { error: error?.message ?? "Impossible de générer le lien d'invitation." },
         { status: 400 }
@@ -105,7 +106,11 @@ export async function POST(request: NextRequest) {
       const recipientName =
         [normalizedPrenom, normalizedNom].filter(Boolean).join(" ") || undefined;
       const emailContent = buildAccessEmail("invite", {
-        actionUrl: data.properties.action_link,
+        actionUrl: getUserConfirmUrl(
+          request.nextUrl.origin,
+          data.properties.hashed_token,
+          "invite"
+        ),
         recipientEmail: normalizedEmail,
         recipientName,
       });

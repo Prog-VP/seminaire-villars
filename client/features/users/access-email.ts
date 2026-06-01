@@ -22,33 +22,33 @@ function getCopy(kind: AccessEmailKind): AccessEmailCopy {
   switch (kind) {
     case "invite":
       return {
-        subject: "Invitation a rejoindre Séminaire",
-        heading: "Votre acces a ete cree",
+        subject: "Invitation à rejoindre Séminaire",
+        heading: "Votre accès a été créé",
         intro:
-          "Un administrateur vous a invite a rejoindre l'application Séminaire. Choisissez maintenant votre mot de passe pour activer votre compte.",
-        actionLabel: "Activer mon acces",
+          "Un administrateur vous a invité à rejoindre l'application Séminaire. Choisissez maintenant votre mot de passe pour activer votre compte.",
+        actionLabel: "Activer mon accès",
         outro:
-          "Ce lien est temporaire et a usage unique. Si vous n'attendiez pas cet email, vous pouvez l'ignorer.",
+          "Ce lien est temporaire et à usage unique. Si vous n'attendiez pas cet email, vous pouvez l'ignorer.",
       };
     case "complete-access":
       return {
-        subject: "Finalisez votre acces a Séminaire",
+        subject: "Finalisez votre accès à Séminaire",
         heading: "Votre invitation est toujours en attente",
         intro:
-          "Votre compte existe deja, mais l'acces n'a pas encore ete finalise. Utilisez ce lien pour definir votre mot de passe et terminer l'activation.",
-        actionLabel: "Finaliser mon acces",
+          "Votre compte existe déjà, mais l'accès n'a pas encore été finalisé. Utilisez ce lien pour définir votre mot de passe et terminer l'activation.",
+        actionLabel: "Finaliser mon accès",
         outro:
-          "Si le lien precedent a expire ou n'a pas fonctionne, ce nouveau lien remplace l'ancien.",
+          "Si le lien précédent a expiré ou n'a pas fonctionné, ce nouveau lien remplace l'ancien.",
       };
     case "reset-password":
       return {
-        subject: "Reinitialisation de votre mot de passe Séminaire",
-        heading: "Reinitialisez votre mot de passe",
+        subject: "Réinitialisation de votre mot de passe Séminaire",
+        heading: "Réinitialisez votre mot de passe",
         intro:
-          "Une demande de reinitialisation de mot de passe a ete effectuee pour votre compte Séminaire.",
-        actionLabel: "Definir un nouveau mot de passe",
+          "Une demande de réinitialisation de mot de passe a été effectuée pour votre compte Séminaire.",
+        actionLabel: "Définir un nouveau mot de passe",
         outro:
-          "Si vous n'etes pas a l'origine de cette demande, contactez un administrateur et ignorez cet email.",
+          "Si vous n'êtes pas à l'origine de cette demande, contactez un administrateur et ignorez cet email.",
       };
   }
 }
@@ -87,7 +87,7 @@ export function buildAccessEmail(
   </p>
   <p style="line-height: 1.6;">${escapeHtml(copy.outro)}</p>
   <p style="margin-top: 24px; color: #64748b; font-size: 13px;">
-    Compte concerne: ${safeEmail}
+    Compte concerné: ${safeEmail}
   </p>
 </div>`.trim(),
   };

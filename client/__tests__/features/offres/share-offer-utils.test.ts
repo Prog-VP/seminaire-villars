@@ -13,22 +13,31 @@ import {
 // ---------------------------------------------------------------------------
 
 describe("chfToEur", () => {
-  it("converts CHF to EUR with rate", () => {
-    expect(chfToEur("100", 0.92)).toBe("92.00");
-    expect(chfToEur("50.5", 0.92)).toBe("46.46");
+  it("converts CHF to EUR with a EUR to CHF rate", () => {
+    expect(chfToEur("100", 0.93)).toBe("107.53");
+    expect(chfToEur("50.5", 0.93)).toBe("54.30");
+    expect(chfToEur("180", 0.93)).toBe("193.55");
+  });
+
+  it("normalizes inverted CHF to EUR rates", () => {
+    expect(chfToEur("180", 1.075)).toBe("193.50");
   });
 
   it("handles comma as decimal separator", () => {
-    expect(chfToEur("100,50", 0.92)).toBe("92.46");
+    expect(chfToEur("100,50", 0.93)).toBe("108.06");
   });
 
   it("returns empty for zero", () => {
-    expect(chfToEur("0", 0.92)).toBe("");
+    expect(chfToEur("0", 0.93)).toBe("");
   });
 
   it("returns empty for non-numeric", () => {
-    expect(chfToEur("", 0.92)).toBe("");
-    expect(chfToEur("abc", 0.92)).toBe("");
+    expect(chfToEur("", 0.93)).toBe("");
+    expect(chfToEur("abc", 0.93)).toBe("");
+  });
+
+  it("returns empty for invalid rates", () => {
+    expect(chfToEur("100", 0)).toBe("");
   });
 });
 

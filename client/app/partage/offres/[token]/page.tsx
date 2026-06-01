@@ -1,6 +1,7 @@
 import { ShareOfferView } from "@/features/offres/components/ShareOfferView";
 import { createClient } from "@/lib/supabase/server";
 import { mapSharedOfferRow, type SharedOfferResponse } from "@/features/offres/api";
+import { normalizeEurChfRate } from "@/features/offres/components/share-offer-utils";
 
 type ShareOfferPageProps = {
   params: Promise<{ token: string }>;
@@ -10,7 +11,7 @@ export default async function ShareOfferPage({ params }: ShareOfferPageProps) {
   const { token } = await params;
 
   let offer: SharedOfferResponse | null = null;
-  let chfEurRate = 0.94;
+  let chfEurRate = 0.93;
 
   try {
     const supabase = await createClient();
@@ -30,7 +31,7 @@ export default async function ShareOfferPage({ params }: ShareOfferPageProps) {
     if (rateResult.data?.value) {
       const parsed = parseFloat(rateResult.data.value);
       if (!isNaN(parsed) && parsed > 0) {
-        chfEurRate = parsed;
+        chfEurRate = normalizeEurChfRate(parsed);
       }
     }
   } catch {

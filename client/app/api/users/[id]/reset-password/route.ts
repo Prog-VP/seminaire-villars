@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildAccessEmail } from "@/features/users/access-email";
-import { getUserRedirectTo, requireAdminUser } from "@/features/users/server";
+import { getUserConfirmUrl, getUserRedirectTo, requireAdminUser } from "@/features/users/server";
 import { sendMail } from "@/lib/mailer";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       },
     });
 
-    if (error || !linkData.properties?.action_link) {
+    if (error || !linkData.properties?.hashed_token) {
       return NextResponse.json(
         { error: error?.message ?? "Impossible de générer le lien de réinitialisation." },
         { status: 400 }
@@ -50,7 +50,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
         .join(" ") || undefined;
 
     const emailContent = buildAccessEmail("reset-password", {
-      actionUrl: linkData.properties.action_link,
+      actionUrl: getUserConfirmUrl(
+        request.nextUrl.origin,
+        linkData.properties.hashed_token,
+        "recovery"
+      ),
       recipientEmail: userData.user.email,
       recipientName,
     });

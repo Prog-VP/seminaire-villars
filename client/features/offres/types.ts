@@ -56,6 +56,7 @@ export type Offer = {
 export type HotelResponse = {
   id?: string;
   hotelName: string;
+  hotelId?: string | null;
   respondentName?: string;
   message: string;
   offerText?: string | null;
@@ -96,6 +97,7 @@ export type OfferHotelSend = {
   hotelId: string;
   hotelName: string;
   hotelEmail: string | null;
+  hotelPptTag?: string | null;
   sentAt: string;
 };
 
@@ -112,4 +114,3 @@ export type ParsedHotelResponse = {
   taxeEur: string | null;
   raw: string;
 };
-

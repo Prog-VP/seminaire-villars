@@ -16,8 +16,33 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     const supabase = createClient();
     const hash = window.location.hash.substring(1);
+    const searchParams = new URLSearchParams(window.location.search);
+    const code = searchParams.get("code");
 
     async function prepareResetSession() {
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+
+        if (!exchangeError) {
+          window.history.replaceState(null, "", window.location.pathname);
+          setReady(true);
+          return;
+        }
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          window.history.replaceState(null, "", window.location.pathname);
+          setReady(true);
+          return;
+        }
+
+        setError("Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation.");
+        return;
+      }
+
       if (!hash) {
         const {
           data: { user },

@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createShareLink, fetchOfferHotelSends, recordHotelSend, deleteHotelSend } from "@/features/offres/api";
 import { fetchHotels } from "@/features/hotels/api";
-import { buildMailto } from "@/features/offres/components/share-utils";
+import { createClient } from "@/lib/supabase/client";
+import {
+  buildMailto,
+  DEFAULT_SHARE_EMAIL_TEMPLATE,
+  normalizeShareEmailTemplate,
+  SHARE_EMAIL_TEMPLATE_KEYS,
+  type ShareEmailTemplate,
+} from "@/features/offres/components/share-utils";
 import type { Offer, OfferHotelSend } from "../types";
 import type { Hotel } from "@/features/hotels/types";
 
@@ -14,6 +21,9 @@ export function useShareDialog(offer: Offer, onClose: () => void, onTokenCreated
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [sends, setSends] = useState<OfferHotelSend[]>([]);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [emailTemplate, setEmailTemplate] = useState<ShareEmailTemplate>(
+    DEFAULT_SHARE_EMAIL_TEMPLATE
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,13 +47,34 @@ export function useShareDialog(offer: Offer, onClose: () => void, onTokenCreated
       setIsLoading(true);
       setError(null);
 
-      const [hotelList, sendList] = await Promise.all([
+      const supabase = createClient();
+      const [hotelList, sendList, templateConfig] = await Promise.all([
         fetchHotels(),
         fetchOfferHotelSends(offer.id),
+        supabase
+          .from("app_config")
+          .select("key, value")
+          .in("key", [
+            SHARE_EMAIL_TEMPLATE_KEYS.subject,
+            SHARE_EMAIL_TEMPLATE_KEYS.body,
+          ]),
       ]);
 
       setHotels(hotelList);
       setSends(sendList);
+      if (templateConfig.data) {
+        const values = new Map(
+          templateConfig.data.map((row) => [row.key as string, row.value as string])
+        );
+        setEmailTemplate(normalizeShareEmailTemplate({
+          subject:
+            values.get(SHARE_EMAIL_TEMPLATE_KEYS.subject) ??
+            DEFAULT_SHARE_EMAIL_TEMPLATE.subject,
+          body:
+            values.get(SHARE_EMAIL_TEMPLATE_KEYS.body) ??
+            DEFAULT_SHARE_EMAIL_TEMPLATE.body,
+        }));
+      }
 
       // Generate or reuse share link
       if (offer.shareToken) {
@@ -144,7 +175,7 @@ export function useShareDialog(offer: Offer, onClose: () => void, onTokenCreated
   // Send handlers
   const handleSendOne = async (hotel: Hotel) => {
     // Open mailto
-    window.open(buildMailto(offer, hotel, shareUrl), "_self");
+    window.open(buildMailto(offer, hotel, shareUrl, emailTemplate), "_self");
 
     // Record in DB
     try {
@@ -181,7 +212,7 @@ export function useShareDialog(offer: Offer, onClose: () => void, onTokenCreated
     // Use temporary <a> elements to trigger mailto links without popup blocking
     for (const hotel of hotelsToSend) {
       const a = document.createElement("a");
-      a.href = buildMailto(offer, hotel, shareUrl);
+      a.href = buildMailto(offer, hotel, shareUrl, emailTemplate);
       a.target = "_blank";
       a.rel = "noopener";
       document.body.appendChild(a);

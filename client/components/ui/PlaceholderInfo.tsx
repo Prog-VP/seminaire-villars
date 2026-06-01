@@ -12,7 +12,8 @@ const COVER_PLACEHOLDERS = [
 ];
 
 const HOTEL_PLACEHOLDERS = [
-  { key: "{{OFFER_TEXT}}", desc: "Texte libre de l'offre hôtelière" },
+  { key: "{{TEXTE_OFFRE}}", desc: "Texte libre de l'offre hôtelière" },
+  { key: "{{HOTEL}}", desc: "Nom de l'hôtel" },
 ];
 
 type Props = {
@@ -59,7 +60,7 @@ export function PlaceholderInfo({ type }: Props) {
       {open && (
         <div className="absolute left-0 top-7 z-50 w-72 rounded-lg border border-slate-200 bg-white p-3 shadow-lg">
           <p className="mb-2 text-xs font-semibold text-slate-600">
-            Placeholders pour les templates .docx
+            Placeholders pour les slides PowerPoint
           </p>
           <p className="mb-3 text-[11px] text-slate-400">
             Cliquer pour copier

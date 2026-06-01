@@ -97,7 +97,7 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
   };
 
   const handleNavigate = (id: string) => {
-    window.open(`/offres/${id}`, "_blank");
+    router.push(`/offres/${id}`);
   };
 
   useEffect(() => {
@@ -218,7 +218,7 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
             {noResults && (
               <tr>
                 <td
-                  colSpan={columnConfig.visibleColumns.length + 3}
+                  colSpan={columnConfig.visibleColumns.length + 4}
                   className="px-6 py-8 text-center text-sm text-slate-500"
                 >
                   {errorMessage && data.length === 0

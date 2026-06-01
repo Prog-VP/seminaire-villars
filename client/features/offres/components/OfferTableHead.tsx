@@ -95,6 +95,7 @@ export function OfferTableHead({
         <th className="px-2 py-1.5">
           <AddColumnPopover hiddenColumns={hiddenColumns} onAdd={addColumn} onReset={resetToDefault} />
         </th>
+        <th className="px-2 py-1.5 text-right font-medium text-slate-400">Actions</th>
       </tr>
     </thead>
   );

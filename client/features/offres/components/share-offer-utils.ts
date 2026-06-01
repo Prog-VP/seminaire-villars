@@ -104,10 +104,16 @@ export const inputClass =
 // EUR conversion
 // ---------------------------------------------------------------------------
 
+export function normalizeEurChfRate(rate: number): number {
+  if (!Number.isFinite(rate) || rate <= 0) return 0;
+  return rate > 1 ? 1 / rate : rate;
+}
+
 export function chfToEur(chf: string, rate: number): string {
   const n = parseFloat(chf.replace(",", "."));
-  if (isNaN(n) || n === 0) return "";
-  return (n * rate).toFixed(2);
+  const eurChfRate = normalizeEurChfRate(rate);
+  if (isNaN(n) || n === 0 || eurChfRate <= 0) return "";
+  return (n / eurChfRate).toFixed(2);
 }
 
 // ---------------------------------------------------------------------------

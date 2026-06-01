@@ -43,6 +43,18 @@ export function getUserRedirectTo(origin: string) {
   return `${process.env.NEXT_PUBLIC_SITE_URL ?? origin}/reset-password`;
 }
 
+export function getUserConfirmUrl(
+  origin: string,
+  tokenHash: string,
+  type: "invite" | "recovery"
+) {
+  const url = new URL("/auth/confirm", process.env.NEXT_PUBLIC_SITE_URL ?? origin);
+  url.searchParams.set("token_hash", tokenHash);
+  url.searchParams.set("type", type);
+  url.searchParams.set("next", "/reset-password");
+  return url.toString();
+}
+
 export async function listAllAuthUsers(admin: AdminClient = createAdminClient()) {
   const users: User[] = [];
   let page = 1;

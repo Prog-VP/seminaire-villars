@@ -36,6 +36,7 @@ CREATE TABLE public.hotel_documents (
 CREATE TABLE public.hotel_responses (
    id uuid NOT NULL DEFAULT gen_random_uuid(),
    offer_id uuid NOT NULL,
+   hotel_id uuid,
    hotelName text NOT NULL,
    respondentName text,
    message text NOT NULL,
@@ -43,7 +44,8 @@ CREATE TABLE public.hotel_responses (
    offerText text,
    is_read boolean NOT NULL DEFAULT false,
    CONSTRAINT hotel_responses_pkey PRIMARY KEY (id),
-   CONSTRAINT hotel_responses_offer_id_fkey FOREIGN KEY (offer_id) REFERENCES public.offers(id)
+   CONSTRAINT hotel_responses_offer_id_fkey FOREIGN KEY (offer_id) REFERENCES public.offers(id),
+   CONSTRAINT hotel_responses_hotel_id_fkey FOREIGN KEY (hotel_id) REFERENCES public.hotels(id)
 );
 CREATE TABLE public.hotels (
    id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -53,6 +55,7 @@ CREATE TABLE public.hotels (
    created_at timestamp with time zone DEFAULT now(),
    destination text,
    slug text,
+   ppt_tag text,
    CONSTRAINT hotels_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.offer_brochures (

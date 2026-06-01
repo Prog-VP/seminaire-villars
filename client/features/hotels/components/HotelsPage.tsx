@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Hotel, HotelDocument } from "../types";
+import type { Hotel } from "../types";
 import {
   fetchHotels,
   createHotel,
@@ -9,13 +9,6 @@ import {
   deleteHotel,
   countOffersPerHotel,
 } from "../api";
-import {
-  fetchAllHotelDocuments,
-  uploadHotelDocument,
-  deleteHotelDocument,
-  downloadHotelDocument,
-} from "@/features/documents/api";
-import { downloadBlob } from "@/lib/download";
 import { PlaceholderInfo } from "@/components/ui/PlaceholderInfo";
 import { useSettings } from "@/features/settings/context";
 import { CreateHotelForm } from "./CreateHotelForm";
@@ -23,7 +16,6 @@ import { HotelRow } from "./HotelRow";
 
 export function HotelsPage() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
-  const [hotelDocs, setHotelDocs] = useState<HotelDocument[]>([]);
   const [offerCounts, setOfferCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,13 +27,11 @@ export function HotelsPage() {
     try {
       setIsLoading(true);
       setError(null);
-      const [hotelsData, docsData, counts] = await Promise.all([
+      const [hotelsData, counts] = await Promise.all([
         fetchHotels(),
-        fetchAllHotelDocuments(),
         countOffersPerHotel(),
       ]);
       setHotels(hotelsData);
-      setHotelDocs(docsData);
       setOfferCounts(counts);
     } catch (err) {
       setError(
@@ -81,7 +71,13 @@ export function HotelsPage() {
 
   const handleUpdate = async (
     id: string,
-    fields: { nom: string; email: string | null; email_cc: string | null; destination: string | null }
+    fields: {
+      nom: string;
+      email: string | null;
+      email_cc: string | null;
+      destination: string | null;
+      ppt_tag: string | null;
+    }
   ) => {
     const updated = await updateHotel(id, fields);
     setHotels((prev) => {
@@ -96,27 +92,6 @@ export function HotelsPage() {
   const handleDelete = async (id: string) => {
     await deleteHotel(id);
     setHotels((prev) => prev.filter((h) => h.id !== id));
-    setHotelDocs((prev) => prev.filter((d) => d.hotelId !== id));
-  };
-
-  const handleUploadDoc = async (hotelId: string, lang: string, file: File) => {
-    const doc = await uploadHotelDocument(hotelId, lang, file);
-    setHotelDocs((prev) => {
-      const filtered = prev.filter(
-        (d) => !(d.hotelId === hotelId && d.lang === lang)
-      );
-      return [...filtered, doc];
-    });
-  };
-
-  const handleDeleteDoc = async (doc: HotelDocument) => {
-    await deleteHotelDocument(doc.id, doc.filePath);
-    setHotelDocs((prev) => prev.filter((d) => d.id !== doc.id));
-  };
-
-  const handleDownloadDoc = async (doc: HotelDocument) => {
-    const blob = await downloadHotelDocument(doc.filePath);
-    downloadBlob(blob, doc.filePath.split("/").pop() ?? "document.docx");
   };
 
   return (
@@ -185,13 +160,13 @@ export function HotelsPage() {
                 </div>
               </th>
               <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Tag PPT
+              </th>
+              <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Email
               </th>
               <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 CC
-              </th>
-              <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Documents
               </th>
               <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Actions
@@ -224,16 +199,10 @@ export function HotelsPage() {
                 <HotelRow
                   key={hotel.id}
                   hotel={hotel}
-                  docs={hotelDocs.filter((d) => d.hotelId === hotel.id)}
                   destinations={destinations}
                   offerCount={offerCounts[hotel.id] ?? 0}
                   onSave={(fields) => handleUpdate(hotel.id, fields)}
                   onDelete={() => handleDelete(hotel.id)}
-                  onUploadDoc={(lang, file) =>
-                    handleUploadDoc(hotel.id, lang, file)
-                  }
-                  onDeleteDoc={handleDeleteDoc}
-                  onDownloadDoc={handleDownloadDoc}
                 />
               ))
             )}

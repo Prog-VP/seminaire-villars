@@ -8,7 +8,7 @@ export async function fetchOfferHotelSends(
   const data = throwOnError(
     await supabase()
       .from("offer_hotel_sends")
-      .select("id, offer_id, hotel_id, sent_at, hotels(nom, email)")
+      .select("id, offer_id, hotel_id, sent_at, hotels(nom, email, ppt_tag)")
       .eq("offer_id", offerId)
       .order("sent_at", { ascending: false })
   );
@@ -20,6 +20,7 @@ export async function fetchOfferHotelSends(
       hotelId: row.hotel_id as string,
       hotelName: (hotel?.nom as string) ?? "",
       hotelEmail: (hotel?.email as string) ?? null,
+      hotelPptTag: (hotel?.ppt_tag as string) ?? null,
       sentAt: row.sent_at as string,
     };
   });

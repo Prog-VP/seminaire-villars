@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { throwOnError } from "@/lib/supabase/helpers";
 import type { Hotel } from "./types";
+import { buildHotelPptTag, normalizeHotelPptTag } from "./utils";
 
 function supabase() {
   return createClient();
@@ -10,7 +11,7 @@ export async function fetchHotels(): Promise<Hotel[]> {
   const data = throwOnError(
     await supabase()
       .from("hotels")
-      .select("id, nom, email, email_cc, destination, created_at")
+      .select("id, nom, email, email_cc, destination, ppt_tag, created_at")
       .order("nom", { ascending: true })
   );
   return data ?? [];
@@ -25,8 +26,14 @@ export async function createHotel(
   const data = throwOnError(
     await supabase()
       .from("hotels")
-      .insert({ nom, email: email || null, email_cc: email_cc || null, destination: destination || null })
-      .select("id, nom, email, email_cc, destination, created_at")
+      .insert({
+        nom,
+        email: email || null,
+        email_cc: email_cc || null,
+        destination: destination || null,
+        ppt_tag: buildHotelPptTag(nom),
+      })
+      .select("id, nom, email, email_cc, destination, ppt_tag, created_at")
       .single()
   );
   if (!data) throw new Error("Création échouée.");
@@ -35,14 +42,28 @@ export async function createHotel(
 
 export async function updateHotel(
   id: string,
-  fields: { nom: string; email: string | null; email_cc: string | null; destination: string | null }
+  fields: {
+    nom: string;
+    email: string | null;
+    email_cc: string | null;
+    destination: string | null;
+    ppt_tag: string | null;
+  }
 ): Promise<Hotel> {
+  const pptTag =
+    normalizeHotelPptTag(fields.ppt_tag ?? "") || buildHotelPptTag(fields.nom);
   const data = throwOnError(
     await supabase()
       .from("hotels")
-      .update({ nom: fields.nom, email: fields.email || null, email_cc: fields.email_cc || null, destination: fields.destination || null })
+      .update({
+        nom: fields.nom,
+        email: fields.email || null,
+        email_cc: fields.email_cc || null,
+        destination: fields.destination || null,
+        ppt_tag: pptTag,
+      })
       .eq("id", id)
-      .select("id, nom, email, email_cc, destination, created_at")
+      .select("id, nom, email, email_cc, destination, ppt_tag, created_at")
       .single()
   );
   if (!data) throw new Error("Mise à jour échouée.");

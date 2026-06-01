@@ -67,6 +67,30 @@ export function OfferTableRow({
           {col.renderCell(offer, cellExtra)}
         </td>
       ))}
+      <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+        <a
+          href={`/offres/${offer.id}`}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+          title="Ouvrir dans un nouvel onglet"
+          aria-label="Ouvrir dans un nouvel onglet"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            className="h-4 w-4"
+            aria-hidden="true"
+          >
+            <path d="M14 4h6v6" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M20 4l-9 9" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </a>
+      </td>
     </tr>
   );
 }
