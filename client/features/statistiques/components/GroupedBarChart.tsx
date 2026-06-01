@@ -5,7 +5,6 @@ import { YearLegend } from "./YearLegend";
 export function GroupedBarChart({
   data,
   limit,
-  dim,
   activeValue,
   activeYears,
   allYears,
@@ -15,7 +14,7 @@ export function GroupedBarChart({
 }: {
   data: EvoDimData;
   limit?: number;
-  dim: Dimension;
+  dim?: Dimension;
   activeValue?: string;
   activeYears: YearFilters;
   allYears: number[];
@@ -64,7 +63,7 @@ export function GroupedBarChart({
                           style={{ height: h, backgroundColor: yearColor(y, allYears) }}
                         />
                         {v > 0 && (
-                          <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] tabular-nums text-slate-500 opacity-0 transition group-hover:opacity-100">
+                          <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-semibold tabular-nums text-slate-600">
                             {v}
                           </span>
                         )}

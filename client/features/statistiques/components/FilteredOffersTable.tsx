@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { Offer, OfferComment } from "@/features/offres/types";
 import type { Filters, MonthFilters, YearFilters } from "../types";
 import { PAGE_SIZE } from "../types";
@@ -16,16 +15,6 @@ const ExternalIcon = (
     <path d="M3.5 6.75c0-.69.56-1.25 1.25-1.25H7A.75.75 0 0 0 7 4H4.75A2.75 2.75 0 0 0 2 6.75v4.5A2.75 2.75 0 0 0 4.75 14h4.5A2.75 2.75 0 0 0 12 11.25V9a.75.75 0 0 0-1.5 0v2.25c0 .69-.56 1.25-1.25 1.25h-4.5c-.69 0-1.25-.56-1.25-1.25v-4.5Z" />
   </svg>
 );
-
-/* ── Boolean dot indicator ── */
-
-function BoolDot({ on }: { on?: boolean }) {
-  return on ? (
-    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" title="Oui" />
-  ) : (
-    <span className="inline-block h-2 w-2 rounded-full bg-slate-200" title="Non" />
-  );
-}
 
 /* ── Comments popover ── */
 
@@ -93,7 +82,7 @@ function CommentsPopover({ comments, societe }: { comments: OfferComment[]; soci
 
 /* ── Filtered offers table ── */
 
-export function FilteredOffersTable({ offers, hasFilters, filters, yearFilters, monthFilters, filteredOfferIds }: {
+export function FilteredOffersTable({ offers, hasFilters, filteredOfferIds }: {
   offers: Offer[];
   hasFilters: boolean;
   filters: Filters;
@@ -110,18 +99,19 @@ export function FilteredOffersTable({ offers, hasFilters, filters, yearFilters, 
     setPage(0);
   }
 
-  const router = useRouter();
-
   const totalPages = Math.ceil(offers.length / PAGE_SIZE);
   const paged = offers.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   /** Store filtered offer IDs, then open Offres page */
   const openInOffres = useCallback(() => {
     if (filteredOfferIds && filteredOfferIds.length > 0) {
-      localStorage.setItem("offer-filter-ids", JSON.stringify(filteredOfferIds));
+      const token = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(`offer-filter-ids:${token}`, JSON.stringify(filteredOfferIds));
+      window.open(`/offres?statsFilter=${encodeURIComponent(token)}`, "_blank");
+      return;
     }
     window.open("/offres", "_blank");
-  }, [filters, filteredOfferIds]);
+  }, [filteredOfferIds]);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">

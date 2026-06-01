@@ -23,9 +23,10 @@ import { ConfirmModal, DuplicateModal } from "./OfferModals";
 type OfferTableProps = {
   data: Offer[];
   errorMessage?: string | null;
+  statsFilterToken?: string | null;
 };
 
-export function OfferTable({ data, errorMessage }: OfferTableProps) {
+export function OfferTable({ data, errorMessage, statsFilterToken }: OfferTableProps) {
   const router = useRouter();
   const [showImport, setShowImport] = useState(false);
   const { settings } = useSettings();
@@ -46,15 +47,17 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
     sortedOffers,
     handleFilterChange: rawHandleFilterChange,
     handleResetFilters: rawHandleResetFilters,
+    handleClearStatsFilter,
     hotelOptions,
     anneeOptions,
     hasActiveFilters,
-  } = useOfferFiltering(data);
+    hasStatsFilter,
+    statsFilterCount,
+  } = useOfferFiltering(data, statsFilterToken);
 
   const {
     pageSize,
     setPageSize,
-    currentPage,
     setCurrentPage,
     totalPages,
     safePage,
@@ -92,6 +95,12 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
   };
 
   const handleResetFilters = () => {
+    rawHandleResetFilters();
+    setCurrentPage(1);
+  };
+
+  const handleShowAllOffers = () => {
+    handleClearStatsFilter();
     rawHandleResetFilters();
     setCurrentPage(1);
   };
@@ -149,6 +158,31 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
         </div>
       )}
 
+      {hasStatsFilter && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
+          <div>
+            <p className="text-sm font-semibold text-brand-900">Filtre statistiques actif</p>
+            <p className="text-xs text-brand-700">
+              {statsFilterCount > 0
+                ? "Affichage limité aux offres envoyées depuis l'onglet Statistiques."
+                : "Le filtre statistiques est présent, mais la liste d'offres n'a pas été retrouvée. Relancez depuis Statistiques."}
+              {statsFilterCount > 0 && (
+                <span className="ml-2 rounded-full bg-white/80 px-2 py-0.5 font-medium">
+                  {statsFilterCount} offre{statsFilterCount > 1 ? "s" : ""}
+                </span>
+              )}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleShowAllOffers}
+            className="inline-flex items-center rounded-lg border border-brand-200 bg-white px-3 py-1.5 text-sm font-medium text-brand-800 transition hover:bg-brand-100"
+          >
+            Annuler le filtre stats
+          </button>
+        </div>
+      )}
+
       <div className="mb-6">
         <OfferFilters
           filters={filters}
@@ -173,7 +207,7 @@ export function OfferTable({ data, errorMessage }: OfferTableProps) {
         <div className="mb-4 flex items-center gap-3">
           <p className="text-sm text-slate-500">
             {totalFiltered} résultat{totalFiltered > 1 ? "s" : ""} sur{" "}
-            {data.length}
+            {hasStatsFilter ? statsFilterCount : data.length}
           </p>
           <button
             type="button"

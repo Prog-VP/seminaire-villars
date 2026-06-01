@@ -13,6 +13,7 @@ import { EvolutionTable } from "./EvolutionTable";
 import { MonthlyGroupedChart } from "./MonthlyGroupedChart";
 import { FilteredOffersTable } from "./FilteredOffersTable";
 import { HotelStatsTab } from "./HotelStatsTab";
+import { YearTotalChart } from "./YearTotalChart";
 
 type StatsBoardProps = {
   offers: Offer[];
@@ -36,7 +37,6 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
     toggleMonthFilter,
     clearFilter,
     clearMonthFilter,
-    toggleYearFilter,
     clearAllFilters,
   } = useStatsFilters();
 
@@ -173,6 +173,16 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
     [offers, applyFilters],
   );
 
+  const envoiYearTotals = useMemo(() => {
+    const totals: Record<number, number> = {};
+    for (const offer of applyFilters(offers)) {
+      const year = getYear(offer.dateEnvoiOffre);
+      if (!year) continue;
+      totals[year] = (totals[year] ?? 0) + 1;
+    }
+    return totals;
+  }, [offers, applyFilters]);
+
   /* ── Graph visibility (URL param "hide") ── */
 
   const hiddenDims = useMemo(() => {
@@ -287,8 +297,8 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
       {/* Graph visibility selector */}
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs font-medium text-slate-400 mr-1">Afficher :</span>
-        {["mEnvoi", "mSejour"].map((key) => {
-          const label = key === "mEnvoi" ? "Mois envoi" : "Mois séjour";
+        {["totalEnvoi", "mEnvoi", "mSejour"].map((key) => {
+          const label = key === "totalEnvoi" ? "Total annuel" : key === "mEnvoi" ? "Mois envoi" : "Mois séjour";
           const isOn = !hiddenDims.has(key as Dimension);
           return (
             <button
@@ -326,6 +336,24 @@ export function StatsBoard({ offers, errorMessage }: StatsBoardProps) {
 
       {/* Monthly evolution (stacked) */}
       <div className="grid gap-5">
+        {!hiddenDims.has("totalEnvoi" as Dimension) && (
+          <Section
+            title="Total des demandes par année — Dates d'envoi"
+            filterActive={(getChartYearFilters("mEnvoi")?.size ?? 0) > 0}
+            onClear={() => {
+              if ((getChartYearFilters("mEnvoi")?.size ?? 0) > 0) {
+                setChartYearFilters((prev) => ({ ...prev, mEnvoi: new Set<number>() }));
+              }
+            }}
+          >
+            <YearTotalChart
+              totals={envoiYearTotals}
+              activeYears={getChartYearFilters("mEnvoi")}
+              allYears={allYears}
+              onClickYear={(y) => toggleChartYearFilter("mEnvoi", y)}
+            />
+          </Section>
+        )}
         {!hiddenDims.has("mEnvoi" as Dimension) && (
           <Section
             title="Évolution mensuelle — Dates d'envoi"

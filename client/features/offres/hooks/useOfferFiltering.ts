@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { Offer } from "../types";
 import { normalizeStatut } from "../utils";
 
@@ -245,7 +246,8 @@ function getSortValue(offer: Offer, key: SortKey) {
   }
 }
 
-function loadFilters(): OfferFiltersState {
+function loadFilters(hasStatsFilter: boolean): OfferFiltersState {
+  if (hasStatsFilter) return { ...INITIAL_FILTERS };
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (raw) return { ...INITIAL_FILTERS, ...JSON.parse(raw) };
@@ -253,7 +255,8 @@ function loadFilters(): OfferFiltersState {
   return { ...INITIAL_FILTERS };
 }
 
-function loadSort(): SortConfig {
+function loadSort(hasStatsFilter: boolean): SortConfig {
+  if (hasStatsFilter) return { key: "numeroOffre", direction: "desc" };
   try {
     const raw = sessionStorage.getItem(SORT_STORAGE_KEY);
     if (raw) return JSON.parse(raw);
@@ -263,22 +266,49 @@ function loadSort(): SortConfig {
 
 const IDS_STORAGE_KEY = "offer-filter-ids";
 
-export function useOfferFiltering(data: Offer[]) {
-  const [filters, setFilters] = useState<OfferFiltersState>(loadFilters);
-  const [sortConfig, setSortConfig] = useState<SortConfig>(loadSort);
+function loadStatsIds(statsFilterToken?: string | null): Set<string> | null {
+  if (typeof window === "undefined") return null;
+  if (!statsFilterToken) return null;
+  try {
+    const key = `${IDS_STORAGE_KEY}:${statsFilterToken}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const ids = JSON.parse(raw) as string[];
+    return ids.length > 0 ? new Set(ids) : null;
+  } catch {
+    return null;
+  }
+}
 
-  // One-shot: load IDs from stats page, then clear
+function clearStoredStatsIds(statsFilterToken?: string | null) {
+  if (typeof window === "undefined") return;
+  if (!statsFilterToken) return;
+  localStorage.removeItem(`${IDS_STORAGE_KEY}:${statsFilterToken}`);
+}
+
+export function useOfferFiltering(data: Offer[], statsFilterToken?: string | null) {
+  const searchParams = useSearchParams();
+  const effectiveStatsFilterToken = statsFilterToken ?? searchParams.get("statsFilter");
+  const hasInitialStatsFilter = Boolean(effectiveStatsFilterToken);
+  const [filters, setFilters] = useState<OfferFiltersState>(() => loadFilters(hasInitialStatsFilter));
+  const [sortConfig, setSortConfig] = useState<SortConfig>(() => loadSort(hasInitialStatsFilter));
   const [statsIds, setStatsIds] = useState<Set<string> | null>(null);
+  const [hasStatsFilterRequestState, setHasStatsFilterRequestState] = useState(hasInitialStatsFilter);
+
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(IDS_STORAGE_KEY);
-      if (raw) {
-        localStorage.removeItem(IDS_STORAGE_KEY);
-        const ids = JSON.parse(raw) as string[];
-        if (ids.length > 0) setStatsIds(new Set(ids));
+    const timeout = window.setTimeout(() => {
+      if (!effectiveStatsFilterToken) {
+        setStatsIds(null);
+        setHasStatsFilterRequestState(false);
+        return;
       }
-    } catch {}
-  }, []);
+      setFilters({ ...INITIAL_FILTERS });
+      setSortConfig({ key: "numeroOffre", direction: "desc" });
+      setStatsIds(loadStatsIds(effectiveStatsFilterToken));
+      setHasStatsFilterRequestState(true);
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [effectiveStatsFilterToken]);
 
   useEffect(() => {
     const isDefault = JSON.stringify(filters) === JSON.stringify(INITIAL_FILTERS);
@@ -291,8 +321,11 @@ export function useOfferFiltering(data: Offer[]) {
   }, [sortConfig]);
 
   const baseOffers = useMemo(
-    () => statsIds ? data.filter((o) => statsIds.has(o.id)) : data,
-    [data, statsIds]
+    () => {
+      if (statsIds) return data.filter((o) => statsIds.has(o.id));
+      return hasStatsFilterRequestState ? [] : data;
+    },
+    [data, hasStatsFilterRequestState, statsIds]
   );
 
   const filteredOffers = useMemo(
@@ -340,6 +373,11 @@ export function useOfferFiltering(data: Offer[]) {
   };
 
   const handleResetFilters = useCallback(() => setFilters({ ...INITIAL_FILTERS }), []);
+  const handleClearStatsFilter = useCallback(() => {
+    clearStoredStatsIds(effectiveStatsFilterToken);
+    setStatsIds(null);
+    setHasStatsFilterRequestState(false);
+  }, [effectiveStatsFilterToken]);
 
   const handleSort = (key: SortKey) => {
     setSortConfig((cur) =>
@@ -350,6 +388,20 @@ export function useOfferFiltering(data: Offer[]) {
   };
 
   const hasActiveFilters = JSON.stringify(filters) !== JSON.stringify(INITIAL_FILTERS);
+  const hasStatsFilter = statsIds !== null || hasStatsFilterRequestState;
 
-  return { filters, sortConfig, handleSort, sortedOffers, handleFilterChange, handleResetFilters, hotelOptions, anneeOptions, hasActiveFilters };
+  return {
+    filters,
+    sortConfig,
+    handleSort,
+    sortedOffers,
+    handleFilterChange,
+    handleResetFilters,
+    handleClearStatsFilter,
+    hotelOptions,
+    anneeOptions,
+    hasActiveFilters,
+    hasStatsFilter,
+    statsFilterCount: statsIds?.size ?? 0,
+  };
 }
