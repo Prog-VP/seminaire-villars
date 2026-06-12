@@ -41,13 +41,8 @@ export async function deleteMasterPowerPoint(): Promise<void> {
   if (!response.ok) throw new Error(payload.error ?? "Impossible de supprimer le document MASTER.");
 }
 
-export async function downloadMasterPowerPoint(): Promise<Blob> {
-  const response = await fetch("/api/document-master-ppt?download=1");
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as { error?: string };
-    throw new Error(payload.error ?? "Téléchargement échoué.");
-  }
-  return response.blob();
+export async function downloadMasterPowerPoint(): Promise<void> {
+  window.location.assign("/api/document-master-ppt?download=1");
 }
 
 export async function saveOfferText(

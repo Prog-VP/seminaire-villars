@@ -72,21 +72,16 @@ export async function GET(request: Request) {
       const supabase = createAdminClient();
       const { data, error } = await supabase.storage
         .from("document-blocks")
-        .download(master.file_path);
+        .createSignedUrl(master.file_path, 60, { download: master.name });
 
-      if (error || !data) {
+      if (error || !data?.signedUrl) {
         return NextResponse.json(
-          { error: error?.message ?? "Téléchargement échoué." },
+          { error: error?.message ?? "Impossible de créer le lien de téléchargement." },
           { status: 500 }
         );
       }
 
-      return new NextResponse(data, {
-        headers: {
-          "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-          "Content-Disposition": `attachment; filename="${master.name.replace(/"/g, "")}"`,
-        },
-      });
+      return NextResponse.redirect(data.signedUrl);
     }
 
     return NextResponse.json({ master: master ? mapMaster(master) : null });

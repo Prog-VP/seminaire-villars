@@ -8,7 +8,6 @@ import {
   fetchMasterPowerPoint,
   uploadMasterPowerPoint,
 } from "../api";
-import { downloadBlob } from "@/lib/download";
 
 export function DocumentBlocksPage() {
   const [master, setMaster] = useState<DocumentBlock | null>(null);
@@ -60,8 +59,7 @@ export function DocumentBlocksPage() {
     if (!master) return;
     try {
       setError(null);
-      const blob = await downloadMasterPowerPoint();
-      downloadBlob(blob, master.name || "MASTER.pptx");
+      await downloadMasterPowerPoint();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de télécharger le document MASTER.");
     }
