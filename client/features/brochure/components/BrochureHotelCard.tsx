@@ -1,7 +1,7 @@
 "use client";
 
 import type { BrochureSection } from "../types";
-import { brochureImageUrl } from "../utils";
+import { BrochureImage } from "./BrochureImage";
 
 type Props = {
   section: BrochureSection;
@@ -15,8 +15,8 @@ export function BrochureHotelCard({ section }: Props) {
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm print:break-inside-avoid print:shadow-none print:border-slate-300">
       {heroImage && (
-        <img
-          src={brochureImageUrl(heroImage)}
+        <BrochureImage
+          src={heroImage}
           alt={section.title}
           className="h-48 w-full object-cover md:h-56 print:h-40"
         />
@@ -91,6 +91,12 @@ export function BrochureHotelCard({ section }: Props) {
                   </span>
                 </div>
               )}
+              {responseData.taxeIncluse && (
+                <div>
+                  <span className="text-slate-500">Taxe de séjour : </span>
+                  <span className="font-medium text-slate-900">incluse dans le prix</span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -130,9 +136,9 @@ export function BrochureHotelCard({ section }: Props) {
         {section.images.length > 1 && (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {section.images.slice(1).map((img, i) => (
-              <img
+              <BrochureImage
                 key={i}
-                src={brochureImageUrl(img)}
+                src={img}
                 alt={`${section.title} ${i + 2}`}
                 className="h-32 w-full rounded-lg object-cover"
               />

@@ -79,7 +79,7 @@ describe("isTemplateValid", () => {
     priceSimpleChf: "", priceDoubleChf: "",
     demiPensionChf: "", pensionCompleteChf: "",
     forfaitJourneeChf: "", forfaitDemiJourneeChf: "",
-    taxeChf: "", commentaire: "",
+    taxeChf: "", taxeIncluse: false, commentaire: "",
     disponible: false,
   };
 
@@ -176,5 +176,15 @@ describe("buildTemplateMessage", () => {
     };
     const msg = buildTemplateMessage(state, "fr", 0.92, baseOpts);
     expect(msg).not.toContain("CHF");
+  });
+
+  it("uses included tourist tax wording instead of a separate amount", () => {
+    const msg = buildTemplateMessage(
+      makeState({ taxeChf: "5", taxeIncluse: true }),
+      "fr", 0.92,
+      baseOpts,
+    );
+    expect(msg).toContain("Taxe de séjour incluse dans le prix");
+    expect(msg).not.toContain("Taxe de séjour (CHF)");
   });
 });

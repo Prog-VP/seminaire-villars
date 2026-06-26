@@ -13,8 +13,9 @@ import {
 } from "@/features/offres/api";
 import { BackButton } from "@/components/navigation/BackButton";
 import { EditOfferForm } from "./EditOfferForm";
-import { OfferMetaGrid, SUB_GROUPS, parseSection, type SubGroupKey } from "./OfferMetaGrid";
+import { OfferMetaGrid, parseSection, type SubGroupKey } from "./OfferMetaGrid";
 import { OfferDetailHeader } from "./OfferDetailHeader";
+import { OfferDetailTabs } from "./OfferDetailTabs";
 import { HotelResponsesPanel } from "./HotelResponsesPanel";
 import { OfferAttachmentsPanel } from "./OfferAttachmentsPanel";
 import { OfferCommentsPanel } from "./OfferCommentsPanel";
@@ -23,18 +24,12 @@ import { OfferNavArrows } from "./OfferNavArrows";
 import { GenerateOfferDocTab } from "@/features/documents/components/GenerateOfferDocTab";
 import { getErrorMessage } from "@/lib/format";
 import type { Offer, OfferAttachment, OfferComment, OfferHotelSend } from "../types";
+import { parseOfferDetailTab, type OfferDetailTab } from "./offer-detail-tabs";
 
 type OfferDetailProps = {
   offer?: Offer | null;
   offerId?: string;
 };
-
-const VALID_TABS = ["details", "responses", "attachments", "comments", "document"] as const;
-type Tab = (typeof VALID_TABS)[number];
-
-function parseTab(value: string | null): Tab {
-  return VALID_TABS.includes(value as Tab) ? (value as Tab) : "details";
-}
 
 export function OfferDetail({ offer, offerId }: OfferDetailProps) {
   const router = useRouter();
@@ -51,21 +46,21 @@ export function OfferDetail({ offer, offerId }: OfferDetailProps) {
     }
   }, [currentOffer, notifications, markAsRead]);
   const [isEditing, setIsEditing] = useState(false);
-  const activeTab = parseTab(searchParams.get("tab"));
+  const activeTab = parseOfferDetailTab(searchParams.get("tab"));
   const activeSection = parseSection(searchParams.get("section"));
 
   const navigate = useCallback(
-    (tab: Tab, section?: SubGroupKey) => {
+    (tab: OfferDetailTab, section?: SubGroupKey) => {
       const params = new URLSearchParams(searchParams.toString());
       if (tab === "details") { params.delete("tab"); } else { params.set("tab", tab); }
       if (!section || section === "societe") { params.delete("section"); } else { params.set("section", section); }
-      const qs = params.toString();
-      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+      const queryString = params.toString();
+      router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`, { scroll: false });
     },
     [router, pathname, searchParams]
   );
 
-  const setActiveTab = useCallback((tab: Tab) => navigate(tab), [navigate]);
+  const setActiveTab = useCallback((tab: OfferDetailTab) => navigate(tab), [navigate]);
   const setActiveSection = useCallback((section: SubGroupKey) => navigate("details", section), [navigate]);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(
@@ -129,35 +124,32 @@ export function OfferDetail({ offer, offerId }: OfferDetailProps) {
     setMessage,
   });
 
-  const handleShareLink = () => {
-    if (!currentOffer) return;
-    setActiveTab("responses");
-    setIsShareDialogOpen(true);
-  };
-
-// Auto-refresh hotel responses when entering the tab
-const loadResponses = useCallback(async () => {
-  if (!currentOffer) return;
-  try {
-    const latest = await fetchOfferById(currentOffer.id);
-    if (latest) {
-      setCurrentOffer(latest);
-    }
-  } catch {
-    // silent — will show stale data
-  }
-}, [currentOffer?.id]);
-
-const initialTabSkipped = useRef(false);
-useEffect(() => {
-  if (activeTab === "details" || activeTab === "responses" || activeTab === "document") {
+  const offerIdToRefresh = currentOffer?.id;
+  const initialTabSkipped = useRef(false);
+  useEffect(() => {
+    if (activeTab !== "details" && activeTab !== "responses" && activeTab !== "document") return;
+    if (!offerIdToRefresh) return;
     if (!initialTabSkipped.current) {
       initialTabSkipped.current = true;
       return;
     }
-    loadResponses();
-  }
-}, [activeTab, loadResponses]);
+
+    let isCancelled = false;
+    void (async () => {
+      try {
+        const latest = await fetchOfferById(offerIdToRefresh);
+        if (latest && !isCancelled) {
+          setCurrentOffer(latest);
+        }
+      } catch {
+        // Keep stale data if the background refresh fails.
+      }
+    })();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeTab, offerIdToRefresh]);
 
 
 useEffect(() => {
@@ -193,77 +185,16 @@ useEffect(() => {
         message={message}
       />
 
-      <nav className="relative flex items-center overflow-x-auto border-b border-slate-200 -mx-4 px-4 sm:mx-0 sm:px-0">
-        {/* Detail sub-sections — pill group */}
-        <div className={`inline-flex shrink-0 rounded-lg bg-slate-100 p-0.5 ${isEditing ? "opacity-50 pointer-events-none" : ""}`}>
-          {(currentOffer.activiteUniquement
-            ? SUB_GROUPS.filter((g) => g.key !== "seminaire")
-            : SUB_GROUPS
-          ).map((group) => {
-            const isActive = activeTab === "details" && activeSection === group.key;
-            return (
-              <button
-                key={group.key}
-                type="button"
-                onClick={() => { setActiveSection(group.key); }}
-                className={`rounded-md px-2 py-1.5 text-xs font-medium transition-all whitespace-nowrap sm:px-2.5 sm:text-sm ${
-                  isActive
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {group.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Separator */}
-        <div className="mx-2 h-5 w-px shrink-0 bg-slate-200 sm:mx-3" />
-
-        {/* Main tabs */}
-        {(currentOffer.activiteUniquement
-          ? [{ key: "attachments", label: "Annexes" }, { key: "comments", label: "Commentaires" }]
-          : [{ key: "responses", label: "Hôtels" }, { key: "document", label: "Document" }, { key: "attachments", label: "Annexes" }, { key: "comments", label: "Commentaires" }]
-        ).map(({ key: tabKey, label }) => {
-          const isActive = activeTab === tabKey;
-          const badge =
-            tabKey === "responses" ? (currentOffer.hotelResponses?.length || null) :
-            tabKey === "attachments" ? (attachmentBadgeCount || null) :
-            tabKey === "comments" ? (comments.length || null) : null;
-          return (
-            <button
-              key={tabKey}
-              type="button"
-              disabled={isEditing}
-              onClick={() => setActiveTab(tabKey as Tab)}
-              className={`relative shrink-0 px-2.5 py-2.5 text-xs font-medium transition-colors sm:px-3 sm:text-sm ${
-                isEditing
-                  ? "cursor-not-allowed text-slate-300"
-                  : isActive
-                    ? "text-brand-900"
-                    : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              {label}
-              {badge ? (
-                <span
-                  className={`ml-1 inline-flex min-w-[1.1rem] items-center justify-center rounded-full px-1 py-0.5 text-[10px] font-semibold leading-none ${
-                    isActive
-                      ? "bg-brand-900/10 text-brand-900"
-                      : "bg-slate-100 text-slate-500"
-                  }`}
-                >
-                  {badge}
-                </span>
-              ) : null}
-              {isActive && (
-                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-brand-900" />
-              )}
-            </button>
-          );
-        })}
-      </nav>
+      <OfferDetailTabs
+        offer={currentOffer}
+        activeTab={activeTab}
+        activeSection={activeSection}
+        isEditing={isEditing}
+        attachmentBadgeCount={attachmentBadgeCount}
+        commentsCount={comments.length}
+        onTabChange={setActiveTab}
+        onSectionChange={setActiveSection}
+      />
 
       {activeTab === "details" ? (
         isEditing ? (

@@ -111,7 +111,6 @@ export function OfferDetailHeader({
           </p>
           {(() => {
             const eff = getEffectiveDates(offer);
-            const firstOpt = offer.dateOptions?.[0];
             return (
               <p className="text-base font-semibold text-slate-900">
                 {eff.du

@@ -5,7 +5,10 @@ import type { Offer, HotelResponse, OfferHotelSend } from "@/features/offres/typ
 import type { Hotel } from "@/features/hotels/types";
 import { fetchHotels } from "@/features/hotels/api";
 import { saveOfferText, saveResponseHotel } from "@/features/documents/api";
+import { buildAvailableOfferText } from "@/features/offres/utils";
 import { downloadBlob } from "@/lib/download";
+import { OfferDocumentCriteriaCards } from "./OfferDocumentCriteriaCards";
+import { OfferDocumentResponseList } from "./OfferDocumentResponseList";
 
 type GenerateOfferDocTabProps = {
   offer: Offer;
@@ -95,9 +98,7 @@ export function GenerateOfferDocTab({
         "";
       nextOfferTexts[response.id] =
         responseOfferTexts[response.id] ??
-        response.offerText ??
-        response.message ??
-        "";
+        buildAvailableOfferText(response.offerText ?? response.message);
     }
 
     setResponseHotelIds(nextHotelIds);
@@ -141,6 +142,22 @@ export function GenerateOfferDocTab({
     }
   };
 
+  const handleIncludedChange = (responseId: string, included: boolean) => {
+    setExcludedResponseIds((prev) => {
+      const next = new Set(prev);
+      if (included) next.delete(responseId);
+      else next.add(responseId);
+      return next;
+    });
+  };
+
+  const handleOfferTextChange = (responseId: string, text: string) => {
+    setResponseOfferTexts((prev) => ({
+      ...prev,
+      [responseId]: text,
+    }));
+  };
+
   const criteria = useMemo(
     () => ({
       lang: normalizeLangLabel(offer.langue),
@@ -171,20 +188,24 @@ export function GenerateOfferDocTab({
 
   const includedResponseCount = useMemo(
     () =>
-      hotelResponses.filter((hotelResponse) => hotelResponse.id && !excludedResponseIds.has(hotelResponse.id)).length,
-    [excludedResponseIds, hotelResponses]
+      hotelResponses.filter((hotelResponse) => {
+        if (!hotelResponse.id || excludedResponseIds.has(hotelResponse.id)) return false;
+        return buildAvailableOfferText(responseOfferTexts[hotelResponse.id]).length > 0;
+      }).length,
+    [excludedResponseIds, hotelResponses, responseOfferTexts]
   );
 
   const duplicateIncludedHotelIds = useMemo(() => {
     const counts = new Map<string, number>();
     for (const response of hotelResponses) {
       if (!response.id || excludedResponseIds.has(response.id)) continue;
+      if (!buildAvailableOfferText(responseOfferTexts[response.id])) continue;
       const hotelId = responseHotelIds[response.id];
       if (!hotelId) continue;
       counts.set(hotelId, (counts.get(hotelId) ?? 0) + 1);
     }
     return new Set([...counts].filter(([, count]) => count > 1).map(([hotelId]) => hotelId));
-  }, [excludedResponseIds, hotelResponses, responseHotelIds]);
+  }, [excludedResponseIds, hotelResponses, responseHotelIds, responseOfferTexts]);
 
   const handleGenerate = async () => {
     try {
@@ -199,11 +220,17 @@ export function GenerateOfferDocTab({
           responseHotels: hotelResponses
             .filter((hotelResponse) => hotelResponse.id)
             .filter((hotelResponse) => !excludedResponseIds.has(hotelResponse.id!))
-            .map((hotelResponse) => ({
-              responseId: hotelResponse.id!,
-              hotelId: responseHotelIds[hotelResponse.id!] || null,
-              offerText: responseOfferTexts[hotelResponse.id!] ?? hotelResponse.offerText ?? hotelResponse.message ?? "",
-            })),
+            .map((hotelResponse) => {
+              const responseId = hotelResponse.id!;
+              return {
+                responseId,
+                hotelId: responseHotelIds[responseId] || null,
+                offerText: buildAvailableOfferText(
+                  responseOfferTexts[responseId] ?? hotelResponse.offerText ?? hotelResponse.message,
+                ),
+              };
+            })
+            .filter((hotelResponse) => hotelResponse.offerText.length > 0),
         }),
       });
 
@@ -245,114 +272,25 @@ export function GenerateOfferDocTab({
         </button>
       </div>
 
-      <div className="mt-5 grid gap-3 text-sm sm:grid-cols-4">
-        <div className="rounded-lg bg-slate-50 px-3 py-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Langue</p>
-          <p className="mt-1 font-medium text-slate-700">{criteria.lang}</p>
-        </div>
-        <div className="rounded-lg bg-slate-50 px-3 py-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Destination</p>
-          <p className="mt-1 font-medium text-slate-700">{criteria.destination}</p>
-        </div>
-        <div className="rounded-lg bg-slate-50 px-3 py-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Saison</p>
-          <p className="mt-1 font-medium text-slate-700">
-            {criteria.seasons.length ? criteria.seasons.join(", ") : "ALL"}
-          </p>
-        </div>
-        <div className="rounded-lg bg-slate-50 px-3 py-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Hôtels inclus</p>
-          <p className="mt-1 font-medium text-slate-700">{includedResponseCount} / {criteria.hotelsCount}</p>
-        </div>
-      </div>
+      <OfferDocumentCriteriaCards
+        criteria={criteria}
+        includedResponseCount={includedResponseCount}
+      />
 
-      {hotelResponses.length > 0 && (
-        <div className="mt-5 space-y-3">
-          {hotelResponses.map((response) => (
-            <div key={response.id ?? response.hotelName} className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900">
-                    Réponse de {response.hotelName}
-                  </p>
-                  {response.respondentName && (
-                    <p className="text-xs text-slate-500">{response.respondentName}</p>
-                  )}
-                </div>
-                {response.id && (
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <select
-                      value={responseHotelIds[response.id] ?? ""}
-                      onChange={(e) => void handleResponseHotelChange(response.id!, e.target.value)}
-                      className="min-w-56 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                    >
-                      <option value="">Associer à un hôtel...</option>
-                      {sortedHotels.map((hotel) => (
-                        <option key={hotel.id} value={hotel.id}>
-                          {hotel.destination ? `${hotel.destination} - ` : ""}{hotel.nom}{hotel.ppt_tag ? ` (${hotel.ppt_tag})` : ""}
-                        </option>
-                      ))}
-                    </select>
-                    <label className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={!excludedResponseIds.has(response.id)}
-                        onChange={(event) => {
-                          const checked = event.target.checked;
-                          setExcludedResponseIds((prev) => {
-                            const next = new Set(prev);
-                            if (checked) next.delete(response.id!);
-                            else next.add(response.id!);
-                            return next;
-                          });
-                        }}
-                        className="h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-500"
-                      />
-                      Inclure
-                    </label>
-                  </div>
-                )}
-              </div>
-              {response.id &&
-                !excludedResponseIds.has(response.id) &&
-                responseHotelIds[response.id] &&
-                duplicateIncludedHotelIds.has(responseHotelIds[response.id]) && (
-                  <p className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-700">
-                    Plusieurs réponses incluses pointent vers le même hôtel. Les slides hôtel seront incluses une seule fois.
-                  </p>
-                )}
-              {response.id && savingHotelIds.has(response.id) && (
-                <p className="mt-1 text-[11px] text-slate-400">Association sauvegardée...</p>
-              )}
-
-              {response.id && (
-                <div className="mt-3">
-                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-brand-700">
-                    Texte pour l&apos;offre
-                  </label>
-                  <textarea
-                    value={responseOfferTexts[response.id] ?? ""}
-                    onChange={(e) =>
-                      setResponseOfferTexts((prev) => ({
-                        ...prev,
-                        [response.id!]: e.target.value,
-                      }))
-                    }
-                    onBlur={() => void handleOfferTextBlur(response.id!)}
-                    rows={4}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                  />
-                  <p className="mt-1 text-[11px] text-slate-400">
-                    {savingTextIds.has(response.id)
-                      ? "Sauvegarde..."
-                      : "Utilisé par {{TEXTE_OFFRE}} sur les slides de l'hôtel associé."}
-                  </p>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      <OfferDocumentResponseList
+        hotelResponses={hotelResponses}
+        responseHotelIds={responseHotelIds}
+        responseOfferTexts={responseOfferTexts}
+        sortedHotels={sortedHotels}
+        excludedResponseIds={excludedResponseIds}
+        duplicateIncludedHotelIds={duplicateIncludedHotelIds}
+        savingHotelIds={savingHotelIds}
+        savingTextIds={savingTextIds}
+        onHotelChange={(responseId, hotelId) => void handleResponseHotelChange(responseId, hotelId)}
+        onIncludedChange={handleIncludedChange}
+        onOfferTextChange={handleOfferTextChange}
+        onOfferTextBlur={(responseId) => void handleOfferTextBlur(responseId)}
+      />
 
       {error && (
         <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">

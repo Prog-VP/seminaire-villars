@@ -173,7 +173,7 @@ export function GlobalSearch() {
   const showDropdown = open && query.trim().length >= 2;
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-md">
+    <div ref={containerRef} className="relative w-full max-w-sm">
       <div className="relative">
         <svg
           xmlns="http://www.w3.org/2000/svg"

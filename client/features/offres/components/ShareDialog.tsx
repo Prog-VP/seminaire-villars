@@ -34,7 +34,6 @@ export function ShareDialog({ offer, onClose, onTokenCreated }: Props) {
     toggleSelectAll,
     handleCopyLink,
     handleSendOne,
-    handleSendAll,
     handleDeleteSend,
     selectedHotels,
   } = useShareDialog(offer, onClose, onTokenCreated);

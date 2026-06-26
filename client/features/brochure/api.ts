@@ -112,7 +112,7 @@ export async function createOfferBrochure(
 ): Promise<OfferBrochure> {
   // 1. Fetch the base template
   const template = await fetchBrochureTemplate(destination, lang);
-  let sections: BrochureSection[] = template
+  const sections: BrochureSection[] = template
     ? JSON.parse(JSON.stringify(template.sections))
     : [];
 

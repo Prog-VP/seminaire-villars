@@ -90,25 +90,38 @@ export function EvolutionTable({
                   const v = row.yearCounts[y] ?? 0;
                   const intensity = maxCell > 0 ? v / maxCell : 0;
                   const isCellActive = isRowActive && activeYear === y;
+                  const showYearShare = dim === "statut";
+                  const valueWrapperClassName = showYearShare
+                    ? "inline-grid w-[82px] grid-cols-[32px_42px] items-center justify-end gap-1.5"
+                    : "inline-flex items-center justify-end gap-1.5";
                   return (
                     <td key={y} className="px-2 py-1.5 text-right tabular-nums">
                       {v > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => onClickCell?.(row.label, y)}
-                          title={`Voir les ${v} offres — ${row.label} (${y})`}
-                          className={`inline-block min-w-[28px] rounded px-1.5 py-0.5 text-xs font-medium transition hover:ring-2 hover:ring-brand-300 ${
-                            isCellActive ? "ring-2 ring-brand-500 scale-110" : ""
-                          }`}
-                          style={{
-                            backgroundColor: `color-mix(in srgb, ${yearColor(y, allYears)} ${Math.max(15, intensity * 55)}%, transparent)`,
-                            color: intensity > 0.4 ? "white" : undefined,
-                          }}
-                        >
-                          {v}
-                        </button>
+                        <span className={valueWrapperClassName}>
+                          <button
+                            type="button"
+                            onClick={() => onClickCell?.(row.label, y)}
+                            title={`Voir les ${v} offres — ${row.label} (${y})`}
+                            className={`inline-block min-w-[28px] justify-self-end rounded px-1.5 py-0.5 text-xs font-medium transition hover:ring-2 hover:ring-brand-300 ${
+                              isCellActive ? "ring-2 ring-brand-500 scale-110" : ""
+                            }`}
+                            style={{
+                              backgroundColor: `color-mix(in srgb, ${yearColor(y, allYears)} ${Math.max(15, intensity * 55)}%, transparent)`,
+                              color: intensity > 0.4 ? "white" : undefined,
+                            }}
+                          >
+                            {v}
+                          </button>
+                          {showYearShare && (
+                            <span className="text-left text-[11px] font-semibold text-slate-400">
+                              {pct(v, visYearTotals[y])}%
+                            </span>
+                          )}
+                        </span>
                       ) : (
-                        <span className="text-xs text-slate-300">—</span>
+                        <span className={showYearShare ? valueWrapperClassName : "text-xs text-slate-300"}>
+                          <span className={`text-xs text-slate-300 ${showYearShare ? "justify-self-end" : ""}`}>—</span>
+                        </span>
                       )}
                     </td>
                   );

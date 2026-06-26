@@ -5,6 +5,31 @@ import { mapRow } from "./mappers";
 import { listOfferAttachments } from "./attachments";
 import { fetchOfferHotelSends } from "./hotel-sends";
 
+const OFFER_MUTATION_EXCLUDED_FIELDS: (keyof Offer)[] = [
+  "id",
+  "numeroOffre",
+  "hotelResponses",
+  "comments",
+  "attachmentsCount",
+  "hotelSendsCount",
+  "hotelSendsNames",
+];
+
+const OFFER_DUPLICATION_EXCLUDED_FIELDS: (keyof Offer)[] = [
+  ...OFFER_MUTATION_EXCLUDED_FIELDS,
+  "createdAt",
+  "updatedAt",
+  "shareToken",
+];
+
+function omitOfferFields(payload: Partial<Offer>, fields: (keyof Offer)[]) {
+  const copy = { ...payload };
+  for (const field of fields) {
+    delete copy[field];
+  }
+  return copy;
+}
+
 export async function fetchOffers(): Promise<Offer[]> {
   const data = throwOnError(
     await supabase()
@@ -31,7 +56,7 @@ export async function fetchOfferById(id: string): Promise<Offer | null> {
 }
 
 export async function createOffer(payload: Partial<Offer>) {
-  const { id: _id, numeroOffre: _no, hotelResponses: _hr, comments: _c, attachmentsCount: _ac, hotelSendsCount: _hsc, hotelSendsNames: _hsn, ...rest } = payload;
+  const rest = omitOfferFields(payload, OFFER_MUTATION_EXCLUDED_FIELDS);
   const data = throwOnError(
     await supabase().from("offers").insert(rest).select().single()
   );
@@ -39,7 +64,7 @@ export async function createOffer(payload: Partial<Offer>) {
 }
 
 export async function updateOffer(id: string, payload: Partial<Offer>) {
-  const { id: _id, numeroOffre: _no, hotelResponses: _hr, comments: _c, attachmentsCount: _ac, hotelSendsCount: _hsc, hotelSendsNames: _hsn, ...rest } = payload;
+  const rest = omitOfferFields(payload, OFFER_MUTATION_EXCLUDED_FIELDS);
   const data = throwOnError(
     await supabase().from("offers").update(rest).eq("id", id).select().single()
   );
@@ -76,19 +101,7 @@ export async function duplicateOffer(
   const source = await fetchOfferById(id);
   if (!source) throw new Error("Offre introuvable.");
 
-  const {
-    id: _id,
-    numeroOffre: _no,
-    hotelResponses: _hr,
-    comments: _c,
-    attachmentsCount: _ac,
-    hotelSendsCount: _hsc,
-    hotelSendsNames: _hsn,
-    createdAt: _ca,
-    updatedAt: _ua,
-    shareToken: _st,
-    ...offerData
-  } = source;
+  const offerData = omitOfferFields(source, OFFER_DUPLICATION_EXCLUDED_FIELDS);
   const newOffer = await createOffer(offerData);
 
   if (options.includeHotelData) {

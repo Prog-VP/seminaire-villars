@@ -5,6 +5,8 @@ import {
   getEffectiveDates,
   computeNights,
   getStatutBadgeStyle,
+  buildAvailableOfferText,
+  parseHotelResponseMessage,
 } from "@/features/offres/utils";
 
 // ---------------------------------------------------------------------------
@@ -127,5 +129,50 @@ describe("getStatutBadgeStyle", () => {
   it("returns default grey without colorMap", () => {
     const style = getStatutBadgeStyle("Unknown", []);
     expect(style).toContain("slate");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildAvailableOfferText
+// ---------------------------------------------------------------------------
+
+describe("buildAvailableOfferText", () => {
+  it("keeps only available date option blocks", () => {
+    const text = [
+      "--- Option 1 ---",
+      "Fermé / Pas de disponibilité",
+      "",
+      "--- Option 2 ---",
+      "Dates disponibles: 01.06.2026 → 03.06.2026",
+      "Chambres simples disponibles: 5/10",
+    ].join("\n");
+
+    const result = buildAvailableOfferText(text);
+
+    expect(result).not.toContain("Option 1");
+    expect(result).not.toContain("Pas de disponibilité");
+    expect(result).toContain("Option 2");
+    expect(result).toContain("Dates disponibles");
+  });
+
+  it("returns empty when all options are unavailable", () => {
+    expect(buildAvailableOfferText("Pas de disponibilité pour les dates demandées")).toBe("");
+    expect(buildAvailableOfferText("Closed / No availability")).toBe("");
+  });
+
+  it("keeps regular available or custom offer text unchanged", () => {
+    const text = "Dates disponibles: 01.06.2026 → 03.06.2026\nCHF 250 / chambre";
+    expect(buildAvailableOfferText(text)).toBe(text);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseHotelResponseMessage
+// ---------------------------------------------------------------------------
+
+describe("parseHotelResponseMessage", () => {
+  it("detects included tourist tax", () => {
+    const result = parseHotelResponseMessage("Taxe de séjour incluse dans le prix");
+    expect(result.taxeIncluse).toBe(true);
   });
 });

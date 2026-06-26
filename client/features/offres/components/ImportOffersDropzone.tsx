@@ -164,7 +164,7 @@ export function ImportOffersDropzone({ onImportDone }: Props) {
           })}
           className="text-sm font-medium text-brand-600 underline underline-offset-2 hover:text-brand-800"
         >
-          Télécharger le modèle d'import (.xlsx)
+          Télécharger le modèle d’import (.xlsx)
         </button>
       </div>
 

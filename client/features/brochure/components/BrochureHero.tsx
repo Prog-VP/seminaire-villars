@@ -1,7 +1,7 @@
 "use client";
 
 import type { BrochureSection } from "../types";
-import { brochureImageUrl } from "../utils";
+import { BrochureImage } from "./BrochureImage";
 
 type Props = {
   section: BrochureSection;
@@ -13,10 +13,12 @@ export function BrochureHero({ section }: Props) {
   return (
     <section className="relative overflow-hidden rounded-2xl bg-slate-900 print:rounded-none print:break-after-page">
       {heroImage && (
-        <img
-          src={brochureImageUrl(heroImage)}
+        <BrochureImage
+          src={heroImage}
           alt={section.title}
           className="absolute inset-0 h-full w-full object-cover opacity-60"
+          fill
+          sizes="100vw"
         />
       )}
       <div className="relative flex min-h-[400px] flex-col items-center justify-center px-8 py-20 text-center print:min-h-[500px]">

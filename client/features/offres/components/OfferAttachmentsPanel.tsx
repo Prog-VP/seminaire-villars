@@ -66,7 +66,7 @@ export function OfferAttachmentsPanel({
   return (
     <section className="space-y-6">
       <div>
-        <p className="text-sm font-semibold text-slate-900">Documents de l'offre</p>
+        <p className="text-sm font-semibold text-slate-900">Documents de l’offre</p>
         <p className="text-xs text-slate-500">
           Uploadez des documents annexes pour cette offre.
         </p>
@@ -163,4 +163,3 @@ export function OfferAttachmentsPanel({
     </section>
   );
 }
-

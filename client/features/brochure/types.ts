@@ -54,6 +54,7 @@ export type BrochureSectionMetadata = {
     priceEur?: string;
     forfaitChf?: string;
     forfaitEur?: string;
+    taxeIncluse?: boolean;
     roomsSimple?: string;
     roomsDouble?: string;
     dateFrom?: string;
