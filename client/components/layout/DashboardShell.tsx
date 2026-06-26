@@ -40,7 +40,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
       {/* Desktop sidebar */}
       <aside
         className={`hidden min-h-screen flex-col border-r border-white/70 bg-white/80 backdrop-blur-xl md:flex ${
-          isCollapsed ? "w-20" : "w-64"
+          isCollapsed ? "w-20" : "w-52"
         } transition-[width] duration-200`}
       >
         <div
@@ -134,9 +134,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
         </div>
       </div>
 
-      <div className="flex min-h-screen flex-1 flex-col">
-        <header className="flex items-center justify-between gap-4 border-b border-white/70 bg-white/80 backdrop-blur-xl px-6 py-3">
-          <div className="flex items-center gap-3">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <header className="flex min-w-0 items-center justify-between gap-3 border-b border-white/70 bg-white/80 px-4 py-3 backdrop-blur-xl">
+          <div className="flex shrink-0 items-center gap-3">
             <Image src="/logo.png" alt="Villars Les Diablerets" width={100} height={34} className="object-contain md:hidden" />
             <div className="hidden md:block">
               <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
@@ -147,11 +147,11 @@ export function DashboardShell({ children }: DashboardShellProps) {
               </h1>
             </div>
           </div>
-          <div className="hidden flex-1 justify-center px-4 md:flex">
+          <div className="hidden min-w-0 flex-1 justify-center px-2 md:flex">
             <GlobalSearch />
           </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-slate-700 sm:block">
+          <div className="flex min-w-0 shrink-0 items-center gap-2">
+            <span className="hidden max-w-[180px] truncate text-sm text-slate-700 sm:block">
               <span className={prenom ? "font-medium" : "italic text-slate-400"}>
                 {prenom || "Prénom"}
               </span>{" "}
@@ -163,7 +163,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
               type="button"
               onClick={handleSignOut}
               disabled={isSigningOut}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-50"
+              className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-50"
             >
               {isSigningOut ? "Déconnexion..." : "Déconnexion"}
             </button>
@@ -191,7 +191,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-3 py-4 sm:px-4 sm:py-6 md:px-6">
+        <main className="min-w-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4 sm:py-6 md:px-5">
           <div className="mx-auto w-full space-y-8">{children}</div>
         </main>
       </div>

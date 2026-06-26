@@ -1,90 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSettings } from "../context";
 import { EditableSettingsList } from "./EditableSettingsList";
-import { createClient } from "@/lib/supabase/client";
-import {
-  DEFAULT_SHARE_EMAIL_TEMPLATE,
-  normalizeShareEmailTemplate,
-  SHARE_EMAIL_TEMPLATE_KEYS,
-} from "@/features/offres/components/share-utils";
-import { normalizeEurChfRate } from "@/features/offres/components/share-offer-utils";
 import type { SettingType } from "../types";
-
-const SECTIONS: Array<{
-  type: SettingType;
-  title: string;
-  description: string;
-}> = [
-  {
-    type: "categorieHotel",
-    title: "Catégories d'hôtel",
-    description: "Classements proposés aux clients.",
-  },
-  {
-    type: "langue",
-    title: "Langues",
-    description: "Choix disponibles pour la communication.",
-  },
-  {
-    type: "pays",
-    title: "Pays",
-    description: "Marchés proposés dans le formulaire.",
-  },
-  {
-    type: "stationDemandee",
-    title: "Stations demandées",
-    description: "Destinations proposées (Villars, etc.).",
-  },
-  {
-    type: "titreContact",
-    title: "Titres de contact",
-    description: "Civilités disponibles dans le formulaire.",
-  },
-  {
-    type: "traitePar",
-    title: "Traité par",
-    description: "Collaborateurs pouvant suivre une offre.",
-  },
-  {
-    type: "transmisPar",
-    title: "Transmis par",
-    description: "Canaux d'entrée (OT, SCIB, VP...).",
-  },
-  {
-    type: "typeSejour",
-    title: "Types de séjour",
-    description: "Segments utilisés pour les demandes.",
-  },
-  {
-    type: "typeSociete",
-    title: "Types de société",
-    description: "Catégories d'interlocuteurs entrants.",
-  },
-  {
-    type: "statut",
-    title: "Statuts d'offre",
-    description: "États possibles d'une offre (ex. Brouillon, Envoyé…).",
-  },
-];
-
-const PLACEHOLDER_MAP: Record<SettingType, string> = {
-  transmisPar: "Ajouter un canal",
-  traitePar: "Ajouter des initiales",
-  pays: "Ajouter un pays (ex. CH)",
-  langue: "Ajouter une langue",
-  typeSociete: "Ajouter un type de société",
-  typeSejour: "Ajouter un type de séjour",
-  categorieHotel: "Ajouter une catégorie",
-  stationDemandee: "Ajouter une station",
-  titreContact: "Ajouter un titre/civilité",
-  statut: "Ajouter un statut",
-  emailNotification: "Ajouter un email",
-};
+import { ChfEurRate } from "./ChfEurRate";
+import { SettingsSectionsTable } from "./SettingsSectionsTable";
+import { SettingsSidebar } from "./SettingsSidebar";
+import { ShareEmailTemplateSettings } from "./ShareEmailTemplateSettings";
+import { SETTINGS_PLACEHOLDERS, SETTINGS_SECTIONS } from "./settings-page-config";
 
 export function SettingsPage() {
   const { error, isLoading, hasLoaded, settings } = useSettings();
+  const [openType, setOpenType] = useState<SettingType | null>(null);
+  const [search, setSearch] = useState("");
+
   const totals = useMemo(() => {
     return (
       Object.entries(settings) as [SettingType, (typeof settings)[SettingType]][]
@@ -93,23 +23,21 @@ export function SettingsPage() {
         acc[type] = values.length;
         return acc;
       },
-      {} as Record<SettingType, number>
+      {} as Record<SettingType, number>,
     );
   }, [settings]);
 
-  const [openType, setOpenType] = useState<SettingType | null>(null);
-  const [search, setSearch] = useState("");
   const openSection = openType
-    ? SECTIONS.find((s) => s.type === openType) ?? null
+    ? SETTINGS_SECTIONS.find((section) => section.type === openType) ?? null
     : null;
 
   const filteredSections = useMemo(() => {
-    if (!search.trim()) return SECTIONS;
-    const q = search.trim().toLowerCase();
-    return SECTIONS.filter(
-      (s) =>
-        s.title.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q)
+    const query = search.trim().toLowerCase();
+    if (!query) return SETTINGS_SECTIONS;
+    return SETTINGS_SECTIONS.filter(
+      (section) =>
+        section.title.toLowerCase().includes(query) ||
+        section.description.toLowerCase().includes(query),
     );
   }, [search]);
 
@@ -126,392 +54,33 @@ export function SettingsPage() {
       <input
         type="text"
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        onChange={(event) => setSearch(event.target.value)}
         placeholder="Rechercher un champ…"
         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
       />
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50">
-              <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Champ
-              </th>
-              <th className="hidden px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 sm:table-cell">
-                Description
-              </th>
-              <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Options
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filteredSections.map((section) => (
-              <tr
-                key={section.type}
-                onClick={() => setOpenType(section.type)}
-                className="cursor-pointer transition hover:bg-slate-50"
-              >
-                <td className="px-5 py-3.5 font-medium text-slate-900">
-                  {section.title}
-                </td>
-                <td className="hidden px-5 py-3.5 text-slate-500 sm:table-cell">
-                  {section.description}
-                </td>
-                <td className="px-5 py-3.5 text-right">
-                  <span className="inline-flex min-w-[2rem] items-center justify-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
-                    {isLoading && !hasLoaded ? "…" : totals[section.type]}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <SettingsSectionsTable
+        sections={filteredSections}
+        totals={totals}
+        isLoading={isLoading}
+        hasLoaded={hasLoaded}
+        onSelect={setOpenType}
+      />
 
       <ChfEurRate />
       <ShareEmailTemplateSettings />
 
-      {/* Sidebar overlay */}
-      <Sidebar open={openSection !== null} onClose={closeSidebar}>
+      <SettingsSidebar open={openSection !== null} onClose={closeSidebar}>
         {openSection && (hasLoaded || !isLoading) && (
           <EditableSettingsList
             key={openSection.type}
             type={openSection.type}
             title={openSection.title}
             description={openSection.description}
-            placeholder={PLACEHOLDER_MAP[openSection.type]}
+            placeholder={SETTINGS_PLACEHOLDERS[openSection.type]}
           />
         )}
-      </Sidebar>
+      </SettingsSidebar>
     </section>
-  );
-}
-
-function ShareEmailTemplateSettings() {
-  const [subject, setSubject] = useState(DEFAULT_SHARE_EMAIL_TEMPLATE.subject);
-  const [body, setBody] = useState(DEFAULT_SHARE_EMAIL_TEMPLATE.body);
-  const [savedSubject, setSavedSubject] = useState(DEFAULT_SHARE_EMAIL_TEMPLATE.subject);
-  const [savedBody, setSavedBody] = useState(DEFAULT_SHARE_EMAIL_TEMPLATE.body);
-  const [editing, setEditing] = useState(false);
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase
-      .from("app_config")
-      .select("key, value")
-      .in("key", [
-        SHARE_EMAIL_TEMPLATE_KEYS.subject,
-        SHARE_EMAIL_TEMPLATE_KEYS.body,
-      ])
-      .then(({ data }) => {
-        if (!data) return;
-        const values = new Map(data.map((row) => [row.key as string, row.value as string]));
-        const nextTemplate = normalizeShareEmailTemplate({
-          subject:
-            values.get(SHARE_EMAIL_TEMPLATE_KEYS.subject) ??
-            DEFAULT_SHARE_EMAIL_TEMPLATE.subject,
-          body:
-            values.get(SHARE_EMAIL_TEMPLATE_KEYS.body) ??
-            DEFAULT_SHARE_EMAIL_TEMPLATE.body,
-        });
-        setSubject(nextTemplate.subject);
-        setSavedSubject(nextTemplate.subject);
-        setBody(nextTemplate.body);
-        setSavedBody(nextTemplate.body);
-      });
-  }, []);
-
-  const handleEdit = () => setEditing(true);
-
-  const handleCancel = () => {
-    setSubject(savedSubject);
-    setBody(savedBody);
-    setEditing(false);
-    setStatus("idle");
-  };
-
-  const handleReset = () => {
-    setSubject(DEFAULT_SHARE_EMAIL_TEMPLATE.subject);
-    setBody(DEFAULT_SHARE_EMAIL_TEMPLATE.body);
-    setStatus("idle");
-  };
-
-  const handleSave = async () => {
-    setStatus("saving");
-    try {
-      const nextSubject = subject.trim() || DEFAULT_SHARE_EMAIL_TEMPLATE.subject;
-      const nextBody = body.trim() || DEFAULT_SHARE_EMAIL_TEMPLATE.body;
-      const supabase = createClient();
-      const { error } = await supabase.from("app_config").upsert(
-        [
-          { key: SHARE_EMAIL_TEMPLATE_KEYS.subject, value: nextSubject },
-          { key: SHARE_EMAIL_TEMPLATE_KEYS.body, value: nextBody },
-        ],
-        { onConflict: "key" }
-      );
-      if (error) throw error;
-      setSubject(nextSubject);
-      setBody(nextBody);
-      setSavedSubject(nextSubject);
-      setSavedBody(nextBody);
-      setEditing(false);
-      setStatus("saved");
-      setTimeout(() => setStatus("idle"), 2000);
-    } catch {
-      setStatus("error");
-    }
-  };
-
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-slate-900">Email de partage d&apos;offre</p>
-          <p className="text-xs text-slate-500">
-            Modèle utilisé par le bouton “Préparer les emails” dans une offre.
-          </p>
-        </div>
-        {!editing ? (
-          <button
-            type="button"
-            onClick={handleEdit}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            {status === "saved" ? "Enregistré" : "Modifier"}
-          </button>
-        ) : (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-            >
-              Annuler
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={status === "saving"}
-              className="rounded-lg bg-brand-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-800 disabled:opacity-50"
-            >
-              {status === "saving" ? "…" : "Enregistrer"}
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-4 space-y-3">
-        <label className="block text-xs font-medium text-slate-600">
-          Sujet
-          <input
-            type="text"
-            value={subject}
-            onChange={(e) => { setSubject(e.target.value); setStatus("idle"); }}
-            readOnly={!editing}
-            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm transition ${
-              editing
-                ? "border-slate-300 text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                : "border-transparent bg-slate-50 text-slate-600"
-            }`}
-          />
-        </label>
-
-        <label className="block text-xs font-medium text-slate-600">
-          Corps du message
-          <textarea
-            value={body}
-            onChange={(e) => { setBody(e.target.value); setStatus("idle"); }}
-            readOnly={!editing}
-            rows={8}
-            className={`mt-1 w-full resize-y rounded-lg border px-3 py-2 font-mono text-sm leading-5 transition ${
-              editing
-                ? "border-slate-300 text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                : "border-transparent bg-slate-50 text-slate-600"
-            }`}
-          />
-        </label>
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-slate-500">
-            Variables: {"{client}"}, {"{participants}"}, {"{dates_courtes}"}, {"{dates}"}, {"{type_sejour}"}, {"{transmis_par}"}, {"{lien}"}, {"{date_jour}"}, {"{date_creation}"}, {"{hotel}"}, {"{station}"}
-          </p>
-          {editing && (
-            <button
-              type="button"
-              onClick={handleReset}
-              className="text-xs font-medium text-slate-600 hover:text-slate-900"
-            >
-              Réinitialiser le modèle
-            </button>
-          )}
-          {status === "error" && <span className="text-xs text-rose-600">Erreur</span>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ChfEurRate() {
-  const [rate, setRate] = useState("");
-  const [savedRate, setSavedRate] = useState("");
-  const [editing, setEditing] = useState(false);
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.from("app_config").select("value").eq("key", "chf_eur_rate").single()
-      .then(({ data }) => {
-        if (!data) return;
-        const normalized = normalizeEurChfRate(parseFloat(data.value)).toString();
-        setRate(normalized);
-        setSavedRate(normalized);
-      });
-  }, []);
-
-  const handleEdit = () => setEditing(true);
-
-  const handleCancel = () => {
-    setRate(savedRate);
-    setEditing(false);
-    setStatus("idle");
-  };
-
-  const handleSave = async () => {
-    setStatus("saving");
-    try {
-      const supabase = createClient();
-      const normalizedRate = normalizeEurChfRate(parseFloat(rate.trim())).toString();
-      const { error } = await supabase
-        .from("app_config")
-        .upsert({ key: "chf_eur_rate", value: normalizedRate }, { onConflict: "key" });
-      if (error) throw error;
-      setRate(normalizedRate);
-      setSavedRate(normalizedRate);
-      setEditing(false);
-      setStatus("saved");
-      setTimeout(() => setStatus("idle"), 2000);
-    } catch {
-      setStatus("error");
-    }
-  };
-
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-      <div className="flex-1">
-        <p className="text-sm font-medium text-slate-900">Taux de change EUR/CHF</p>
-        <p className="text-xs text-slate-500">1 EUR = X CHF. Utilisé sur la page de partage pour convertir les prix CHF en EUR.</p>
-      </div>
-      <input
-        type="text"
-        inputMode="decimal"
-        value={rate}
-        onChange={(e) => { setRate(e.target.value); setStatus("idle"); }}
-        readOnly={!editing}
-        className={`w-24 rounded-lg border px-3 py-2 text-sm text-right tabular-nums transition ${
-          editing
-            ? "border-slate-300 text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-            : "border-transparent bg-slate-50 text-slate-600"
-        }`}
-        placeholder="0.93"
-      />
-      {!editing ? (
-        <button
-          type="button"
-          onClick={handleEdit}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-        >
-          {status === "saved" ? "Enregistré" : "Modifier"}
-        </button>
-      ) : (
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-          >
-            Annuler
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={status === "saving"}
-            className="rounded-lg bg-brand-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-800 disabled:opacity-50"
-          >
-            {status === "saving" ? "…" : "Enregistrer"}
-          </button>
-        </div>
-      )}
-      {status === "error" && <span className="text-xs text-rose-600">Erreur</span>}
-    </div>
-  );
-}
-
-function Sidebar({
-  open,
-  onClose,
-  children,
-}: {
-  open: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open, onClose]);
-
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className={`fixed inset-0 z-40 bg-black/20 backdrop-blur-sm transition-opacity ${
-          open ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Panel */}
-      <div
-        ref={panelRef}
-        className={`fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-xl transition-transform duration-300 ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <p className="text-sm font-semibold text-slate-900">
-            Modifier les options
-          </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-            aria-label="Fermer"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="h-5 w-5"
-            >
-              <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-5">{children}</div>
-      </div>
-    </>
   );
 }

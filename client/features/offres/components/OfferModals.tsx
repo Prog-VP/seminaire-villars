@@ -78,7 +78,7 @@ export function DuplicateModal({
             />
             <div>
               <p className="text-sm font-medium text-slate-900">Annexes</p>
-              <p className="text-xs text-slate-500">Copier les fichiers attachés à l'offre</p>
+              <p className="text-xs text-slate-500">Copier les fichiers attachés à l’offre</p>
             </div>
           </label>
           <label className="flex items-center gap-3 rounded-lg border border-slate-200 p-3 transition hover:bg-slate-50">

@@ -1,7 +1,7 @@
 "use client";
 
 import type { BrochureSection } from "../types";
-import { brochureImageUrl } from "../utils";
+import { BrochureImage } from "./BrochureImage";
 
 type Props = {
   section: BrochureSection;
@@ -24,8 +24,8 @@ export function BrochureSkiArea({ section }: Props) {
           ))}
         </div>
         {heroImage && (
-          <img
-            src={brochureImageUrl(heroImage)}
+          <BrochureImage
+            src={heroImage}
             alt={section.title}
             className="w-full rounded-xl object-cover shadow-sm"
           />

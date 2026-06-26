@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { createOffer, updateOffer, addOfferComment, recordHotelSend } from "./api";
+import { createOffer, updateOffer, addOfferComment } from "./api";
 import { supabase } from "./api/client";
 import { normalizeStatut } from "./utils";
 import type { Offer } from "./types";

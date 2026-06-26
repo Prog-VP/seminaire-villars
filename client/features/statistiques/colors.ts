@@ -28,6 +28,7 @@ const FALLBACK_COLORS = [
 ];
 
 export const YEAR_HEX = FALLBACK_COLORS;
+export const CATEGORY_COLORS = FALLBACK_COLORS;
 
 /** Get hex color for a year */
 export function yearColor(year: number, allYears: number[]): string {

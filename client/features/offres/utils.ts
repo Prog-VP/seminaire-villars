@@ -119,6 +119,7 @@ export function parseHotelResponseMessage(message: string): ParsedHotelResponse 
     forfaitEur: null,
     taxeChf: null,
     taxeEur: null,
+    taxeIncluse: false,
     raw: message,
   };
 
@@ -167,7 +168,74 @@ export function parseHotelResponseMessage(message: string): ParsedHotelResponse 
       result.taxeEur = taxeMatch[2];
       continue;
     }
+
+    if (/^(Taxe de séjour incluse dans le prix|Tourist tax included in the price|Kurtaxe im Preis inbegriffen)$/i.test(trimmed)) {
+      result.taxeIncluse = true;
+      continue;
+    }
   }
 
   return result;
+}
+
+const OPTION_HEADER_RE = /^---\s*.+?\s*---$/;
+const CLOSED_LINE_RE =
+  /^(ferm[eé]|closed|geschlossen)(\s|$).*(disponibilit[eé]|availability|verf[uü]gbar|nicht verf[uü]gbar)|^pas de disponibilit[eé](\s|$)|^no availability(\s|$)|^keine verf[uü]gbarkeit(\s|$)|^nicht verf[uü]gbar(\s|$)/i;
+const ALL_CLOSED_RE =
+  /^pas de disponibilit[eé] pour les dates demand[eé]es(\s|$)|^no availability for the requested dates(\s|$)|^keine verf[uü]gbarkeit f[uü]r die angefragten daten(\s|$)/i;
+const AVAILABLE_LINE_RE =
+  /^(dates disponibles|available dates|verf[uü]gbare daten)(\s|:|$)/i;
+
+function isOptionHeader(line: string) {
+  return OPTION_HEADER_RE.test(line.trim());
+}
+
+function isClosedLine(line: string) {
+  return CLOSED_LINE_RE.test(line.trim());
+}
+
+function isAvailableLine(line: string) {
+  return AVAILABLE_LINE_RE.test(line.trim());
+}
+
+function normalizeOfferTextLines(lines: string[]) {
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * Keeps only available date-option blocks from a hotel response message.
+ * Returns an empty string when the response contains no available option.
+ */
+export function buildAvailableOfferText(message?: string | null): string {
+  const trimmed = message?.trim() ?? "";
+  if (!trimmed) return "";
+  if (ALL_CLOSED_RE.test(trimmed)) return "";
+
+  const lines = trimmed.split(/\r?\n/);
+  if (!lines.some(isOptionHeader)) {
+    const hasClosedLine = lines.some(isClosedLine);
+    const hasAvailableLine = lines.some(isAvailableLine);
+    return hasClosedLine && !hasAvailableLine ? "" : trimmed;
+  }
+
+  const blocks: string[][] = [];
+  let currentBlock: string[] = [];
+
+  for (const line of lines) {
+    if (isOptionHeader(line)) {
+      if (currentBlock.length > 0) blocks.push(currentBlock);
+      currentBlock = [line];
+    } else {
+      currentBlock.push(line);
+    }
+  }
+  if (currentBlock.length > 0) blocks.push(currentBlock);
+
+  const availableBlocks = blocks.filter((block) => {
+    const hasClosedLine = block.some(isClosedLine);
+    const hasAvailableLine = block.some(isAvailableLine);
+    return !hasClosedLine || hasAvailableLine;
+  });
+
+  return normalizeOfferTextLines(availableBlocks.flatMap((block) => block));
 }

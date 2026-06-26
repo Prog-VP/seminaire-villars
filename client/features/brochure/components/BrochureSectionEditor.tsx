@@ -1,7 +1,7 @@
 "use client";
 
 import type { BrochureSection } from "../types";
-import { brochureImageUrl } from "../utils";
+import { BrochureImage } from "./BrochureImage";
 import { SECTION_TYPE_LABELS } from "./brochure-editor-constants";
 import { ConferenceRoomsEditor, ActivitiesEditor, SkiPricesEditor } from "./BrochureMetadataEditors";
 
@@ -59,8 +59,8 @@ export function SectionEditor({
           <div className="grid grid-cols-3 gap-2">
             {section.images.map((img, i) => (
               <div key={i} className="group relative">
-                <img
-                  src={brochureImageUrl(img)}
+                <BrochureImage
+                  src={img}
                   alt={`Image ${i + 1}`}
                   className="h-20 w-full rounded-lg border border-slate-200 object-cover"
                 />

@@ -112,5 +112,6 @@ export type ParsedHotelResponse = {
   forfaitEur: string | null;
   taxeChf: string | null;
   taxeEur: string | null;
+  taxeIncluse: boolean;
   raw: string;
 };

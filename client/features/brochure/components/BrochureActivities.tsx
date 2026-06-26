@@ -1,7 +1,7 @@
 "use client";
 
 import type { BrochureSection } from "../types";
-import { brochureImageUrl } from "../utils";
+import { BrochureImage } from "./BrochureImage";
 
 type Props = {
   section: BrochureSection;
@@ -27,8 +27,8 @@ export function BrochureActivities({ section }: Props) {
               className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
             >
               {activity.image && (
-                <img
-                  src={brochureImageUrl(activity.image)}
+                <BrochureImage
+                  src={activity.image}
                   alt={activity.name}
                   className="h-36 w-full object-cover"
                 />
@@ -59,9 +59,9 @@ export function BrochureActivities({ section }: Props) {
         section.images.length > 0 && (
           <div className="grid gap-3 sm:grid-cols-2">
             {section.images.map((img, i) => (
-              <img
+              <BrochureImage
                 key={i}
-                src={brochureImageUrl(img)}
+                src={img}
                 alt={`${section.title} ${i + 1}`}
                 className="w-full rounded-xl object-cover shadow-sm"
               />

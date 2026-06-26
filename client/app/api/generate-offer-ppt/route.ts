@@ -5,6 +5,7 @@ import {
   type PptxHotelPlaceholderMap,
   type PptxPlaceholderMap,
 } from "@/lib/pptx-filter";
+import { buildAvailableOfferText } from "@/features/offres/utils";
 
 type GenerateOfferPptBody = {
   offerId?: string;
@@ -235,12 +236,16 @@ function buildHotelReplacementMaps(
       buildFallbackHotelTag(hotelName);
 
     if (!tag) continue;
+    const offerText = buildAvailableOfferText(
+      requested?.offerText ?? response.offerText ?? response.message ?? "",
+    );
+    if (!offerText) continue;
 
     hotelTags.add(tag);
     hotelReplacements[tag] ??= {
       HOTEL: selectedHotel?.nom ?? response.hotelName ?? "",
       NOM_HOTEL: selectedHotel?.nom ?? response.hotelName ?? "",
-      TEXTE_OFFRE: requested?.offerText ?? response.offerText ?? response.message ?? "",
+      TEXTE_OFFRE: offerText,
     };
   }
 

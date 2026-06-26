@@ -1,6 +1,6 @@
 import type { MonthlyData, YearFilters } from "../types";
 import { MONTH_NAMES } from "../types";
-import { yearColor } from "../colors";
+import { GroupedBars, type GroupedBarsRow } from "./GroupedBars";
 import { YearLegend } from "./YearLegend";
 
 export function MonthlyGroupedChart({
@@ -24,57 +24,43 @@ export function MonthlyGroupedChart({
     ...data.months.flatMap((m) => visibleYears.map((y) => m.yearCounts[y] ?? 0)),
   );
   const chartH = 140;
+  const barWidth = Math.max(24, Math.min(30, 140 / Math.max(1, visibleYears.length)));
 
   if (max === 0) return <p className="text-sm text-slate-400">Aucune donnée</p>;
 
+  const rows: GroupedBarsRow<number>[] = data.months.map(({ month, yearCounts }) => ({
+    id: month,
+    label: MONTH_NAMES[month],
+    yearCounts,
+  }));
+
   return (
     <div className="space-y-2">
-      {/* Legend — clickable years */}
       <YearLegend years={data.years} activeYears={activeYears} allYears={allYears} onClickYear={onClickYear} />
-      {/* Chart */}
-      <div className="overflow-x-auto">
-      <div className="flex items-end gap-3 pb-1 pt-5" style={{ minWidth: data.months.length * (visibleYears.length * 20 + 24) }}>
-        {data.months.map(({ month, yearCounts }) => {
-          const isActive = activeMonth === month;
-          const isDimmed = activeMonth != null && !isActive;
-          const visTotal = visibleYears.reduce((s, y) => s + (yearCounts[y] ?? 0), 0);
-          return (
-            <button
-              key={month}
-              type="button"
-              onClick={() => onClickMonth?.(month)}
-              className={`flex flex-1 flex-col items-center gap-1 transition-opacity ${isDimmed ? "opacity-25" : ""}`}
-            >
-              <div className="flex items-end gap-px" style={{ height: chartH }}>
-                {visibleYears.map((y) => {
-                  const v = yearCounts[y] ?? 0;
-                  const h = max > 0 ? (v / max) * chartH : 0;
-                  return (
-                    <div key={y} className="group relative" style={{ width: Math.max(8, Math.min(18, 120 / visibleYears.length)) }}>
-                      <div
-                        className="w-full rounded-t transition-opacity hover:opacity-80"
-                        style={{ height: h, backgroundColor: yearColor(y, allYears) }}
-                      />
-                      {v > 0 && (
-                        <span className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] font-semibold tabular-nums text-slate-600">
-                          {v}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <span className={`text-[11px] font-medium ${isActive ? "text-brand-700" : "text-slate-500"}`}>
-                {MONTH_NAMES[month]}
-              </span>
-              {visTotal > 0 && (
-                <span className="text-[9px] tabular-nums text-slate-400">{visTotal}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-      </div>
+      <GroupedBars
+        rows={rows}
+        visibleYears={visibleYears}
+        allYears={allYears}
+        max={max}
+        chartHeight={chartH}
+        barWidth={barWidth}
+        groupGapClassName="gap-3"
+        paddingClassName="pb-1 pt-5"
+        minWidthPadding={24}
+        activeId={activeMonth}
+        onClickRow={(row) => onClickMonth?.(row.id)}
+        renderGroupLabel={(row, isActive) => (
+          <span className={`text-[11px] font-medium ${isActive ? "text-brand-700" : "text-slate-500"}`}>
+            {row.label}
+          </span>
+        )}
+        renderGroupMeta={(row) => {
+          const visibleTotal = visibleYears.reduce((sum, year) => sum + (row.yearCounts[year] ?? 0), 0);
+          return visibleTotal > 0 ? (
+            <span className="text-[9px] tabular-nums text-slate-400">{visibleTotal}</span>
+          ) : null;
+        }}
+      />
     </div>
   );
 }

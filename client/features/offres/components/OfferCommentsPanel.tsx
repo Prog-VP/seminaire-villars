@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { OfferComment } from "../types";
 import { useUserRole } from "@/features/users/context";
 
@@ -27,15 +27,10 @@ export function OfferCommentsPanel({
 }: OfferCommentsPanelProps) {
   const { nom, prenom } = useUserRole();
   const defaultAuthor = [prenom, nom].filter(Boolean).join(" ");
-  const [author, setAuthor] = useState(defaultAuthor);
+  const [authorOverride, setAuthorOverride] = useState<string | null>(null);
+  const author = authorOverride ?? defaultAuthor;
   const [content, setContent] = useState("");
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (defaultAuthor) {
-      setAuthor(defaultAuthor);
-    }
-  }, [defaultAuthor]);
 
   const sortedComments = useMemo(
     () =>
@@ -83,7 +78,7 @@ export function OfferCommentsPanel({
           <input
             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
             value={author}
-            onChange={(event) => setAuthor(event.target.value)}
+            onChange={(event) => setAuthorOverride(event.target.value)}
             disabled={isSubmitting}
             required
           />

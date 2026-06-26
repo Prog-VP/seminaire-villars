@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
 const STORAGE_KEY = "offer-list-ids";
@@ -22,27 +22,54 @@ type NavState = {
 };
 
 const EMPTY: NavState = { prevId: null, nextId: null, position: null, total: null };
+let cachedRawOfferIds: string | null = null;
+let cachedOfferIds: string[] | null = null;
+
+function subscribeToStoredOfferIds() {
+  return () => {};
+}
+
+function readStoredOfferIds() {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      cachedRawOfferIds = null;
+      cachedOfferIds = null;
+      return null;
+    }
+    if (raw !== cachedRawOfferIds) {
+      cachedRawOfferIds = raw;
+      cachedOfferIds = JSON.parse(raw) as string[];
+    }
+    return cachedOfferIds;
+  } catch {
+    return null;
+  }
+}
+
+function getServerStoredOfferIds() {
+  return null;
+}
+
+function getNavState(ids: string[] | null, currentId: string): NavState {
+  if (!ids) return EMPTY;
+  const index = ids.indexOf(currentId);
+  if (index === -1) return EMPTY;
+  return {
+    prevId: index > 0 ? ids[index - 1] : null,
+    nextId: index < ids.length - 1 ? ids[index + 1] : null,
+    position: index + 1,
+    total: ids.length,
+  };
+}
 
 export function OfferNavArrows({ currentId, confirmMessage }: { currentId: string; confirmMessage?: string }) {
-  const [nav, setNav] = useState<NavState>(EMPTY);
-
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const ids: string[] = JSON.parse(raw);
-      const idx = ids.indexOf(currentId);
-      if (idx === -1) return;
-      setNav({
-        prevId: idx > 0 ? ids[idx - 1] : null,
-        nextId: idx < ids.length - 1 ? ids[idx + 1] : null,
-        position: idx + 1,
-        total: ids.length,
-      });
-    } catch {
-      // ignore
-    }
-  }, [currentId]);
+  const storedIds = useSyncExternalStore(
+    subscribeToStoredOfferIds,
+    readStoredOfferIds,
+    getServerStoredOfferIds,
+  );
+  const nav = useMemo(() => getNavState(storedIds, currentId), [storedIds, currentId]);
 
   const { prevId, nextId, position, total } = nav;
 

@@ -28,6 +28,7 @@ export type DateOptionResponse = {
   forfaitDemiJourneeChf: string;
   forfaitDemiJourneeUnit: SeminarUnit;
   taxeChf: string;
+  taxeIncluse: boolean;
   commentaire: string;
 };
 
@@ -65,6 +66,7 @@ export function createDateOptionResponse(
     forfaitDemiJourneeChf: "",
     forfaitDemiJourneeUnit: "personne",
     taxeChf: "",
+    taxeIncluse: false,
     commentaire: "",
   };
 }
@@ -98,7 +100,7 @@ export function createTemplateDefaults(
 // ---------------------------------------------------------------------------
 
 export const inputClass =
-  "mt-1 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200";
+  "mt-1 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none";
 
 // ---------------------------------------------------------------------------
 // EUR conversion
@@ -193,7 +195,9 @@ export function buildTemplateMessage(state: TemplateState, lang: Lang, rate: num
           lines.push(`Prix ${label} (CHF): CHF ${dr.priceAutreChf}${unit}${eur ? ` (≈ €${eur})` : ""}`);
         }
       }
-      if (dr.taxeChf) {
+      if (dr.taxeIncluse) {
+        lines.push(t(lang, "touristTaxIncluded"));
+      } else if (dr.taxeChf) {
         const eur = chfToEur(dr.taxeChf, rate);
         lines.push(`${t(lang, "touristTaxChf")}: CHF ${dr.taxeChf}${eur ? ` (≈ €${eur})` : ""}`);
       }

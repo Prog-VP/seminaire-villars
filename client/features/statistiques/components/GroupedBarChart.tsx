@@ -1,10 +1,14 @@
-import type { Dimension, EvoDimData, YearFilters } from "../types";
-import { yearColor } from "../colors";
+import type { EvoDimData, YearFilters } from "../types";
+import { CATEGORY_COLORS } from "../colors";
+import { pct } from "../data";
+import { GroupedBars, type GroupedBarsRow } from "./GroupedBars";
+import { PieChart, type PieChartItem } from "./PieChart";
 import { YearLegend } from "./YearLegend";
 
 export function GroupedBarChart({
   data,
   limit,
+  labelMode = "count",
   activeValue,
   activeYears,
   allYears,
@@ -14,7 +18,7 @@ export function GroupedBarChart({
 }: {
   data: EvoDimData;
   limit?: number;
-  dim?: Dimension;
+  labelMode?: "count" | "rate";
   activeValue?: string;
   activeYears: YearFilters;
   allYears: number[];
@@ -26,59 +30,100 @@ export function GroupedBarChart({
   if (displayRows.length === 0) return <p className="text-sm text-slate-400">Aucune donnée</p>;
 
   const visibleYears = activeYears.size > 0 ? data.years.filter((y) => activeYears.has(y)) : data.years;
-
   const max = Math.max(
     ...displayRows.flatMap((r) => visibleYears.map((y) => r.yearCounts[y] ?? 0)),
   );
   const chartH = 130;
+  const labelAsRate = labelMode === "rate";
+  const barWidth = labelAsRate ? 34 : 28;
+  const singleYear = visibleYears.length === 1 ? visibleYears[0] : null;
+  const singleYearTotal = singleYear ? data.yearTotals[singleYear] ?? 0 : 0;
+  const shouldRenderPie = singleYear !== null && singleYearTotal > 0;
+
+  if (shouldRenderPie) {
+    const pieItems = buildPieItems(displayRows, singleYear, singleYearTotal);
+
+    return (
+      <div className="space-y-2">
+        {!hideLegend && (
+          <YearLegend
+            years={data.years}
+            activeYears={activeYears}
+            allYears={allYears}
+            onClickYear={onClickYear}
+          />
+        )}
+        <PieChart
+          items={pieItems}
+          total={singleYearTotal}
+          year={singleYear}
+          activeLabel={activeValue}
+          onClickItem={onClickBar}
+        />
+      </div>
+    );
+  }
+
+  const barRows: GroupedBarsRow<string>[] = displayRows.map((row) => ({
+    id: row.label,
+    label: row.label,
+    yearCounts: row.yearCounts,
+  }));
 
   return (
     <div className="space-y-2">
-      {/* Legend — clickable */}
-      {!hideLegend && <YearLegend years={data.years} activeYears={activeYears} allYears={allYears} onClickYear={onClickYear} />}
-      {/* Bars */}
-      <div className="overflow-x-auto">
-        <div
-          className="flex items-end gap-5 pb-6 pt-5"
-          style={{ minWidth: displayRows.length * (visibleYears.length * 18 + 32) }}
-        >
-          {displayRows.map((row) => {
-            const isActive = activeValue === row.label;
-            const isDimmed = activeValue != null && !isActive;
-            return (
-              <button
-                key={row.label}
-                type="button"
-                onClick={() => onClickBar?.(row.label)}
-                className={`flex flex-col items-center gap-1 transition-opacity ${isDimmed ? "opacity-30" : ""} ${isActive ? "opacity-100" : ""}`}
-              >
-                <div className="flex items-end gap-px" style={{ height: chartH }}>
-                  {visibleYears.map((y) => {
-                    const v = row.yearCounts[y] ?? 0;
-                    const h = max > 0 ? (v / max) * chartH : 0;
-                    return (
-                      <div key={y} className="group relative" style={{ width: 14 }}>
-                        <div
-                          className="w-full rounded-t transition-opacity hover:opacity-80"
-                          style={{ height: h, backgroundColor: yearColor(y, allYears) }}
-                        />
-                        {v > 0 && (
-                          <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-semibold tabular-nums text-slate-600">
-                            {v}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                <span className="max-w-[100px] truncate text-[10px] text-slate-500" title={row.label}>
-                  {row.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {!hideLegend && (
+        <YearLegend
+          years={data.years}
+          activeYears={activeYears}
+          allYears={allYears}
+          onClickYear={onClickYear}
+        />
+      )}
+      <GroupedBars
+        rows={barRows}
+        visibleYears={visibleYears}
+        allYears={allYears}
+        max={max}
+        chartHeight={chartH}
+        barWidth={barWidth}
+        activeId={activeValue}
+        onClickRow={(row) => onClickBar?.(row.label)}
+        getBarLabel={({ value, year }) =>
+          labelAsRate ? `${pct(value, data.yearTotals[year] ?? 0)}%` : value
+        }
+        getBarTitle={({ row, value, year }) => {
+          const label = labelAsRate ? `${pct(value, data.yearTotals[year] ?? 0)}%` : value;
+          return labelAsRate
+            ? `${row.label} (${year}) — ${value} offres, ${label}`
+            : `${row.label} (${year}) — ${value}`;
+        }}
+        renderGroupLabel={(row) => (
+          <span className="max-w-[100px] truncate text-[10px] text-slate-500" title={row.label}>
+            {row.label}
+          </span>
+        )}
+      />
     </div>
   );
+}
+
+function buildPieItems(rows: EvoDimData["rows"], year: number, total: number): PieChartItem[] {
+  const rawItems = rows
+    .map((row) => ({
+      label: row.label,
+      value: row.yearCounts[year] ?? 0,
+    }))
+    .filter((item) => item.value > 0);
+  const shownTotal = rawItems.reduce((sum, item) => sum + item.value, 0);
+  const otherValue = Math.max(0, total - shownTotal);
+  const items = [
+    ...rawItems,
+    ...(otherValue > 0 ? [{ label: "Autres", value: otherValue, isOther: true }] : []),
+  ];
+
+  return items.map((item, index) => ({
+    ...item,
+    color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+  }));
 }

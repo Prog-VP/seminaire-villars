@@ -167,7 +167,21 @@ export function DateResponseSection({
                   value={dr.taxeChf}
                   onChange={(v) => onUpdate({ taxeChf: v })}
                   rate={rate}
+                  disabled={dr.taxeIncluse}
                 />
+                <label className="flex items-center gap-2 self-end rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+                  <input
+                    type="checkbox"
+                    checked={dr.taxeIncluse}
+                    onChange={(event) =>
+                      onUpdate(event.target.checked
+                        ? { taxeIncluse: true, taxeChf: "" }
+                        : { taxeIncluse: false })
+                    }
+                    className="h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-500"
+                  />
+                  {t(fl, "touristTaxIncluded")}
+                </label>
                 {showDemiPension && (
                   <ChfField
                     label={t(fl, "halfBoardChf")}
@@ -255,6 +269,7 @@ function ChfField({
   unitOptions,
   unit,
   onUnitChange,
+  disabled = false,
 }: {
   label: string;
   value: string;
@@ -263,6 +278,7 @@ function ChfField({
   unitOptions?: { value: string; label: string }[];
   unit?: string;
   onUnitChange?: (v: string) => void;
+  disabled?: boolean;
 }) {
   const eur = chfToEur(value, rate);
   return (
@@ -274,6 +290,7 @@ function ChfField({
         type="number"
         step="0.01"
         min="0"
+        disabled={disabled}
       />
       <div className="mt-1 flex items-center gap-2">
         {eur && (
@@ -285,6 +302,7 @@ function ChfField({
               <button
                 key={opt.value}
                 type="button"
+                disabled={disabled}
                 onClick={() => onUnitChange(opt.value)}
                 className={`rounded-full px-2 py-0.5 transition ${
                   unit === opt.value

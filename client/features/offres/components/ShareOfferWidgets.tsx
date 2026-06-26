@@ -82,7 +82,11 @@ export function ConfirmationPreview({
                     {dr.priceSimpleChf && <span>Prix simple : CHF {dr.priceSimpleChf}</span>}
                     {dr.priceDoubleChf && <span>Prix double : CHF {dr.priceDoubleChf}</span>}
                     {dr.priceAutreChf && <span>Prix autre : CHF {dr.priceAutreChf}</span>}
-                    {dr.taxeChf && <span>Taxe : CHF {dr.taxeChf}</span>}
+                    {dr.taxeIncluse ? (
+                      <span>Taxe de séjour incluse</span>
+                    ) : (
+                      dr.taxeChf && <span>Taxe : CHF {dr.taxeChf}</span>
+                    )}
                     {dr.forfaitJourneeChf && <span>Séminaire journée : CHF {dr.forfaitJourneeChf}</span>}
                     {dr.forfaitDemiJourneeChf && <span>Séminaire ½ journée : CHF {dr.forfaitDemiJourneeChf}</span>}
                   </div>

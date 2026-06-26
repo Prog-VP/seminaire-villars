@@ -1,7 +1,7 @@
 "use client";
 
 import type { BrochureSection } from "../types";
-import { brochureImageUrl } from "../utils";
+import { BrochureImage } from "./BrochureImage";
 
 type Props = {
   section: BrochureSection;
@@ -24,9 +24,9 @@ export function BrochureTextSection({ section }: Props) {
         {hasImages && (
           <div className="grid gap-3">
             {section.images.slice(0, 2).map((img, i) => (
-              <img
+              <BrochureImage
                 key={i}
-                src={brochureImageUrl(img)}
+                src={img}
                 alt={`${section.title} ${i + 1}`}
                 className="w-full rounded-xl object-cover shadow-sm"
               />

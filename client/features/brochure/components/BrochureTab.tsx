@@ -6,8 +6,6 @@ import type { OfferBrochure } from "../types";
 import {
   fetchOfferBrochure,
   updateOfferBrochure,
-  deleteOfferBrochure,
-  createOfferBrochure,
 } from "../api";
 import { fetchBrochureTemplate } from "../api";
 import { BrochureEditor } from "./BrochureEditor";
