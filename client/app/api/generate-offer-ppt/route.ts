@@ -140,7 +140,7 @@ function formatMonthYear(value?: string | null, langue?: string | null) {
     month: "long",
     year: "numeric",
   }).format(date);
-  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  return formatted.toLocaleUpperCase(monthYearLocale(langue));
 }
 
 function resolveDateRange(offer: OfferRow) {
