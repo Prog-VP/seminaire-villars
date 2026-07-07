@@ -1,3 +1,7 @@
+export const MASTER_POWERPOINT_LANGS = ["FR", "EN", "DE"] as const;
+
+export type MasterPowerPointLang = (typeof MASTER_POWERPOINT_LANGS)[number];
+
 export type DocumentBlock = {
   id: string;
   destination: string;
@@ -7,3 +11,5 @@ export type DocumentBlock = {
   filePath: string;
   createdAt: string;
 };
+
+export type MasterPowerPointMap = Record<MasterPowerPointLang, DocumentBlock | null>;

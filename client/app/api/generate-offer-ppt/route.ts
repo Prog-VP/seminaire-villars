@@ -64,7 +64,16 @@ type OfferRow = {
 const MASTER_POWERPOINT = {
   destination: "master",
   season: "powerpoint",
-  lang: "master",
+};
+
+const LEGACY_MASTER_POWERPOINT_LANG = "master";
+
+type MasterPowerPointLang = "FR" | "EN" | "DE";
+
+type MasterRow = {
+  name?: string | null;
+  file_path?: string | null;
+  lang?: string | null;
 };
 
 function normalizeToken(value: string) {
@@ -75,7 +84,7 @@ function normalizeToken(value: string) {
     .toUpperCase();
 }
 
-function normalizeLang(langue?: string | null) {
+function normalizeLang(langue?: string | null): MasterPowerPointLang {
   const value = normalizeToken(langue ?? "");
   if (value.includes("EN") || value.includes("ANGLAIS")) return "EN";
   if (value.includes("DE") || value.includes("ALLEMAND")) return "DE";
@@ -106,11 +115,28 @@ function formatDate(value?: string | null) {
   return date.toLocaleDateString("fr-CH");
 }
 
-function formatMonthYear(value?: string | null) {
+function formatDateForFilename(value?: string | null) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  const formatted = new Intl.DateTimeFormat("fr-CH", {
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const year = String(date.getUTCFullYear());
+  return `${day}-${month}-${year}`;
+}
+
+function monthYearLocale(langue?: string | null) {
+  const lang = normalizeLang(langue);
+  if (lang === "EN") return "en-GB";
+  if (lang === "DE") return "de-CH";
+  return "fr-CH";
+}
+
+function formatMonthYear(value?: string | null, langue?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const formatted = new Intl.DateTimeFormat(monthYearLocale(langue), {
     month: "long",
     year: "numeric",
   }).format(date);
@@ -125,6 +151,16 @@ function resolveDateRange(offer: OfferRow) {
   if (from) return formatDate(from);
   if (to) return formatDate(to);
   return "";
+}
+
+function resolveFilenameDateRange(offer: OfferRow) {
+  const from = offer.dateConfirmeeDu ?? offer.dateOptions?.[0]?.du ?? null;
+  const to = offer.dateConfirmeeAu ?? offer.dateOptions?.[0]?.au ?? null;
+  const formattedFrom = formatDateForFilename(from);
+  const formattedTo = formatDateForFilename(to);
+
+  if (formattedFrom && formattedTo) return `${formattedFrom}_${formattedTo}`;
+  return formattedFrom || formattedTo;
 }
 
 function resolveReferenceDate(offer: OfferRow) {
@@ -172,7 +208,29 @@ function safeFilename(value: string) {
     .replace(/[^a-zA-Z0-9_-]+/g, "_")
     .replace(/_+/g, "_")
     .replace(/^_+|_+$/g, "")
-    .slice(0, 80) || "offre";
+    .slice(0, 140) || "offre";
+}
+
+function resolveFilenameDestination(offer: OfferRow) {
+  const destinations = normalizeDestinations(offer.stationDemandee);
+  const hasVillars = destinations.includes("VILLARS");
+  const hasDiablerets = destinations.includes("DIABLERETS");
+
+  if (hasVillars && hasDiablerets) return "Villars_Les_Diablerets";
+  if (hasVillars) return "Villars";
+  if (hasDiablerets) return "Les_Diablerets";
+  return "";
+}
+
+function buildOfferPptFilename(offer: OfferRow) {
+  const parts = [
+    resolveFilenameDestination(offer),
+    offer.societeContact ?? "",
+    offer.nombrePax != null ? `${offer.nombrePax}_pax` : "",
+    resolveFilenameDateRange(offer),
+  ].filter((part) => part.trim().length > 0);
+
+  return `${safeFilename(parts.join("_") || offer.id)}.pptx`;
 }
 
 function buildPlaceholders(offer: OfferRow): PptxPlaceholderMap {
@@ -195,7 +253,7 @@ function buildPlaceholders(offer: OfferRow): PptxPlaceholderMap {
     TELEPHONE: offer.telephoneContact ?? "",
     TELEPHONE_CONTACT: offer.telephoneContact ?? "",
     NOMBRE_PAX: offer.nombrePax != null ? String(offer.nombrePax) : "",
-    PARTICIPANTS: offer.nombrePax != null ? `${offer.nombrePax} personnes` : "",
+    PARTICIPANTS: offer.nombrePax != null ? String(offer.nombrePax) : "",
     NOMBRE_NUITS: offer.nombreDeNuits ?? "",
     TYPE_SEJOUR: offer.typeSejour ?? "",
     TRANSMIS_PAR: offer.transmisPar ?? "",
@@ -207,7 +265,7 @@ function buildPlaceholders(offer: OfferRow): PptxPlaceholderMap {
     DATE_FIN: formatDate(offer.dateConfirmeeAu ?? offer.dateOptions?.[0]?.au),
     DATE_CREATION: formatDate(offer.createdAt),
     DATE_ENVOI: formatDate(offer.dateEnvoiOffre),
-    MOIS_ANNEE: formatMonthYear(referenceDate),
+    MOIS_ANNEE: formatMonthYear(referenceDate, offer.langue),
   };
 }
 
@@ -273,19 +331,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Offre introuvable." }, { status: 404 });
     }
 
-    const { data: master, error: masterError } = await supabase
+    const masterLang = normalizeLang(offer.langue);
+    const { data: masters, error: masterError } = await supabase
       .from("document_blocks")
-      .select("name, file_path")
+      .select("name, file_path, lang")
       .eq("destination", MASTER_POWERPOINT.destination)
       .eq("season", MASTER_POWERPOINT.season)
-      .eq("lang", MASTER_POWERPOINT.lang)
+      .in("lang", [masterLang, LEGACY_MASTER_POWERPOINT_LANG])
       .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+      .limit(10);
+    const masterRows = (masters ?? []) as MasterRow[];
+    const master =
+      masterRows.find((row) => row.lang === masterLang) ??
+      masterRows.find((row) => row.lang === LEGACY_MASTER_POWERPOINT_LANG) ??
+      null;
 
     if (masterError || !master?.file_path) {
       return NextResponse.json(
-        { error: "Aucun PowerPoint MASTER n'est enregistré." },
+        { error: `Aucun PowerPoint MASTER ${masterLang} n'est enregistré.` },
         { status: 404 }
       );
     }
@@ -325,7 +388,7 @@ export async function POST(request: Request) {
     const result = await filterPptxSlides(
       Buffer.from(new Uint8Array(await masterBlob.arrayBuffer())),
       {
-        lang: normalizeLang(offer.langue),
+        lang: masterLang,
         destinations: normalizeDestinations(offer.stationDemandee),
         seasons: resolveSeasons(offer),
         hotelTags,
@@ -334,12 +397,13 @@ export async function POST(request: Request) {
       hotelReplacements
     );
 
-    const filename = `Offre_${safeFilename(offer.societeContact ?? offer.id)}.pptx`;
+    const filename = buildOfferPptFilename(offer);
 
     return new NextResponse(new Uint8Array(result.buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "Content-Disposition": `attachment; filename="${filename}"`,
+        "X-PPTX-Master-Lang": masterLang,
         "X-PPTX-Kept-Slides": String(result.keptSlides),
         "X-PPTX-Removed-Slides": String(result.removedSlides),
       },

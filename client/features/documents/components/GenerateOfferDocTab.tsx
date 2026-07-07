@@ -259,7 +259,7 @@ export function GenerateOfferDocTab({
         <div>
           <h2 className="text-lg font-semibold text-slate-900">PowerPoint de l&apos;offre</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Génère un PPTX depuis le MASTER en gardant uniquement les slides qui correspondent aux tags de cette offre.
+            Génère un PPTX depuis le MASTER de la langue de l&apos;offre en gardant uniquement les slides qui correspondent aux tags.
           </p>
         </div>
         <button
