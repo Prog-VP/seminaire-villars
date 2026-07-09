@@ -73,7 +73,7 @@ export const INITIAL_FILTERS: OfferFiltersState = {
   categorieHotel: "all",
   traitePar: "all",
   langue: "all",
-  transmisPar: "",
+  transmisPar: "all",
   paxMin: "",
   paxMax: "",
   activiteUniquement: "all",
@@ -159,7 +159,6 @@ function matchesOffer(offer: Offer, filters: OfferFiltersState): boolean {
     societe: normalize(filters.societe),
     contact: normalize(filters.contact),
     email: normalize(filters.email),
-    transmisPar: normalize(filters.transmisPar),
     notes: normalize(filters.notes),
   };
 
@@ -167,7 +166,6 @@ function matchesOffer(offer: Offer, filters: OfferFiltersState): boolean {
   if (!matchesText(norm.societe, offer.societeContact)) return false;
   if (norm.contact && !getContactField(offer).includes(norm.contact)) return false;
   if (!matchesText(norm.email, offer.emailContact)) return false;
-  if (!matchesText(norm.transmisPar, offer.transmisPar)) return false;
 
   if (norm.notes) {
     const commentsText = (offer.comments ?? []).map((c) => normalize(c.content)).join(" ");
@@ -180,6 +178,7 @@ function matchesOffer(offer: Offer, filters: OfferFiltersState): boolean {
   if (!matchesExact(filters.typeSejour as string, offer.typeSejour)) return false;
   if (!matchesMultiField(filters.stationDemandee as string, offer.stationDemandee)) return false;
   if (!matchesExact(filters.traitePar as string, offer.traitePar)) return false;
+  if (!matchesExact(filters.transmisPar, offer.transmisPar)) return false;
   if (!matchesExact(filters.langue, offer.langue)) return false;
   if (!matchesMultiField(filters.categorieHotel as string, offer.categorieHotel)) return false;
 
@@ -250,7 +249,11 @@ function loadFilters(hasStatsFilter: boolean): OfferFiltersState {
   if (hasStatsFilter) return { ...INITIAL_FILTERS };
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...INITIAL_FILTERS, ...JSON.parse(raw) };
+    if (raw) {
+      const parsed = { ...INITIAL_FILTERS, ...JSON.parse(raw) };
+      if (!parsed.transmisPar) parsed.transmisPar = "all";
+      return parsed;
+    }
   } catch {}
   return { ...INITIAL_FILTERS };
 }

@@ -5,8 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 const MASTER_POWERPOINT = {
   destination: "master",
   season: "powerpoint",
-  lang: "master",
 };
+
+const MASTER_POWERPOINT_LANGS = ["FR", "EN", "DE"] as const;
+const LEGACY_MASTER_POWERPOINT_LANG = "master";
+
+type MasterPowerPointLang = (typeof MASTER_POWERPOINT_LANGS)[number];
 
 type MasterRow = {
   id: string;
@@ -22,12 +26,24 @@ type UploadRequestBody =
   | {
       action: "prepare-upload";
       name: string;
+      lang?: string | null;
     }
   | {
       action: "complete-upload";
       name: string;
       filePath: string;
+      lang?: string | null;
     };
+
+type MasterPayload = Record<MasterPowerPointLang, ReturnType<typeof mapMaster> | null>;
+
+function emptyMasterPayload(): MasterPayload {
+  return {
+    FR: null,
+    EN: null,
+    DE: null,
+  };
+}
 
 function mapMaster(row: MasterRow) {
   return {
@@ -41,12 +57,32 @@ function mapMaster(row: MasterRow) {
   };
 }
 
+function normalizeToken(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+}
+
+function normalizeMasterLang(value?: string | null): MasterPowerPointLang | null {
+  const normalized = normalizeToken(value ?? "");
+  if (normalized.includes("EN") || normalized.includes("ANGLAIS")) return "EN";
+  if (normalized.includes("DE") || normalized.includes("ALLEMAND")) return "DE";
+  if (normalized.includes("FR") || normalized.includes("FRANCAIS")) return "FR";
+  return null;
+}
+
+function requireMasterLang(value?: string | null) {
+  return normalizeMasterLang(value) ?? "FR";
+}
+
 function getPowerPointExtension(filename: string) {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
   return ext === "ppt" || ext === "pptx" ? ext : null;
 }
 
-function buildMasterFilePath(filename: string) {
+function buildMasterFilePath(filename: string, lang: MasterPowerPointLang) {
   const ext = getPowerPointExtension(filename);
   if (!ext) return null;
 
@@ -59,11 +95,12 @@ function buildMasterFilePath(filename: string) {
       .replace(/_+/g, "_")
       .replace(/^_+|_+$/g, "") || "master";
 
-  return `master/${Date.now()}_${safeName}.${ext}`;
+  return `master/${lang.toLowerCase()}/${Date.now()}_${safeName}.${ext}`;
 }
 
-function isValidMasterFilePath(filePath: string) {
-  return /^master\/\d+_[a-zA-Z0-9_-]+\.(ppt|pptx)$/.test(filePath);
+function isValidMasterFilePath(filePath: string, lang: MasterPowerPointLang) {
+  const prefix = `master/${lang.toLowerCase()}`;
+  return new RegExp(`^${prefix}/\\d+_[a-zA-Z0-9_-]+\\.(ppt|pptx)$`).test(filePath);
 }
 
 async function requireUser() {
@@ -74,18 +111,50 @@ async function requireUser() {
   return user;
 }
 
-async function fetchMasters() {
+async function fetchMasters(lang?: MasterPowerPointLang) {
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("document_blocks")
     .select("id, destination, season, lang, name, file_path, created_at")
     .eq("destination", MASTER_POWERPOINT.destination)
     .eq("season", MASTER_POWERPOINT.season)
-    .eq("lang", MASTER_POWERPOINT.lang)
     .order("created_at", { ascending: false });
+
+  if (lang) {
+    query = query.eq("lang", lang);
+  } else {
+    query = query.in("lang", [...MASTER_POWERPOINT_LANGS, LEGACY_MASTER_POWERPOINT_LANG]);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw new Error(error.message);
   return ((data ?? []) as MasterRow[]);
+}
+
+function groupMasters(rows: MasterRow[]) {
+  const masters = emptyMasterPayload();
+  let legacyMaster: ReturnType<typeof mapMaster> | null = null;
+
+  for (const row of rows) {
+    const lang = normalizeMasterLang(row.lang);
+    if (lang && !masters[lang]) {
+      masters[lang] = mapMaster(row);
+    } else if (row.lang === LEGACY_MASTER_POWERPOINT_LANG && !legacyMaster) {
+      legacyMaster = mapMaster(row);
+    }
+  }
+
+  return { masters, legacyMaster };
+}
+
+async function fetchLatestMaster(lang: MasterPowerPointLang) {
+  const rows = await fetchMasters();
+  return (
+    rows.find((row) => row.lang === lang) ??
+    rows.find((row) => row.lang === LEGACY_MASTER_POWERPOINT_LANG) ??
+    null
+  );
 }
 
 export async function GET(request: Request) {
@@ -93,14 +162,15 @@ export async function GET(request: Request) {
     const user = await requireUser();
     if (!user) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
-    const masters = await fetchMasters();
-    const master = masters[0] ?? null;
     const url = new URL(request.url);
 
     if (url.searchParams.get("download") === "1") {
+      const lang = requireMasterLang(url.searchParams.get("lang"));
+      const master = await fetchLatestMaster(lang);
+
       if (!master) {
         return NextResponse.json(
-          { error: "Aucun PowerPoint MASTER n'est enregistré." },
+          { error: `Aucun PowerPoint MASTER ${lang} n'est enregistré.` },
           { status: 404 }
         );
       }
@@ -120,7 +190,8 @@ export async function GET(request: Request) {
       return NextResponse.redirect(data.signedUrl);
     }
 
-    return NextResponse.json({ master: master ? mapMaster(master) : null });
+    const masters = await fetchMasters();
+    return NextResponse.json(groupMasters(masters));
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Erreur interne." },
@@ -150,9 +221,10 @@ export async function POST(request: Request) {
     }
 
     const supabase = createAdminClient();
+    const lang = requireMasterLang(body.lang);
 
     if (body.action === "prepare-upload") {
-      const filePath = buildMasterFilePath(body.name);
+      const filePath = buildMasterFilePath(body.name, lang);
       if (!filePath) {
         return NextResponse.json(
           { error: "Veuillez sélectionner un fichier PowerPoint (.ppt ou .pptx)." },
@@ -174,14 +246,15 @@ export async function POST(request: Request) {
       });
     }
 
-    if (body.action !== "complete-upload" || !isValidMasterFilePath(body.filePath)) {
+    if (body.action !== "complete-upload" || !isValidMasterFilePath(body.filePath, lang)) {
       return NextResponse.json({ error: "Upload PowerPoint invalide." }, { status: 400 });
     }
 
-    const fileName = body.filePath.replace("master/", "");
+    const folder = `master/${lang.toLowerCase()}`;
+    const fileName = body.filePath.replace(`${folder}/`, "");
     const { data: uploadedFiles, error: listError } = await supabase.storage
       .from("document-blocks")
-      .list("master", { search: fileName, limit: 1 });
+      .list(folder, { search: fileName, limit: 1 });
 
     if (listError) throw new Error(listError.message);
     const uploadedFile = uploadedFiles?.find((file) => file.name === fileName);
@@ -189,12 +262,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Upload PowerPoint introuvable." }, { status: 400 });
     }
 
-    const existing = await fetchMasters();
+    const existing = await fetchMasters(lang);
 
     const { data, error: insertError } = await supabase
       .from("document_blocks")
       .insert({
         ...MASTER_POWERPOINT,
+        lang,
         name: body.name,
         file_path: body.filePath,
       })
@@ -231,13 +305,15 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
     const user = await requireUser();
     if (!user) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
     const supabase = createAdminClient();
-    const existing = await fetchMasters();
+    const requestUrl = new URL(request.url);
+    const lang = normalizeMasterLang(requestUrl.searchParams.get("lang"));
+    const existing = lang ? await fetchMasters(lang) : await fetchMasters();
 
     if (existing.length > 0) {
       const paths = existing.map((block) => block.file_path);

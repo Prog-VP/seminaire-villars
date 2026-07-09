@@ -1,27 +1,51 @@
 import { createClient } from "@/lib/supabase/client";
 import { throwOnError } from "@/lib/supabase/helpers";
-import type { DocumentBlock } from "./types";
+import { MASTER_POWERPOINT_LANGS } from "./types";
+import type { DocumentBlock, MasterPowerPointLang, MasterPowerPointMap } from "./types";
 
 function supabase() {
   return createClient();
 }
 
-export async function fetchMasterPowerPoint(): Promise<DocumentBlock | null> {
+function emptyMasterPowerPointMap(): MasterPowerPointMap {
+  return {
+    FR: null,
+    EN: null,
+    DE: null,
+  };
+}
+
+function masterPowerPointUrl(lang?: MasterPowerPointLang) {
+  const params = new URLSearchParams();
+  if (lang) params.set("lang", lang);
+  const query = params.toString();
+  return `/api/document-master-ppt${query ? `?${query}` : ""}`;
+}
+
+export async function fetchMasterPowerPoints(): Promise<MasterPowerPointMap> {
   const response = await fetch("/api/document-master-ppt");
   const payload = (await response.json().catch(() => ({}))) as {
-    master?: DocumentBlock | null;
+    masters?: Partial<Record<MasterPowerPointLang, DocumentBlock | null>>;
     error?: string;
   };
   if (!response.ok) throw new Error(payload.error ?? "Impossible de charger le document MASTER.");
-  return payload.master ?? null;
+  const masters = emptyMasterPowerPointMap();
+  for (const lang of MASTER_POWERPOINT_LANGS) {
+    masters[lang] = payload.masters?.[lang] ?? null;
+  }
+  return masters;
 }
 
-export async function uploadMasterPowerPoint(file: File): Promise<DocumentBlock> {
+export async function uploadMasterPowerPoint(
+  lang: MasterPowerPointLang,
+  file: File
+): Promise<DocumentBlock> {
   const prepareResponse = await fetch("/api/document-master-ppt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       action: "prepare-upload",
+      lang,
       name: file.name,
     }),
   });
@@ -56,6 +80,7 @@ export async function uploadMasterPowerPoint(file: File): Promise<DocumentBlock>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       action: "complete-upload",
+      lang,
       name: file.name,
       filePath: preparePayload.filePath,
     }),
@@ -73,16 +98,17 @@ export async function uploadMasterPowerPoint(file: File): Promise<DocumentBlock>
   return completePayload.master;
 }
 
-export async function deleteMasterPowerPoint(): Promise<void> {
-  const response = await fetch("/api/document-master-ppt", {
+export async function deleteMasterPowerPoint(lang: MasterPowerPointLang): Promise<void> {
+  const response = await fetch(masterPowerPointUrl(lang), {
     method: "DELETE",
   });
   const payload = (await response.json().catch(() => ({}))) as { error?: string };
   if (!response.ok) throw new Error(payload.error ?? "Impossible de supprimer le document MASTER.");
 }
 
-export async function downloadMasterPowerPoint(): Promise<void> {
-  window.location.assign("/api/document-master-ppt?download=1");
+export async function downloadMasterPowerPoint(lang: MasterPowerPointLang): Promise<void> {
+  const params = new URLSearchParams({ download: "1", lang });
+  window.location.assign(`/api/document-master-ppt?${params.toString()}`);
 }
 
 export async function saveOfferText(

@@ -8,7 +8,7 @@ export default function DocumentsSettingsPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">PowerPoint MASTER</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Gérez le PowerPoint MASTER utilisé comme base de création des offres.
+          Gérez les PowerPoint MASTER français, anglais et allemand utilisés comme base de création des offres.
         </p>
       </div>
       <DocumentBlocksPage />

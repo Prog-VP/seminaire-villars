@@ -230,54 +230,80 @@ function replacePlaceholdersInSlideXml(
     );
 
   let nextXml = removeEmptyPageRows(xml, replacements);
-  const paragraphs = xml.match(/<a:p\b[\s\S]*?<\/a:p>/g) ?? [];
+  const paragraphs = nextXml.match(/<a:p\b[\s\S]*?<\/a:p>/g) ?? [];
 
   for (const paragraph of paragraphs) {
-    const texts = [...paragraph.matchAll(/<a:t\b[^>]*>([\s\S]*?)<\/a:t>/g)];
-    if (texts.length === 0) continue;
+    const nextParagraph = replacePlaceholdersInTextRuns(paragraph, replaceText);
 
-    const combined = texts.map((match) => decodeXmlText(match[1])).join("");
-    const replaced = replaceText(combined);
-
-    if (replaced === combined) continue;
-
-    let textIndex = 0;
-    const nextParagraph = paragraph.replace(/<a:t\b([^>]*)>[\s\S]*?<\/a:t>/g, (_match, attrs: string) => {
-      if (textIndex === 0) {
-        textIndex += 1;
-        return `<a:t${attrs}>${encodeXmlText(replaced)}</a:t>`;
-      }
-      textIndex += 1;
-      return `<a:t${attrs}></a:t>`;
-    });
-
+    if (nextParagraph === paragraph) continue;
     nextXml = nextXml.replace(paragraph, nextParagraph);
   }
 
-  const textBodies = nextXml.match(/<p:txBody\b[\s\S]*?<\/p:txBody>/g) ?? [];
+  return nextXml;
+}
 
-  for (const textBody of textBodies) {
-    const texts = [...textBody.matchAll(/<a:t\b[^>]*>([\s\S]*?)<\/a:t>/g)];
-    if (texts.length === 0) continue;
+function replacePlaceholdersInTextRuns(
+  xml: string,
+  replaceText: (value: string) => string
+) {
+  const textMatches = [...xml.matchAll(/<a:t\b([^>]*)>([\s\S]*?)<\/a:t>/g)];
+  if (textMatches.length === 0) return xml;
 
-    const combined = texts.map((match) => decodeXmlText(match[1])).join("");
-    const replaced = replaceText(combined);
-    if (replaced === combined) continue;
-
-    let textIndex = 0;
-    const nextTextBody = textBody.replace(/<a:t\b([^>]*)>[\s\S]*?<\/a:t>/g, (_match, attrs: string) => {
-      if (textIndex === 0) {
-        textIndex += 1;
-        return `<a:t${attrs}>${encodeXmlText(replaced)}</a:t>`;
-      }
-      textIndex += 1;
-      return `<a:t${attrs}></a:t>`;
-    });
-
-    nextXml = nextXml.replace(textBody, nextTextBody);
+  const runs = textMatches.map((match) => ({
+    raw: match[0],
+    attrs: match[1],
+    text: decodeXmlText(match[2]),
+    start: 0,
+    end: 0,
+  }));
+  let cursor = 0;
+  for (const run of runs) {
+    run.start = cursor;
+    cursor += run.text.length;
+    run.end = cursor;
   }
 
-  return nextXml;
+  const combined = runs.map((run) => run.text).join("");
+  const placeholders = [...combined.matchAll(/\{\{\s*([A-Z0-9_]+)\s*\}\}/g)];
+  if (placeholders.length === 0) return xml;
+
+  for (const placeholder of placeholders.reverse()) {
+    const match = placeholder[0];
+    const start = placeholder.index ?? 0;
+    const end = start + match.length;
+    const replacement = replaceText(match);
+    if (replacement === match) continue;
+
+    const startRunIndex = runs.findIndex((run) => start >= run.start && start < run.end);
+    const endRunIndex = runs.findIndex((run) => end > run.start && end <= run.end);
+    if (startRunIndex < 0 || endRunIndex < 0) continue;
+
+    const startRun = runs[startRunIndex];
+    const endRun = runs[endRunIndex];
+    const startOffset = start - startRun.start;
+    const endOffset = end - endRun.start;
+
+    if (startRunIndex === endRunIndex) {
+      startRun.text =
+        startRun.text.slice(0, startOffset) +
+        replacement +
+        startRun.text.slice(endOffset);
+      continue;
+    }
+
+    startRun.text = startRun.text.slice(0, startOffset) + replacement;
+    for (let index = startRunIndex + 1; index < endRunIndex; index += 1) {
+      runs[index].text = "";
+    }
+    endRun.text = endRun.text.slice(endOffset);
+  }
+
+  let runIndex = 0;
+  return xml.replace(/<a:t\b([^>]*)>[\s\S]*?<\/a:t>/g, () => {
+    const run = runs[runIndex];
+    runIndex += 1;
+    return `<a:t${run.attrs}>${encodeXmlText(run.text)}</a:t>`;
+  });
 }
 
 function removeEmptyPageRows(xml: string, replacements: PptxPlaceholderMap) {
