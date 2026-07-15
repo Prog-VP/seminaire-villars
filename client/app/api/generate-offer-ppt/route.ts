@@ -1,18 +1,26 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import {
   filterPptxSlides,
   type PptxHotelPlaceholderMap,
   type PptxPlaceholderMap,
 } from "@/lib/pptx-filter";
 import { buildAvailableOfferText } from "@/features/offres/utils";
+import {
+  formatOfferPptDestinationFilename,
+  formatOfferPptDestinationLabel,
+  normalizeOfferPptDestinations,
+  normalizeOfferPptDestinationMode,
+  resolveOfferPptDestinations,
+  type OfferPptDestination,
+} from "@/features/documents/offer-ppt-destinations";
 
 type GenerateOfferPptBody = {
   offerId?: string;
+  destinationMode?: string;
   responseHotels?: {
     responseId: string;
-    hotelId?: string | null;
-    offerText?: string | null;
   }[];
 };
 
@@ -35,6 +43,7 @@ type HotelRow = {
   id: string;
   nom?: string | null;
   ppt_tag?: string | null;
+  destination?: string | null;
 };
 
 type OfferRow = {
@@ -76,6 +85,8 @@ type MasterRow = {
   lang?: string | null;
 };
 
+class BadRequestError extends Error {}
+
 function normalizeToken(value: string) {
   return value
     .normalize("NFD")
@@ -89,15 +100,6 @@ function normalizeLang(langue?: string | null): MasterPowerPointLang {
   if (value.includes("EN") || value.includes("ANGLAIS")) return "EN";
   if (value.includes("DE") || value.includes("ALLEMAND")) return "DE";
   return "FR";
-}
-
-function normalizeDestinations(destination?: string | null) {
-  const value = normalizeToken(destination ?? "");
-  const destinations: string[] = [];
-  if (value.includes("VILLARS")) destinations.push("VILLARS");
-  if (value.includes("DIABLER")) destinations.push("DIABLERETS");
-  if (value.includes("ALL") || value.includes("TOUS")) return ["ALL", "VILLARS", "DIABLERETS"];
-  return destinations;
 }
 
 function dateToSeason(value?: string | null) {
@@ -211,20 +213,9 @@ function safeFilename(value: string) {
     .slice(0, 140) || "offre";
 }
 
-function resolveFilenameDestination(offer: OfferRow) {
-  const destinations = normalizeDestinations(offer.stationDemandee);
-  const hasVillars = destinations.includes("VILLARS");
-  const hasDiablerets = destinations.includes("DIABLERETS");
-
-  if (hasVillars && hasDiablerets) return "Villars_Les_Diablerets";
-  if (hasVillars) return "Villars";
-  if (hasDiablerets) return "Les_Diablerets";
-  return "";
-}
-
-function buildOfferPptFilename(offer: OfferRow) {
+function buildOfferPptFilename(offer: OfferRow, destinations: OfferPptDestination[]) {
   const parts = [
-    resolveFilenameDestination(offer),
+    formatOfferPptDestinationFilename(destinations),
     offer.societeContact ?? "",
     offer.nombrePax != null ? `${offer.nombrePax}_pax` : "",
     resolveFilenameDateRange(offer),
@@ -233,7 +224,10 @@ function buildOfferPptFilename(offer: OfferRow) {
   return `${safeFilename(parts.join("_") || offer.id)}.pptx`;
 }
 
-function buildPlaceholders(offer: OfferRow): PptxPlaceholderMap {
+function buildPlaceholders(
+  offer: OfferRow,
+  generationDestinationLabel: string
+): PptxPlaceholderMap {
   const contactFullName = [offer.prenomContact, offer.nomContact]
     .filter(Boolean)
     .join(" ");
@@ -258,8 +252,10 @@ function buildPlaceholders(offer: OfferRow): PptxPlaceholderMap {
     TYPE_SEJOUR: offer.typeSejour ?? "",
     TRANSMIS_PAR: offer.transmisPar ?? "",
     LANGUE: offer.langue ?? "",
-    STATION: offer.stationDemandee ?? "",
-    DESTINATION: offer.stationDemandee ?? "",
+    STATION: generationDestinationLabel,
+    DESTINATION: generationDestinationLabel,
+    STATION_DEMANDEE: offer.stationDemandee ?? "",
+    DESTINATION_DEMANDEE: offer.stationDemandee ?? "",
     DATES: resolveDateRange(offer),
     DATE_DEBUT: formatDate(offer.dateConfirmeeDu ?? offer.dateOptions?.[0]?.du),
     DATE_FIN: formatDate(offer.dateConfirmeeAu ?? offer.dateOptions?.[0]?.au),
@@ -279,6 +275,7 @@ function buildHotelReplacementMaps(
     (responseHotels ?? []).map((item) => [item.responseId, item])
   );
   const hotelTags = new Set<string>();
+  const hotelDestinations = new Set<OfferPptDestination>();
   const hotelReplacements: PptxHotelPlaceholderMap = {};
 
   for (const response of offer.hotel_responses ?? []) {
@@ -286,8 +283,21 @@ function buildHotelReplacementMaps(
     const requested = responseId ? requestedByResponseId.get(responseId) : undefined;
     if (hasExplicitSelection && !requested) continue;
 
-    const selectedHotelId = requested?.hotelId ?? response.hotel_id ?? null;
-    const selectedHotel = selectedHotelId ? hotelsById.get(selectedHotelId) : null;
+    const selectedHotelId = response.hotel_id ?? null;
+    if (!selectedHotelId) {
+      if (hasExplicitSelection && requested) {
+        throw new BadRequestError(
+          `Associez la réponse de ${response.hotelName ?? "cet hôtel"} à un hôtel avant de générer le PowerPoint.`
+        );
+      }
+      continue;
+    }
+    const selectedHotel = hotelsById.get(selectedHotelId);
+    if (!selectedHotel) {
+      throw new BadRequestError(
+        `L'hôtel associé à la réponse de ${response.hotelName ?? "cet hôtel"} est introuvable.`
+      );
+    }
     const hotelName = selectedHotel?.nom ?? response.hotelName ?? "";
     const tag =
       normalizeToken(selectedHotel?.ppt_tag ?? "") ||
@@ -295,11 +305,14 @@ function buildHotelReplacementMaps(
 
     if (!tag) continue;
     const offerText = buildAvailableOfferText(
-      requested?.offerText ?? response.offerText ?? response.message ?? "",
+      response.offerText ?? response.message ?? "",
     );
     if (!offerText) continue;
 
     hotelTags.add(tag);
+    for (const destination of normalizeOfferPptDestinations(selectedHotel?.destination)) {
+      hotelDestinations.add(destination);
+    }
     hotelReplacements[tag] ??= {
       HOTEL: selectedHotel?.nom ?? response.hotelName ?? "",
       NOM_HOTEL: selectedHotel?.nom ?? response.hotelName ?? "",
@@ -309,16 +322,29 @@ function buildHotelReplacementMaps(
 
   return {
     hotelTags: [...hotelTags],
+    hotelDestinations: [...hotelDestinations],
     hotelReplacements,
   };
 }
 
+async function requireUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
+}
+
 export async function POST(request: Request) {
   try {
+    const user = await requireUser();
+    if (!user) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+
     const body = (await request.json()) as GenerateOfferPptBody;
     if (!body.offerId) {
       return NextResponse.json({ error: "Offre manquante." }, { status: 400 });
     }
+    const destinationMode = normalizeOfferPptDestinationMode(body.destinationMode);
 
     const supabase = createAdminClient();
     const { data: offer, error: offerError } = await supabase
@@ -366,44 +392,56 @@ export async function POST(request: Request) {
 
     const selectedHotelIds = [
       ...new Set([
-        ...(body.responseHotels ?? []).map((item) => item.hotelId),
-        ...(offer.hotel_responses ?? []).map((response) => response.hotel_id),
+        ...(offer.hotel_responses ?? [])
+          .filter((response) => {
+            if (!body.responseHotels) return true;
+            return body.responseHotels.some((item) => item.responseId === response.id);
+          })
+          .map((response) => response.hotel_id),
       ].filter(Boolean)),
     ] as string[];
     const { data: selectedHotels } = selectedHotelIds.length
       ? await supabase
           .from("hotels")
-          .select("id, nom, ppt_tag")
+          .select("id, nom, ppt_tag, destination")
           .in("id", selectedHotelIds)
       : { data: [] };
     const hotelsById = new Map(
       ((selectedHotels ?? []) as HotelRow[]).map((hotel) => [hotel.id, hotel])
     );
-    const { hotelTags, hotelReplacements } = buildHotelReplacementMaps(
+    const { hotelTags, hotelDestinations, hotelReplacements } = buildHotelReplacementMaps(
       offer,
       body.responseHotels,
       hotelsById
     );
+    const generationDestinations = resolveOfferPptDestinations({
+      mode: destinationMode,
+      hotelDestinations,
+      offerDestination: offer.stationDemandee,
+    });
+    const generationDestinationLabel = formatOfferPptDestinationLabel(generationDestinations);
 
     const result = await filterPptxSlides(
       Buffer.from(new Uint8Array(await masterBlob.arrayBuffer())),
       {
         lang: masterLang,
-        destinations: normalizeDestinations(offer.stationDemandee),
+        destinations: generationDestinations,
         seasons: resolveSeasons(offer),
         hotelTags,
       },
-      buildPlaceholders(offer),
+      buildPlaceholders(offer, generationDestinationLabel),
       hotelReplacements
     );
 
-    const filename = buildOfferPptFilename(offer);
+    const filename = buildOfferPptFilename(offer, generationDestinations);
 
     return new NextResponse(new Uint8Array(result.buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "Content-Disposition": `attachment; filename="${filename}"`,
         "X-PPTX-Master-Lang": masterLang,
+        "X-PPTX-Destination-Mode": destinationMode,
+        "X-PPTX-Destinations": generationDestinations.join(","),
         "X-PPTX-Kept-Slides": String(result.keptSlides),
         "X-PPTX-Removed-Slides": String(result.removedSlides),
       },
@@ -412,7 +450,7 @@ export async function POST(request: Request) {
     console.error("[generate-offer-ppt]", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Erreur interne" },
-      { status: 500 }
+      { status: error instanceof BadRequestError ? 400 : 500 }
     );
   }
 }

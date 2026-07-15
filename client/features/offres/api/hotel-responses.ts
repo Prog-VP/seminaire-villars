@@ -7,20 +7,27 @@ export async function updateHotelResponse(
   responseId: string,
   payload: {
     hotelName: string;
+    hotelId?: string | null;
     respondentName?: string;
     message: string;
     offerText?: string | null;
   }
 ) {
+  const updatePayload: Record<string, unknown> = {
+    hotelName: payload.hotelName,
+    respondentName: payload.respondentName ?? null,
+    message: payload.message,
+    offerText: payload.offerText ?? null,
+  };
+
+  if ("hotelId" in payload) {
+    updatePayload.hotel_id = payload.hotelId ?? null;
+  }
+
   throwOnError(
     await supabase()
       .from("hotel_responses")
-      .update({
-        hotelName: payload.hotelName,
-        respondentName: payload.respondentName ?? null,
-        message: payload.message,
-        offerText: payload.offerText ?? null,
-      } as Record<string, unknown>)
+      .update(updatePayload)
       .eq("id", responseId)
       .eq("offer_id", offerId)
   );

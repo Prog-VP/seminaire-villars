@@ -52,7 +52,16 @@ export async function fetchOfferById(id: string): Promise<Offer | null> {
     console.error("Erreur fetchOfferById:", error.message);
     return null;
   }
-  return mapRow(data);
+  return addAttachmentsCount(mapRow(data));
+}
+
+async function addAttachmentsCount(offer: Offer): Promise<Offer> {
+  try {
+    offer.attachmentsCount = (await listOfferAttachments(offer.id)).length;
+  } catch {
+    // Keep the offer usable if Storage metadata cannot be read.
+  }
+  return offer;
 }
 
 export async function createOffer(payload: Partial<Offer>) {
@@ -66,9 +75,14 @@ export async function createOffer(payload: Partial<Offer>) {
 export async function updateOffer(id: string, payload: Partial<Offer>) {
   const rest = omitOfferFields(payload, OFFER_MUTATION_EXCLUDED_FIELDS);
   const data = throwOnError(
-    await supabase().from("offers").update(rest).eq("id", id).select().single()
+    await supabase()
+      .from("offers")
+      .update(rest)
+      .eq("id", id)
+      .select("*, hotel_responses(*), offer_comments(*)")
+      .single()
   );
-  return mapRow(data);
+  return addAttachmentsCount(mapRow(data));
 }
 
 export async function updateOfferStatut(id: string, statut: string) {
@@ -111,6 +125,7 @@ export async function duplicateOffer(
         .insert({
           offer_id: newOffer.id,
           hotelName: hr.hotelName,
+          hotel_id: hr.hotelId ?? null,
           respondentName: hr.respondentName ?? null,
           message: hr.message,
           offerText: hr.offerText ?? null,

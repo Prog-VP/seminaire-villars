@@ -23,6 +23,13 @@ export default async function OfferDetailPage({
 
   if (!error && data) {
     offer = mapRow(data);
+    const { data: files, error: storageError } = await supabase.storage
+      .from("offer-annexes")
+      .list(id, { limit: 1000 });
+
+    if (!storageError) {
+      offer.attachmentsCount = files?.length ?? 0;
+    }
   }
 
   return <OfferDetail offer={offer ?? undefined} offerId={id} />;

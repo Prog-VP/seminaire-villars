@@ -1,7 +1,5 @@
 "use client";
 
-import type { HotelResponse } from "../types";
-
 export type ResponseEditFormState = {
   hotelName: string;
   respondentName: string;
@@ -10,11 +8,8 @@ export type ResponseEditFormState = {
 };
 
 type ResponseEditFormProps = {
-  response: HotelResponse;
   editForm: ResponseEditFormState;
-  onEditChange: (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => void;
+  onEditChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onSave: () => void;
   onCancel: () => void;
   onResetOfferText: () => void;
@@ -22,7 +17,6 @@ type ResponseEditFormProps = {
   editingId: string;
   isSaving: boolean;
   isBusy?: boolean;
-  onUpdateResponse?: boolean;
   onDeleteResponse?: boolean;
 };
 
@@ -40,26 +34,6 @@ export function ResponseEditForm({
 }: ResponseEditFormProps) {
   return (
     <div className="mt-3 space-y-3 rounded-lg border border-brand-200 bg-brand-50/30 p-4">
-      <div className="grid gap-3 md:grid-cols-2">
-        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Nom de l&apos;hôtel
-          <input
-            name="hotelName"
-            value={editForm.hotelName}
-            onChange={onEditChange}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-          />
-        </label>
-        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Contact
-          <input
-            name="respondentName"
-            value={editForm.respondentName}
-            onChange={onEditChange}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-          />
-        </label>
-      </div>
       <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
         Texte pour l&apos;offre
         <textarea

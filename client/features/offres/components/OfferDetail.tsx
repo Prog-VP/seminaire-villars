@@ -48,6 +48,8 @@ export function OfferDetail({ offer, offerId }: OfferDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const activeTab = parseOfferDetailTab(searchParams.get("tab"));
   const activeSection = parseSection(searchParams.get("section"));
+  const shouldLoadAttachments =
+    activeTab === "attachments" || typeof currentOffer?.attachmentsCount !== "number";
 
   const navigate = useCallback(
     (tab: OfferDetailTab, section?: SubGroupKey) => {
@@ -75,7 +77,7 @@ export function OfferDetail({ offer, offerId }: OfferDetailProps) {
     setIsLoading: setIsLoadingAttachments,
   } = useTabData<OfferAttachment>({
     fetchFn: currentOffer ? () => listOfferAttachments(currentOffer.id) : null,
-    triggerWhen: activeTab === "attachments",
+    triggerWhen: Boolean(currentOffer) && shouldLoadAttachments,
     onError: (error) =>
       setMessage({
         type: "error",
@@ -106,7 +108,9 @@ export function OfferDetail({ offer, offerId }: OfferDetailProps) {
   });
   const attachmentBadgeCount = areAttachmentsLoaded
     ? attachments.length
-    : currentOffer?.attachmentsCount ?? 0;
+    : typeof currentOffer?.attachmentsCount === "number"
+      ? currentOffer.attachmentsCount
+      : null;
 
   const shareUrl = currentOffer?.shareToken
     ? `${typeof window !== "undefined" ? window.location.origin : ""}/partage/offres/${currentOffer.shareToken}`
@@ -151,12 +155,11 @@ export function OfferDetail({ offer, offerId }: OfferDetailProps) {
     };
   }, [activeTab, offerIdToRefresh]);
 
-
-useEffect(() => {
-  if (currentOffer?.comments) {
-    setComments(currentOffer.comments);
-  }
-}, [currentOffer?.comments, setComments]);
+  useEffect(() => {
+    if (currentOffer?.comments) {
+      setComments(currentOffer.comments);
+    }
+  }, [currentOffer?.comments, setComments]);
 
   if (!currentOffer) {
     return (
@@ -236,7 +239,6 @@ useEffect(() => {
         <GenerateOfferDocTab
           offer={currentOffer}
           hotelResponses={currentOffer.hotelResponses}
-          sends={sends}
         />
       ) : activeTab === "attachments" ? (
         <OfferAttachmentsPanel

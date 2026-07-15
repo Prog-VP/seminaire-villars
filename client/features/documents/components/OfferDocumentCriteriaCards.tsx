@@ -1,7 +1,8 @@
 type OfferDocumentCriteriaCardsProps = {
   criteria: {
     lang: string;
-    destination: string;
+    offerDestination: string;
+    generationDestination: string;
     seasons: string[];
     hotelsCount: number;
   };
@@ -13,9 +14,10 @@ export function OfferDocumentCriteriaCards({
   includedResponseCount,
 }: OfferDocumentCriteriaCardsProps) {
   return (
-    <div className="mt-5 grid gap-3 text-sm sm:grid-cols-4">
+    <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
       <CriteriaCard label="Langue" value={criteria.lang} />
-      <CriteriaCard label="Destination" value={criteria.destination} />
+      <CriteriaCard label="Destination offre" value={criteria.offerDestination} />
+      <CriteriaCard label="Destination PPT" value={criteria.generationDestination} />
       <CriteriaCard
         label="Saison"
         value={criteria.seasons.length ? criteria.seasons.join(", ") : "ALL"}

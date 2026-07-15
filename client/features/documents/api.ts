@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/client";
-import { throwOnError } from "@/lib/supabase/helpers";
 import { MASTER_POWERPOINT_LANGS } from "./types";
 import type { DocumentBlock, MasterPowerPointLang, MasterPowerPointMap } from "./types";
 
@@ -109,28 +108,4 @@ export async function deleteMasterPowerPoint(lang: MasterPowerPointLang): Promis
 export async function downloadMasterPowerPoint(lang: MasterPowerPointLang): Promise<void> {
   const params = new URLSearchParams({ download: "1", lang });
   window.location.assign(`/api/document-master-ppt?${params.toString()}`);
-}
-
-export async function saveOfferText(
-  responseId: string,
-  offerText: string
-): Promise<void> {
-  throwOnError(
-    await supabase()
-      .from("hotel_responses")
-      .update({ offerText: offerText || null } as Record<string, unknown>)
-      .eq("id", responseId)
-  );
-}
-
-export async function saveResponseHotel(
-  responseId: string,
-  hotelId: string | null
-): Promise<void> {
-  throwOnError(
-    await supabase()
-      .from("hotel_responses")
-      .update({ hotel_id: hotelId } as Record<string, unknown>)
-      .eq("id", responseId)
-  );
 }

@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Offer, HotelResponse, OfferHotelSend } from "@/features/offres/types";
+import type { Offer, HotelResponse } from "@/features/offres/types";
 import type { Hotel } from "@/features/hotels/types";
 import { fetchHotels } from "@/features/hotels/api";
-import { saveOfferText, saveResponseHotel } from "@/features/documents/api";
+import {
+  OFFER_PPT_DESTINATION_MODES,
+  areOfferPptDestinationsEqual,
+  formatOfferPptDestinationLabel,
+  normalizeOfferPptDestinations,
+  resolveOfferPptDestinations,
+  type OfferPptDestinationMode,
+} from "@/features/documents/offer-ppt-destinations";
 import { buildAvailableOfferText } from "@/features/offres/utils";
 import { downloadBlob } from "@/lib/download";
 import { OfferDocumentCriteriaCards } from "./OfferDocumentCriteriaCards";
@@ -13,7 +20,13 @@ import { OfferDocumentResponseList } from "./OfferDocumentResponseList";
 type GenerateOfferDocTabProps = {
   offer: Offer;
   hotelResponses?: HotelResponse[];
-  sends?: OfferHotelSend[];
+};
+
+const DESTINATION_MODE_LABELS: Record<OfferPptDestinationMode, string> = {
+  auto: "Auto",
+  villars: "Villars",
+  diablerets: "Diablerets",
+  both: "Les deux",
 };
 
 function normalizeLangLabel(langue?: string | null) {
@@ -21,22 +34,6 @@ function normalizeLangLabel(langue?: string | null) {
   if (value.includes("en") || value.includes("anglais")) return "EN";
   if (value.includes("de") || value.includes("allemand")) return "DE";
   return "FR";
-}
-
-function normalizeDestinationLabel(destination?: string | null) {
-  const value = (destination ?? "").toLowerCase();
-  const destinations: string[] = [];
-  if (value.includes("villars")) destinations.push("VILLARS");
-  if (value.includes("diabler")) destinations.push("DIABLERETS");
-  return destinations.length ? destinations.join(", ") : "ALL";
-}
-
-function normalizeDestinationKeys(destination?: string | null) {
-  const value = (destination ?? "").toLowerCase();
-  const destinations: string[] = [];
-  if (value.includes("villars")) destinations.push("villars");
-  if (value.includes("diabler")) destinations.push("diablerets");
-  return destinations;
 }
 
 function dateToSeason(value?: string | null) {
@@ -65,82 +62,18 @@ function resolveSeasonLabels(offer: Offer) {
 export function GenerateOfferDocTab({
   offer,
   hotelResponses = [],
-  sends = [],
 }: GenerateOfferDocTabProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hotels, setHotels] = useState<Hotel[]>([]);
-  const [responseHotelIds, setResponseHotelIds] = useState<Record<string, string>>({});
-  const [responseOfferTexts, setResponseOfferTexts] = useState<Record<string, string>>({});
-  const [savingHotelIds, setSavingHotelIds] = useState<Set<string>>(new Set());
-  const [savingTextIds, setSavingTextIds] = useState<Set<string>>(new Set());
   const [excludedResponseIds, setExcludedResponseIds] = useState<Set<string>>(new Set());
+  const [destinationMode, setDestinationMode] = useState<OfferPptDestinationMode>("auto");
 
   useEffect(() => {
     fetchHotels()
       .then(setHotels)
       .catch((err) => setError(err instanceof Error ? err.message : "Impossible de charger les hôtels."));
   }, []);
-
-  useEffect(() => {
-    const sendsByHotelName = new Map(
-      sends.map((send) => [send.hotelName.trim().toLowerCase(), send.hotelId])
-    );
-    const nextHotelIds: Record<string, string> = {};
-    const nextOfferTexts: Record<string, string> = {};
-
-    for (const response of hotelResponses) {
-      if (!response.id) continue;
-      nextHotelIds[response.id] =
-        response.hotelId ??
-        responseHotelIds[response.id] ??
-        sendsByHotelName.get(response.hotelName.trim().toLowerCase()) ??
-        "";
-      nextOfferTexts[response.id] =
-        responseOfferTexts[response.id] ??
-        buildAvailableOfferText(response.offerText ?? response.message);
-    }
-
-    setResponseHotelIds(nextHotelIds);
-    setResponseOfferTexts(nextOfferTexts);
-  // Preserve local edits while refreshing from the latest response list.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hotelResponses, sends]);
-
-  const handleResponseHotelChange = async (responseId: string, hotelId: string) => {
-    setResponseHotelIds((prev) => ({
-      ...prev,
-      [responseId]: hotelId,
-    }));
-    setSavingHotelIds((prev) => new Set(prev).add(responseId));
-    try {
-      await saveResponseHotel(responseId, hotelId || null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible d'enregistrer l'association hôtel.");
-    } finally {
-      setSavingHotelIds((prev) => {
-        const next = new Set(prev);
-        next.delete(responseId);
-        return next;
-      });
-    }
-  };
-
-  const handleOfferTextBlur = async (responseId: string) => {
-    const text = responseOfferTexts[responseId] ?? "";
-    setSavingTextIds((prev) => new Set(prev).add(responseId));
-    try {
-      await saveOfferText(responseId, text);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible d'enregistrer le texte pour l'offre.");
-    } finally {
-      setSavingTextIds((prev) => {
-        const next = new Set(prev);
-        next.delete(responseId);
-        return next;
-      });
-    }
-  };
 
   const handleIncludedChange = (responseId: string, included: boolean) => {
     setExcludedResponseIds((prev) => {
@@ -151,61 +84,58 @@ export function GenerateOfferDocTab({
     });
   };
 
-  const handleOfferTextChange = (responseId: string, text: string) => {
-    setResponseOfferTexts((prev) => ({
-      ...prev,
-      [responseId]: text,
-    }));
-  };
+  const includedResponses = useMemo(
+    () =>
+      hotelResponses
+        .filter((hotelResponse) => hotelResponse.id)
+        .filter((hotelResponse) => hotelResponse.hotelId)
+        .filter((hotelResponse) => !excludedResponseIds.has(hotelResponse.id!))
+        .filter((hotelResponse) =>
+          buildAvailableOfferText(hotelResponse.offerText ?? hotelResponse.message).length > 0
+        )
+        .map((hotelResponse) => ({
+          responseId: hotelResponse.id!,
+          hotelId: hotelResponse.hotelId!,
+        })),
+    [excludedResponseIds, hotelResponses]
+  );
+
+  const hotelsById = useMemo(
+    () => new Map(hotels.map((hotel) => [hotel.id, hotel])),
+    [hotels]
+  );
+
+  const offerDestinations = useMemo(
+    () => normalizeOfferPptDestinations(offer.stationDemandee),
+    [offer.stationDemandee]
+  );
+
+  const generationDestinations = useMemo(
+    () =>
+      resolveOfferPptDestinations({
+        mode: destinationMode,
+        hotelDestinations: includedResponses.map(
+          (hotelResponse) => hotelsById.get(hotelResponse.hotelId)?.destination
+        ),
+        offerDestination: offer.stationDemandee,
+      }),
+    [destinationMode, hotelsById, includedResponses, offer.stationDemandee]
+  );
+
+  const offerDestinationLabel = formatOfferPptDestinationLabel(offerDestinations);
+  const generationDestinationLabel = formatOfferPptDestinationLabel(generationDestinations);
+  const destinationDiffers = !areOfferPptDestinationsEqual(offerDestinations, generationDestinations);
 
   const criteria = useMemo(
     () => ({
       lang: normalizeLangLabel(offer.langue),
-      destination: normalizeDestinationLabel(offer.stationDemandee),
+      offerDestination: offerDestinationLabel,
+      generationDestination: generationDestinationLabel,
       seasons: resolveSeasonLabels(offer),
       hotelsCount: hotelResponses.length,
     }),
-    [offer, hotelResponses.length]
+    [generationDestinationLabel, offer, offerDestinationLabel, hotelResponses.length]
   );
-
-  const sortedHotels = useMemo(() => {
-    const offerDestinations = normalizeDestinationKeys(offer.stationDemandee);
-
-    return [...hotels].sort((a, b) => {
-      const aDestinations = normalizeDestinationKeys(a.destination);
-      const bDestinations = normalizeDestinationKeys(b.destination);
-      const aMatches = aDestinations.some((destination) => offerDestinations.includes(destination));
-      const bMatches = bDestinations.some((destination) => offerDestinations.includes(destination));
-
-      if (aMatches !== bMatches) return aMatches ? -1 : 1;
-      const destinationCompare = (aDestinations[0] ?? "").localeCompare(bDestinations[0] ?? "", "fr", {
-        sensitivity: "base",
-      });
-      if (destinationCompare !== 0) return destinationCompare;
-      return a.nom.localeCompare(b.nom, "fr", { sensitivity: "base" });
-    });
-  }, [hotels, offer.stationDemandee]);
-
-  const includedResponseCount = useMemo(
-    () =>
-      hotelResponses.filter((hotelResponse) => {
-        if (!hotelResponse.id || excludedResponseIds.has(hotelResponse.id)) return false;
-        return buildAvailableOfferText(responseOfferTexts[hotelResponse.id]).length > 0;
-      }).length,
-    [excludedResponseIds, hotelResponses, responseOfferTexts]
-  );
-
-  const duplicateIncludedHotelIds = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const response of hotelResponses) {
-      if (!response.id || excludedResponseIds.has(response.id)) continue;
-      if (!buildAvailableOfferText(responseOfferTexts[response.id])) continue;
-      const hotelId = responseHotelIds[response.id];
-      if (!hotelId) continue;
-      counts.set(hotelId, (counts.get(hotelId) ?? 0) + 1);
-    }
-    return new Set([...counts].filter(([, count]) => count > 1).map(([hotelId]) => hotelId));
-  }, [excludedResponseIds, hotelResponses, responseHotelIds, responseOfferTexts]);
 
   const handleGenerate = async () => {
     try {
@@ -217,20 +147,8 @@ export function GenerateOfferDocTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           offerId: offer.id,
-          responseHotels: hotelResponses
-            .filter((hotelResponse) => hotelResponse.id)
-            .filter((hotelResponse) => !excludedResponseIds.has(hotelResponse.id!))
-            .map((hotelResponse) => {
-              const responseId = hotelResponse.id!;
-              return {
-                responseId,
-                hotelId: responseHotelIds[responseId] || null,
-                offerText: buildAvailableOfferText(
-                  responseOfferTexts[responseId] ?? hotelResponse.offerText ?? hotelResponse.message,
-                ),
-              };
-            })
-            .filter((hotelResponse) => hotelResponse.offerText.length > 0),
+          destinationMode,
+          responseHotels: includedResponses.map(({ responseId }) => ({ responseId })),
         }),
       });
 
@@ -272,24 +190,53 @@ export function GenerateOfferDocTab({
         </button>
       </div>
 
+      <div className="mt-5 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Destination PPT</p>
+          <p className="mt-1 text-sm font-medium text-slate-700">{generationDestinationLabel}</p>
+        </div>
+        <div
+          className="grid grid-cols-2 gap-1 rounded-lg bg-white p-1 shadow-sm sm:flex"
+          role="group"
+          aria-label="Destination PPT"
+        >
+          {OFFER_PPT_DESTINATION_MODES.map((mode) => {
+            const isSelected = destinationMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => setDestinationMode(mode)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                  isSelected
+                    ? "bg-brand-900 text-white shadow-sm"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                {DESTINATION_MODE_LABELS[mode]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {destinationDiffers && (
+        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Destination offre : {offerDestinationLabel} · PPT : {generationDestinationLabel}
+        </p>
+      )}
+
       <OfferDocumentCriteriaCards
         criteria={criteria}
-        includedResponseCount={includedResponseCount}
+        includedResponseCount={includedResponses.length}
       />
 
       <OfferDocumentResponseList
         hotelResponses={hotelResponses}
-        responseHotelIds={responseHotelIds}
-        responseOfferTexts={responseOfferTexts}
-        sortedHotels={sortedHotels}
+        hotelsById={hotelsById}
         excludedResponseIds={excludedResponseIds}
-        duplicateIncludedHotelIds={duplicateIncludedHotelIds}
-        savingHotelIds={savingHotelIds}
-        savingTextIds={savingTextIds}
-        onHotelChange={(responseId, hotelId) => void handleResponseHotelChange(responseId, hotelId)}
         onIncludedChange={handleIncludedChange}
-        onOfferTextChange={handleOfferTextChange}
-        onOfferTextBlur={(responseId) => void handleOfferTextBlur(responseId)}
       />
 
       {error && (

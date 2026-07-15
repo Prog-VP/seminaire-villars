@@ -7,7 +7,7 @@ type OfferDetailTabsProps = {
   activeTab: OfferDetailTab;
   activeSection: SubGroupKey;
   isEditing: boolean;
-  attachmentBadgeCount: number;
+  attachmentBadgeCount: number | null;
   commentsCount: number;
   onTabChange: (tab: OfferDetailTab) => void;
   onSectionChange: (section: SubGroupKey) => void;
@@ -108,7 +108,7 @@ function OfferDetailTabButton({
       }`}
     >
       {label}
-      {badge ? (
+      {badge !== null ? (
         <span
           className={`ml-1 inline-flex min-w-[1.1rem] items-center justify-center rounded-full px-1 py-0.5 text-[10px] font-semibold leading-none ${
             isActive
@@ -129,11 +129,11 @@ function OfferDetailTabButton({
 function getTabBadge(
   tabKey: OfferDetailTab,
   offer: Offer,
-  attachmentBadgeCount: number,
+  attachmentBadgeCount: number | null,
   commentsCount: number,
 ) {
   if (tabKey === "responses") return offer.hotelResponses?.length || null;
-  if (tabKey === "attachments") return attachmentBadgeCount || null;
-  if (tabKey === "comments") return commentsCount || null;
+  if (tabKey === "attachments") return attachmentBadgeCount;
+  if (tabKey === "comments") return commentsCount;
   return null;
 }

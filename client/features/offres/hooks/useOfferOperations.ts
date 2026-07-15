@@ -100,6 +100,9 @@ export function useOfferOperations({
         latest = await uploadOfferAttachment(currentOffer.id, file);
       }
       setAttachments(latest);
+      setCurrentOffer((prev) =>
+        prev ? { ...prev, attachmentsCount: latest.length } : prev
+      );
       setMessage({ type: "success", text: "Document(s) ajouté(s)." });
     } catch (error) {
       setMessage({
@@ -117,6 +120,9 @@ export function useOfferOperations({
       setIsLoadingAttachments(true);
       const data = await deleteOfferAttachment(currentOffer.id, attachmentId);
       setAttachments(data);
+      setCurrentOffer((prev) =>
+        prev ? { ...prev, attachmentsCount: data.length } : prev
+      );
       setMessage({ type: "success", text: "Annexe supprimée." });
     } catch (error) {
       setMessage({
@@ -189,6 +195,7 @@ export function useOfferOperations({
     responseId: string,
     payload: {
       hotelName: string;
+      hotelId?: string | null;
       respondentName?: string;
       message: string;
       offerText?: string | null;
