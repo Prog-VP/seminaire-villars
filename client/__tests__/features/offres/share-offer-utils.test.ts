@@ -73,15 +73,7 @@ describe("detectLang", () => {
 // ---------------------------------------------------------------------------
 
 describe("isTemplateValid", () => {
-  const baseDateResponse = {
-    dateFrom: "", dateTo: "",
-    roomsSimple: "", roomsDouble: "",
-    priceSimpleChf: "", priceDoubleChf: "",
-    demiPensionChf: "", pensionCompleteChf: "",
-    forfaitJourneeChf: "", forfaitDemiJourneeChf: "",
-    taxeChf: "", taxeIncluse: false, commentaire: "",
-    disponible: false,
-  };
+  const baseDateResponse = { ...createDateOptionResponse("", ""), disponible: false };
 
   it("returns true when at least one date is disponible", () => {
     const state: TemplateState = {
@@ -116,6 +108,9 @@ describe("buildTemplateMessage", () => {
   const baseOpts = {
     showSimple: false,
     showDouble: false,
+    showAutre: false,
+    autreLabel: null,
+    requestedRooms: {},
     showSeminaire: false,
     showJournee: false,
     showDemiJournee: false,
