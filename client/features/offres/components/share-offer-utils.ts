@@ -244,7 +244,10 @@ export function buildTemplateMessage(state: TemplateState, lang: Lang, rate: num
 // ---------------------------------------------------------------------------
 
 export function isTemplateValid(state: TemplateState): boolean {
-  return state.dateResponses.some((d) => d.disponible);
+  // Une réponse est valide dès qu'il existe au moins une option de date :
+  // soit l'hôtel indique une disponibilité, soit il coche « Fermé / Pas de
+  // disponibilité », auquel cas le message généré signale l'absence de dispo.
+  return state.dateResponses.length > 0;
 }
 
 // ---------------------------------------------------------------------------

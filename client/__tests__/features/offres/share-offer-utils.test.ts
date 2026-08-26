@@ -91,7 +91,7 @@ describe("isTemplateValid", () => {
     expect(isTemplateValid(state)).toBe(true);
   });
 
-  it("returns false when all dates are closed", () => {
+  it("returns true when all dates are closed (hotel sans disponibilité)", () => {
     const state: TemplateState = {
       dateResponses: [
         { ...baseDateResponse, disponible: false },
@@ -99,7 +99,7 @@ describe("isTemplateValid", () => {
       ],
       commentaireGeneral: "",
     };
-    expect(isTemplateValid(state)).toBe(false);
+    expect(isTemplateValid(state)).toBe(true);
   });
 
   it("returns false for empty responses", () => {
