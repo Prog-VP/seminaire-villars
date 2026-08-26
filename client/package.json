@@ -15,7 +15,7 @@
     "@supabase/supabase-js": "^2.106.2",
     "html-to-image": "^1.11.13",
     "jszip": "^3.10.1",
-    "next": "^16.2.6",
+    "next": "^16.3.3",
     "nodemailer": "^9.0.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
@@ -24,9 +24,9 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "overrides": {
-    "minimatch": "10.2.5",
-    "brace-expansion": "5.0.6",
-    "postcss": "8.5.15"
+    "minimatch": "^10.2.6",
+    "brace-expansion": "^5.0.9",
+    "postcss": "^8.5.26"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.0",
@@ -36,7 +36,7 @@
     "@types/react-dom": "^19",
     "@types/ws": "^8.18.1",
     "eslint": "^9",
-    "eslint-config-next": "16.0.3",
+    "eslint-config-next": "^16.3.3",
     "tailwindcss": "^4.3.0",
     "typescript": "^5",
     "vitest": "^4.1.8"
