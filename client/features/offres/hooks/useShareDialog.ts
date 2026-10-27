@@ -42,58 +42,62 @@ export function useShareDialog(offer: Offer, onClose: () => void, onTokenCreated
   const [linkCopied, setLinkCopied] = useState(false);
 
   // Load data on mount
-  const loadData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  const fetchData = useCallback(async () => {
+    const supabase = createClient();
+    const [hotelList, sendList, templateConfig] = await Promise.all([
+      fetchHotels(),
+      fetchOfferHotelSends(offer.id),
+      supabase
+        .from("app_config")
+        .select("key, value")
+        .in("key", [
+          SHARE_EMAIL_TEMPLATE_KEYS.subject,
+          SHARE_EMAIL_TEMPLATE_KEYS.body,
+        ]),
+    ]);
 
-      const supabase = createClient();
-      const [hotelList, sendList, templateConfig] = await Promise.all([
-        fetchHotels(),
-        fetchOfferHotelSends(offer.id),
-        supabase
-          .from("app_config")
-          .select("key, value")
-          .in("key", [
-            SHARE_EMAIL_TEMPLATE_KEYS.subject,
-            SHARE_EMAIL_TEMPLATE_KEYS.body,
-          ]),
-      ]);
-
-      setHotels(hotelList);
-      setSends(sendList);
-      if (templateConfig.data) {
-        const values = new Map(
-          templateConfig.data.map((row) => [row.key as string, row.value as string])
-        );
-        setEmailTemplate(normalizeShareEmailTemplate({
-          subject:
-            values.get(SHARE_EMAIL_TEMPLATE_KEYS.subject) ??
-            DEFAULT_SHARE_EMAIL_TEMPLATE.subject,
-          body:
-            values.get(SHARE_EMAIL_TEMPLATE_KEYS.body) ??
-            DEFAULT_SHARE_EMAIL_TEMPLATE.body,
-        }));
-      }
-
-      // Generate or reuse share link
-      if (offer.shareToken) {
-        setShareUrl(`${window.location.origin}/partage/offres/${offer.shareToken}`);
-      } else {
-        const { shareUrl: url, token } = await createShareLink(offer.id);
-        setShareUrl(url);
-        onTokenCreated?.(token);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur de chargement.");
-    } finally {
-      setIsLoading(false);
+    let template: ShareEmailTemplate | null = null;
+    if (templateConfig.data) {
+      const values = new Map(
+        templateConfig.data.map((row) => [row.key as string, row.value as string])
+      );
+      template = normalizeShareEmailTemplate({
+        subject:
+          values.get(SHARE_EMAIL_TEMPLATE_KEYS.subject) ??
+          DEFAULT_SHARE_EMAIL_TEMPLATE.subject,
+        body:
+          values.get(SHARE_EMAIL_TEMPLATE_KEYS.body) ??
+          DEFAULT_SHARE_EMAIL_TEMPLATE.body,
+      });
     }
+
+    // Generate or reuse share link
+    let url: string;
+    if (offer.shareToken) {
+      url = `${window.location.origin}/partage/offres/${offer.shareToken}`;
+    } else {
+      const created = await createShareLink(offer.id);
+      url = created.shareUrl;
+      onTokenCreated?.(created.token);
+    }
+
+    return { hotelList, sendList, template, url };
   }, [offer.id, offer.shareToken, onTokenCreated]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    fetchData()
+      .then(({ hotelList, sendList, template, url }) => {
+        setHotels(hotelList);
+        setSends(sendList);
+        if (template) setEmailTemplate(template);
+        setShareUrl(url);
+        setError(null);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Erreur de chargement.");
+      })
+      .finally(() => setIsLoading(false));
+  }, [fetchData]);
 
   // Escape key
   useEffect(() => {

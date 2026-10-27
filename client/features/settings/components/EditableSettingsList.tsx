@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import type { SettingType, SettingValue } from "../types";
 import { useSettings } from "../context";
@@ -145,10 +145,12 @@ function SettingListItem({
   const [status, setStatus] = useState<"idle" | "saving" | "deleting">("idle");
   const showColor = type === "statut";
 
-  useEffect(() => {
+  const [prevItem, setPrevItem] = useState({ label: item.label, color: item.color });
+  if (item.label !== prevItem.label || item.color !== prevItem.color) {
+    setPrevItem({ label: item.label, color: item.color });
     setValue(item.label);
     setColor(item.color ?? "");
-  }, [item.label, item.color]);
+  }
 
   const handleSave = async () => {
     if (!value.trim()) {

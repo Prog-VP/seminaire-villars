@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   fetchBrochureTemplates,
   updateBrochureTemplate,
@@ -25,27 +25,20 @@ export default function BrochureSettingsPage() {
     text: string;
   } | null>(null);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await fetchBrochureTemplates();
-      setTemplates(data);
-    } catch (err) {
-      setMessage({
-        type: "error",
-        text:
-          err instanceof Error
-            ? err.message
-            : "Impossible de charger les modèles.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    fetchBrochureTemplates()
+      .then(setTemplates)
+      .catch((err) => {
+        setMessage({
+          type: "error",
+          text:
+            err instanceof Error
+              ? err.message
+              : "Impossible de charger les modèles.",
+        });
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const selected = templates.find((t) => t.id === selectedId);
 

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { downloadUrl } from "@/lib/download";
 import { MASTER_POWERPOINT_LANGS } from "./types";
 import type { DocumentBlock, MasterPowerPointLang, MasterPowerPointMap } from "./types";
 
@@ -107,5 +108,5 @@ export async function deleteMasterPowerPoint(lang: MasterPowerPointLang): Promis
 
 export async function downloadMasterPowerPoint(lang: MasterPowerPointLang): Promise<void> {
   const params = new URLSearchParams({ download: "1", lang });
-  window.location.assign(`/api/document-master-ppt?${params.toString()}`);
+  downloadUrl(`/api/document-master-ppt?${params.toString()}`);
 }

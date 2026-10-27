@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import type { Hotel } from "../types";
 import { countOffersUsingHotel } from "../api";
@@ -36,13 +36,16 @@ export function HotelRow({
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "deleting">("idle");
 
-  useEffect(() => {
+  const hotelFields = [hotel.nom, hotel.email, hotel.email_cc, hotel.destination, hotel.ppt_tag].join("\u0000");
+  const [prevHotelFields, setPrevHotelFields] = useState(hotelFields);
+  if (hotelFields !== prevHotelFields) {
+    setPrevHotelFields(hotelFields);
     setNom(hotel.nom);
     setEmail(hotel.email ?? "");
     setEmailCc(hotel.email_cc ?? "");
     setDestination(hotel.destination ?? "");
     setPptTag(hotel.ppt_tag ?? "");
-  }, [hotel.nom, hotel.email, hotel.email_cc, hotel.destination, hotel.ppt_tag]);
+  }
 
   const handleSave = async () => {
     if (!nom.trim()) {

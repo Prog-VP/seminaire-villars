@@ -43,30 +43,34 @@ const SettingsContext = createContext<SettingsContextValue | undefined>(
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<SettingsMap>(EMPTY_SETTINGS_MAP);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const load = useCallback(
+    () =>
+      fetchSettings()
+        .then((data) => {
+          setSettings(data);
+          setHasLoaded(true);
+          setError(null);
+        })
+        .catch((err) => {
+          setError(
+            err instanceof Error ? err.message : "Impossible de charger les réglages."
+          );
+        })
+        .finally(() => setIsLoading(false)),
+    []
+  );
+
   const refresh = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const data = await fetchSettings();
-      setSettings(data);
-      setHasLoaded(true);
-      setError(null);
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Impossible de charger les réglages.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    setIsLoading(true);
+    await load();
+  }, [load]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void load();
+  }, [load]);
 
   const addValue = useCallback(async (type: SettingType, label: string) => {
     const created = await createSettingValue(type, label);

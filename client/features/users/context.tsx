@@ -33,20 +33,6 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
   const [favoriteFilters, setFavoriteFilters] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const profile = await fetchMyProfile();
-      setRole(profile.role);
-      setNom(profile.nom);
-      setPrenom(profile.prenom);
-      setFavoriteFilters(profile.favoriteFilters);
-    } catch {
-      setRole("standard");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   const toggleFavoriteFilter = useCallback(
     (filterKey: string) => {
@@ -62,8 +48,16 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    fetchMyProfile()
+      .then((profile) => {
+        setRole(profile.role);
+        setNom(profile.nom);
+        setPrenom(profile.prenom);
+        setFavoriteFilters(profile.favoriteFilters);
+      })
+      .catch(() => setRole("standard"))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const value = useMemo(
     () => ({ role, isAdmin: role === "admin", isLoading, nom, prenom, favoriteFilters, toggleFavoriteFilter }),

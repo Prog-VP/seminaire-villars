@@ -23,24 +23,21 @@ export function HotelsPage() {
   const [destinationFilter, setDestinationFilter] = useState<string | null>(null);
   const { options: settingsOptions } = useSettings();
 
-  const load = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const [hotelsData, counts] = await Promise.all([
-        fetchHotels(),
-        countOffersPerHotel(),
-      ]);
-      setHotels(hotelsData);
-      setOfferCounts(counts);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Impossible de charger les hôtels."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const load = useCallback(
+    () =>
+      Promise.all([fetchHotels(), countOffersPerHotel()])
+        .then(([hotelsData, counts]) => {
+          setHotels(hotelsData);
+          setOfferCounts(counts);
+        })
+        .catch((err) => {
+          setError(
+            err instanceof Error ? err.message : "Impossible de charger les hôtels."
+          );
+        })
+        .finally(() => setIsLoading(false)),
+    []
+  );
 
   useEffect(() => {
     void load();

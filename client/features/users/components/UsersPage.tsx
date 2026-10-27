@@ -15,28 +15,30 @@ export function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>();
 
+  const fetchUsers = useCallback(
+    () =>
+      fetchUsersWithRoles()
+        .then((data) => {
+          setUsers(data);
+          setError(null);
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : "Impossible de charger les utilisateurs.");
+        })
+        .finally(() => setIsLoading(false)),
+    []
+  );
+
   const loadUsers = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await fetchUsersWithRoles();
-      setUsers(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de charger les utilisateurs.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    setIsLoading(true);
+    setError(null);
+    await fetchUsers();
+  }, [fetchUsers]);
 
   useEffect(() => {
-    if (isRoleLoading) return;
-    if (!isAdmin) {
-      setUsers([]);
-      setIsLoading(false);
-      return;
-    }
-    void loadUsers();
-  }, [isAdmin, isRoleLoading, loadUsers]);
+    if (isRoleLoading || !isAdmin) return;
+    void fetchUsers();
+  }, [isAdmin, isRoleLoading, fetchUsers]);
 
   useEffect(() => {
     if (!isAdmin) return;

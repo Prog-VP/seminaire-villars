@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { DocumentBlock, MasterPowerPointLang, MasterPowerPointMap } from "../types";
 import { MASTER_POWERPOINT_LANGS } from "../types";
 import {
@@ -34,21 +34,14 @@ export function DocumentBlocksPage() {
   const [deletingLang, setDeletingLang] = useState<MasterPowerPointLang | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      setMasters(await fetchMasterPowerPoints());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de charger les documents MASTER.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    fetchMasterPowerPoints()
+      .then(setMasters)
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Impossible de charger les documents MASTER.");
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const handleUpload = async (
     event: React.FormEvent<HTMLFormElement>,

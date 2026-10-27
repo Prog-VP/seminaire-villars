@@ -29,9 +29,11 @@ export function useTabData<T>({
   const [isLoading, setIsLoading] = useState(false);
 
   const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
   const fetchFnRef = useRef(fetchFn);
-  fetchFnRef.current = fetchFn;
+  useEffect(() => {
+    onErrorRef.current = onError;
+    fetchFnRef.current = fetchFn;
+  });
 
   const reload = useCallback(async () => {
     const fn = fetchFnRef.current;
@@ -50,6 +52,9 @@ export function useTabData<T>({
 
   useEffect(() => {
     if (triggerWhen && !isLoaded) {
+      // Chargement paresseux déclenché par l'ouverture de l'onglet : l'indicateur
+      // isLoading doit passer à true immédiatement.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       reload();
     }
   }, [triggerWhen, isLoaded, reload]);
